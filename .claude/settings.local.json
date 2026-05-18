@@ -9,7 +9,9 @@
       "Bash(php artisan *)",
       "Bash(npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git)",
       "Bash(npm install *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(find c:\\\\\\\\xampp\\\\\\\\htdocs\\\\\\\\postone-finance -type f -name \"*.sql\")",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\xampp\\\\htdocs\\\\postone-finance\" -File | Where-Object { $_.Extension -in @\\('.sql', '.dump', '.bak'\\) })"
     ]
   }
 }

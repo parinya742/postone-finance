@@ -17,10 +17,10 @@ const pageTitles: Record<string, string> = {
   '/admin/settings': 'ตั้งค่าระบบ',
   '/admin/account-types': 'Account Types',
   '/admin/sessions': 'Postone Sessions',
-  '/admin/shipments': 'Shipments',
-  '/admin/line-files': 'LINE Group Files',
+  '/admin/shipments': 'Postone Shipments Sync ',
+  '/admin/line-files': 'Header Files Import',
   '/admin/line-extracted': 'Extracted Files',
-  '/admin/thaipost': 'ไปรษณีย์ไทย',
+  '/admin/thaipost': 'Files Data',
 }
 
 export default function Header({ onMenuToggle }: HeaderProps) {

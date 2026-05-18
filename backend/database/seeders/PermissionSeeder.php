@@ -21,7 +21,7 @@ class PermissionSeeder extends Seeder
             'account-types' => ['view', 'create', 'edit', 'delete'],
             'sessions'      => ['view', 'delete'],
             'shipments'     => ['view'],
-            'line-files'    => ['view'],
+            'line-files'    => ['view', 'create'],
             'thaipost'      => ['view'],
         ];
 

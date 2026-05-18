@@ -54,7 +54,7 @@ export default function ShipmentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Postone Shipments</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Postone Shipments Sync</h1>
         <p className="text-slate-500 text-sm mt-1">ทั้งหมด {data?.total ?? 0} รายการ</p>
       </div>
 

@@ -46,7 +46,7 @@ export default function LineExtractedPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Extracted Files</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Extracted Header Files</h1>
         <p className="text-slate-500 text-sm mt-1">ทั้งหมด {data?.total ?? 0} ไฟล์</p>
       </div>
 

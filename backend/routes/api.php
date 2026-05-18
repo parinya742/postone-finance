@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
 use App\Http\Controllers\Api\LineGroupFileController;
+use App\Http\Controllers\Api\ThaipostImportController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PostoneAccountTypeController;
 use App\Http\Controllers\Api\PostoneSessionController;
@@ -84,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/line-files', [LineGroupFileController::class, 'index']);
         Route::get('/line-extracted', [LineGroupExtractedFileController::class, 'index']);
     });
+    Route::middleware('permission:line-files.create')->post('/line-files/import', [ThaipostImportController::class, 'store']);
 
     // === Thailand Post Acceptance ===
     Route::middleware('permission:thaipost.view')->group(function () {

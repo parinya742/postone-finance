@@ -41,10 +41,10 @@ const navGroups = [
     items: [
       { href: '/admin/account-types', label: 'Account Types', icon: Tag, permission: 'account-types.view', exact: false },
       { href: '/admin/sessions', label: 'Sessions', icon: Activity, permission: 'sessions.view', exact: false },
-      { href: '/admin/shipments', label: 'Shipments', icon: Package, permission: 'shipments.view', exact: false },
-      { href: '/admin/line-files', label: 'LINE Files', icon: FileArchive, permission: 'line-files.view', exact: false },
+      { href: '/admin/shipments', label: 'Postone Shipments Sync', icon: Package, permission: 'shipments.view', exact: false },
+      { href: '/admin/line-files', label: 'Files Import', icon: FileArchive, permission: 'line-files.view', exact: false },
       { href: '/admin/line-extracted', label: 'Extracted Files', icon: FileText, permission: 'line-files.view', exact: false },
-      { href: '/admin/thaipost', label: 'ไปรษณีย์ไทย', icon: Truck, permission: 'thaipost.view', exact: false },
+      { href: '/admin/thaipost', label: 'Files Data', icon: Truck, permission: 'thaipost.view', exact: false },
     ],
   },
 ]

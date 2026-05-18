@@ -96,7 +96,17 @@ export interface LineGroupFile {
   created_at: string | null
   file_extension: string | null
   content_type: string | null
+  source_type: string | null
   extracted_files_count?: number
+}
+
+export interface ImportResult {
+  message: string
+  file_id: number
+  inserted: number
+  updated: number
+  skipped: number
+  errors: string[]
 }
 
 export interface LineGroupExtractedFile {
@@ -114,7 +124,9 @@ export interface LineGroupExtractedFile {
 export interface ThailandPostAcceptance {
   id: number
   source_file: string | null
+  parent_file_id: number | null
   import_batch_id: string | null
+  imported_by: number | null
   imported_at: string | null
   office_code: string | null
   office_name: string | null

@@ -9,6 +9,7 @@ class ThailandPostAcceptance extends Model
     protected $connection = 'n8n';
     protected $table = 'thailand_post_acceptance';
     public $timestamps = false;
+    protected $guarded = [];
 
     protected $casts = [
         'imported_at' => 'datetime',
