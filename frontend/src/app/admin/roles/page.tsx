@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import RoleFormModal from '@/components/rbac/RoleFormModal'
 
 export default function RolesPage() {
-  const { can } = useAuth()
+  const { can, hasRole } = useAuth()
   const qc = useQueryClient()
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -80,7 +80,7 @@ export default function RolesPage() {
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  {can('roles.edit') && !role.is_system && (
+                  {can('roles.edit') && (!role.is_system || hasRole('super_admin')) && (
                     <button
                       onClick={() => { setEditingRole(role); setShowForm(true) }}
                       className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded transition-colors"

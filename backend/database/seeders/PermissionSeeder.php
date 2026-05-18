@@ -10,14 +10,19 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         $modules = [
-            'users'       => ['view', 'create', 'edit', 'delete', 'export'],
-            'roles'       => ['view', 'create', 'edit', 'delete'],
-            'permissions' => ['view', 'create', 'edit', 'delete'],
-            'finance'     => ['view', 'create', 'edit', 'delete', 'export', 'approve'],
-            'reports'     => ['view', 'export'],
-            'settings'    => ['view', 'edit'],
-            'audit_logs'  => ['view', 'export'],
-            'dashboard'   => ['view'],
+            'users'         => ['view', 'create', 'edit', 'delete', 'export'],
+            'roles'         => ['view', 'create', 'edit', 'delete'],
+            'permissions'   => ['view', 'create', 'edit', 'delete'],
+            'finance'       => ['view', 'create', 'edit', 'delete', 'export', 'approve'],
+            'reports'       => ['view', 'export'],
+            'settings'      => ['view', 'edit'],
+            'audit_logs'    => ['view', 'export'],
+            'dashboard'     => ['view'],
+            'account-types' => ['view', 'create', 'edit', 'delete'],
+            'sessions'      => ['view', 'delete'],
+            'shipments'     => ['view'],
+            'line-files'    => ['view'],
+            'thaipost'      => ['view'],
         ];
 
         $labelMap = [

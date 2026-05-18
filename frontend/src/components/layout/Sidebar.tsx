@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X, Building2,
+  Tag, Activity, Package, FileArchive, FileText, Truck,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -33,6 +34,17 @@ const navGroups = [
     label: 'ระบบ',
     items: [
       { href: '/admin/settings', label: 'ตั้งค่า', icon: Settings, permission: 'settings.view', exact: false },
+    ],
+  },
+  {
+    label: 'Postone Data',
+    items: [
+      { href: '/admin/account-types', label: 'Account Types', icon: Tag, permission: 'account-types.view', exact: false },
+      { href: '/admin/sessions', label: 'Sessions', icon: Activity, permission: 'sessions.view', exact: false },
+      { href: '/admin/shipments', label: 'Shipments', icon: Package, permission: 'shipments.view', exact: false },
+      { href: '/admin/line-files', label: 'LINE Files', icon: FileArchive, permission: 'line-files.view', exact: false },
+      { href: '/admin/line-extracted', label: 'Extracted Files', icon: FileText, permission: 'line-files.view', exact: false },
+      { href: '/admin/thaipost', label: 'ไปรษณีย์ไทย', icon: Truck, permission: 'thaipost.view', exact: false },
     ],
   },
 ]

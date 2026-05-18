@@ -1,0 +1,150 @@
+'use client'
+
+import api from '@/lib/api'
+import { PostoneSession, PaginatedResponse } from '@/lib/types'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Search, Lock, Trash2, Activity, Circle } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import clsx from 'clsx'
+
+const STATUS_COLORS: Record<string, string> = {
+  active: 'bg-green-100 text-green-700',
+  inactive: 'bg-slate-100 text-slate-500',
+}
+
+function fmtDate(d: string | null) {
+  if (!d) return '—'
+  return new Date(d).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+export default function SessionsPage() {
+  const { can } = useAuth()
+  const qc = useQueryClient()
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
+
+  const { data, isLoading } = useQuery<PaginatedResponse<PostoneSession>>({
+    queryKey: ['postone-sessions', search, statusFilter, page],
+    queryFn: () =>
+      api.get('/postone-sessions', { params: { search, status: statusFilter, page, per_page: 20 } }).then((r) => r.data),
+    enabled: can('sessions.view'),
+  })
+
+  const deleteSession = useMutation({
+    mutationFn: (id: number) => api.delete(`/postone-sessions/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['postone-sessions'] }),
+  })
+
+  if (!can('sessions.view')) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+        <Lock className="w-12 h-12 mb-3" />
+        <p className="font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+      </div>
+    )
+  }
+
+  const items = data?.data ?? []
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Postone Sessions</h1>
+          <p className="text-slate-500 text-sm mt-1">ทั้งหมด {data?.total ?? 0} sessions</p>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            placeholder="ค้นหา username..."
+            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">ทุกสถานะ</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="text-left px-5 py-3 font-medium text-slate-600">Username</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600">UID</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600">สถานะ</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600">เข้าสู่ระบบ</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600">ใช้งานล่าสุด</th>
+              <th className="px-5 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {isLoading ? (
+              [...Array(5)].map((_, i) => (
+                <tr key={i}>
+                  {[...Array(6)].map((_, j) => (
+                    <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>
+                  ))}
+                </tr>
+              ))
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
+                  <Activity className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  ไม่พบข้อมูล
+                </td>
+              </tr>
+            ) : (
+              items.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-5 py-4 font-medium text-slate-800">{item.username}</td>
+                  <td className="px-5 py-4 text-slate-500 font-mono text-xs">{item.postone_uid ?? '—'}</td>
+                  <td className="px-5 py-4">
+                    <span className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium', STATUS_COLORS[item.status] ?? 'bg-slate-100 text-slate-500')}>
+                      <Circle className="w-1.5 h-1.5 fill-current" />
+                      {item.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-slate-500 text-xs">{fmtDate(item.login_at)}</td>
+                  <td className="px-5 py-4 text-slate-500 text-xs">{fmtDate(item.last_used_at)}</td>
+                  <td className="px-5 py-4">
+                    {can('sessions.delete') && (
+                      <button
+                        onClick={() => { if (confirm(`ลบ session ของ "${item.username}"?`)) deleteSession.mutate(item.id) }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {data && data.last_page > 1 && (
+          <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
+            <span>หน้า {data.current_page} จาก {data.last_page}</span>
+            <div className="flex gap-2">
+              <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ก่อนหน้า</button>
+              <button disabled={page === data.last_page} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ถัดไป</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

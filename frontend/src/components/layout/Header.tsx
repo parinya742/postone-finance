@@ -15,6 +15,12 @@ const pageTitles: Record<string, string> = {
   '/admin/roles': 'จัดการ Roles',
   '/admin/permissions': 'จัดการ Permissions',
   '/admin/settings': 'ตั้งค่าระบบ',
+  '/admin/account-types': 'Account Types',
+  '/admin/sessions': 'Postone Sessions',
+  '/admin/shipments': 'Shipments',
+  '/admin/line-files': 'LINE Group Files',
+  '/admin/line-extracted': 'Extracted Files',
+  '/admin/thaipost': 'ไปรษณีย์ไทย',
 }
 
 export default function Header({ onMenuToggle }: HeaderProps) {

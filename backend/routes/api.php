@@ -1,8 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\LineGroupExtractedFileController;
+use App\Http\Controllers\Api\LineGroupFileController;
 use App\Http\Controllers\Api\PermissionController;
+use App\Http\Controllers\Api\PostoneAccountTypeController;
+use App\Http\Controllers\Api\PostoneSessionController;
+use App\Http\Controllers\Api\PostoneShipmentController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\ThailandPostAcceptanceController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,4 +59,35 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/users/{user}/roles/{role}', [UserController::class, 'revokeRole']);
     });
     Route::middleware('permission:users.delete')->delete('/users/{user}', [UserController::class, 'destroy']);
+
+    // === Postone Account Types (CRUD) ===
+    Route::middleware('permission:account-types.view')->group(function () {
+        Route::get('/account-types', [PostoneAccountTypeController::class, 'index']);
+        Route::get('/account-types/{postoneAccountType}', [PostoneAccountTypeController::class, 'show']);
+    });
+    Route::middleware('permission:account-types.create')->post('/account-types', [PostoneAccountTypeController::class, 'store']);
+    Route::middleware('permission:account-types.edit')->put('/account-types/{postoneAccountType}', [PostoneAccountTypeController::class, 'update']);
+    Route::middleware('permission:account-types.delete')->delete('/account-types/{postoneAccountType}', [PostoneAccountTypeController::class, 'destroy']);
+
+    // === Postone Sessions ===
+    Route::middleware('permission:sessions.view')->get('/postone-sessions', [PostoneSessionController::class, 'index']);
+    Route::middleware('permission:sessions.delete')->delete('/postone-sessions/{postoneSession}', [PostoneSessionController::class, 'destroy']);
+
+    // === Postone Shipments ===
+    Route::middleware('permission:shipments.view')->group(function () {
+        Route::get('/shipments', [PostoneShipmentController::class, 'index']);
+        Route::get('/shipments/{labelId}', [PostoneShipmentController::class, 'show']);
+    });
+
+    // === LINE Group Files ===
+    Route::middleware('permission:line-files.view')->group(function () {
+        Route::get('/line-files', [LineGroupFileController::class, 'index']);
+        Route::get('/line-extracted', [LineGroupExtractedFileController::class, 'index']);
+    });
+
+    // === Thailand Post Acceptance ===
+    Route::middleware('permission:thaipost.view')->group(function () {
+        Route::get('/thaipost', [ThailandPostAcceptanceController::class, 'index']);
+        Route::get('/thaipost/{id}', [ThailandPostAcceptanceController::class, 'show']);
+    });
 });
