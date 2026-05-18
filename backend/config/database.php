@@ -99,6 +99,20 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        'n8n' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST_N8N', '127.0.0.1'),
+            'port' => env('DB_PORT_N8N', '5432'),
+            'database' => env('DB_DATABASE_N8N', 'n8n_database'),
+            'username' => env('DB_USERNAME_N8N', 'root'),
+            'password' => env('DB_PASSWORD_N8N', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
@@ -112,6 +126,20 @@ return [
             'prefix_indexes' => true,
             // 'encrypt' => env('DB_ENCRYPT', 'yes'),
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
+        ],
+
+        'iscodeselect' => [
+            'driver' => 'sqlsrv',
+            'host' => env('DB_HOST_ISCODE', 'database-2.ctuqbcneumgf.ap-southeast-1.rds.amazonaws.com'),
+            'port' => env('DB_PORT_ISCODE', '1433'),
+            'database' => env('DB_DATABASE_ISCODE', 'master'),
+            'username' => env('DB_USERNAME_ISCODE', 'pumpkinuserdev3'),
+            'password' => env('DB_PASSWORD_ISCODE', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'encrypt' => env('DB_ENCRYPT_ISCODE', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE_ISCODE', 'false'),
         ],
 
     ],
