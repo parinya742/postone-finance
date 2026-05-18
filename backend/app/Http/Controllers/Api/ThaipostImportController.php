@@ -7,6 +7,7 @@ use App\Models\LineGroupFile;
 use App\Models\ThailandPostAcceptance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
@@ -57,10 +58,25 @@ class ThaipostImportController extends Controller
         ]);
 
         $uploadedFile = $request->file('file');
+
+        $fileUrl = null;
+        try {
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $s3 */
+            $s3 = Storage::disk('s3');
+            $s3Path = 'thaipost-imports/' . date('Y/m') . '/' . uniqid() . '_' . $uploadedFile->getClientOriginalName();
+            if ($s3->put($s3Path, file_get_contents($uploadedFile->getRealPath()))) {
+                $fileUrl = $s3->url($s3Path);
+            }
+        } catch (\Throwable) {
+            // S3 upload failed — continue without file_url
+        }
+
         $lineFile = LineGroupFile::create([
             'original_file_name' => $uploadedFile->getClientOriginalName(),
             'file_extension'     => strtolower($uploadedFile->getClientOriginalExtension()),
+            'content_type'       => $uploadedFile->getMimeType(),
             'source_type'        => 'excel_upload',
+            'file_url'           => $fileUrl,
             'imported_by'        => auth()->id(),
             'created_at'         => now(),
         ]);
