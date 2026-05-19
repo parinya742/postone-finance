@@ -11,7 +11,8 @@
       "Bash(npm install *)",
       "Bash(npx tsc *)",
       "Bash(find c:\\\\\\\\xampp\\\\\\\\htdocs\\\\\\\\postone-finance -type f -name \"*.sql\")",
-      "PowerShell(Get-ChildItem -Path \"c:\\\\xampp\\\\htdocs\\\\postone-finance\" -File | Where-Object { $_.Extension -in @\\('.sql', '.dump', '.bak'\\) })"
+      "PowerShell(Get-ChildItem -Path \"c:\\\\xampp\\\\htdocs\\\\postone-finance\" -File | Where-Object { $_.Extension -in @\\('.sql', '.dump', '.bak'\\) })",
+      "Bash(grep \"\\\\.php$\")"
     ]
   }
 }

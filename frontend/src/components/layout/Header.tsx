@@ -18,7 +18,7 @@ const pageTitles: Record<string, string> = {
   '/admin/account-types': 'Account Types',
   '/admin/sessions': 'Postone Sessions',
   '/admin/shipments': 'Postone Shipments Sync ',
-  '/admin/line-files': 'Header Files Import',
+  '/admin/line-files': 'Files Import',
   '/admin/line-extracted': 'Extracted Files',
   '/admin/thaipost': 'Files Data',
 }

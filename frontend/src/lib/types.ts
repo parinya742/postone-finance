@@ -121,6 +121,41 @@ export interface LineGroupExtractedFile {
   parent_file?: LineGroupFile
 }
 
+export interface ShipmentAcceptanceJoin {
+  label_id: string
+  customer_name: string | null
+  product_details: string | null
+  pi_number: string | null
+  so_number: string | null
+  ps_cod_amount: string | null
+  shipping_by: string | null
+  shipping_cost: string | null
+  tracking_no: string | null
+  due_date: string | null
+  latest_status: string | null
+  // Thailand Post fields (null when unmatched)
+  office_code: string | null
+  office_name: string | null
+  print_datetime: string | null
+  tr_number: string | null
+  deposit_datetime: string | null
+  recipient_name: string | null
+  destination: string | null
+  destination_code: string | null
+  destination_name: string | null
+  weight_grams: number | null
+  recipient_phone: string | null
+  service_name: string | null
+  service_fee: number | null
+  thpa_cod_amount: number | null
+  wallet_phone: string | null
+  sender_name: string | null
+}
+
+export interface ShipmentAcceptanceResponse extends PaginatedResponse<ShipmentAcceptanceJoin> {
+  unmatched_count: number
+}
+
 export interface ThailandPostAcceptance {
   id: number
   source_file: string | null

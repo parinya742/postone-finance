@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X, Building2,
-  Tag, Activity, Package, FileArchive, FileText, Truck,
+  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -45,6 +45,7 @@ const navGroups = [
       { href: '/admin/line-files', label: 'Files Import', icon: FileArchive, permission: 'line-files.view', exact: false },
       { href: '/admin/line-extracted', label: 'Extracted Files', icon: FileText, permission: 'line-files.view', exact: false },
       { href: '/admin/thaipost', label: 'Files Data', icon: Truck, permission: 'thaipost.view', exact: false },
+      { href: '/admin/shipment-acceptance', label: 'Data Reconciliation', icon: GitMerge, permission: 'shipments.view', exact: false },
     ],
   },
 ]

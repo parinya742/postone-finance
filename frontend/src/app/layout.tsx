@@ -6,7 +6,7 @@ import { Providers } from './providers'
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
 
 export const metadata: Metadata = {
-  title: 'Postone Finance — Admin',
+  title: 'Postone Finance PK',
   description: 'Finance management system with Advanced RBAC',
 }
 

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\PostoneAccountTypeController;
 use App\Http\Controllers\Api\PostoneSessionController;
 use App\Http\Controllers\Api\PostoneShipmentController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\ShipmentAcceptanceController;
 use App\Http\Controllers\Api\ThailandPostAcceptanceController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -62,7 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:users.delete')->delete('/users/{user}', [UserController::class, 'destroy']);
 
     // === Postone Account Types (CRUD) ===
-    Route::middleware('permission:account-types.view')->group(function () {
+    Route::middleware('permission:account-types.view,shipments.view')->group(function () {
         Route::get('/account-types', [PostoneAccountTypeController::class, 'index']);
         Route::get('/account-types/{postoneAccountType}', [PostoneAccountTypeController::class, 'show']);
     });
@@ -91,5 +92,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:thaipost.view')->group(function () {
         Route::get('/thaipost', [ThailandPostAcceptanceController::class, 'index']);
         Route::get('/thaipost/{id}', [ThailandPostAcceptanceController::class, 'show']);
+    });
+
+    // === Shipment Acceptance Join (Shipments + Thailand Post) ===
+    Route::middleware('permission:shipments.view')->group(function () {
+        Route::get('/shipment-acceptance', [ShipmentAcceptanceController::class, 'index']);
+        Route::get('/shipment-acceptance/export', [ShipmentAcceptanceController::class, 'export']);
     });
 });

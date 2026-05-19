@@ -4,7 +4,7 @@ import api from '@/lib/api'
 import { PostoneShipment, PostoneAccountType, PaginatedResponse } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Search, Lock, Package, ExternalLink } from 'lucide-react'
+import { Search, Lock, Package, Info } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 
@@ -37,7 +37,7 @@ export default function ShipmentsPage() {
   const { data: accountTypes } = useQuery<PaginatedResponse<PostoneAccountType>>({
     queryKey: ['account-types-all'],
     queryFn: () => api.get('/account-types', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('account-types.view'),
+    enabled: can('shipments.view'),
   })
 
   if (!can('shipments.view')) {
@@ -54,7 +54,16 @@ export default function ShipmentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Postone Shipments Sync</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-800">Postone Shipments Sync</h1>
+          <div className="relative group flex items-center">
+            <Info className="w-4 h-4 text-slate-400 hover:text-slate-650 cursor-pointer transition-colors" />
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 hidden group-hover:block w-64 bg-slate-900 text-slate-100 text-xs rounded-lg py-2 px-3 shadow-xl z-20 pointer-events-none border border-slate-800 text-center font-normal leading-normal">
+              เป็นข้อมูลที่ดึงมาจากระบบไปรษณีย์ Postone
+              <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
+            </div>
+          </div>
+        </div>
         <p className="text-slate-500 text-sm mt-1">ทั้งหมด {data?.total ?? 0} รายการ</p>
       </div>
 
@@ -68,7 +77,7 @@ export default function ShipmentsPage() {
             className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <select
+        {/* <select
           value={channelFilter}
           onChange={(e) => { setChannelFilter(e.target.value); setPage(1) }}
           className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -76,7 +85,7 @@ export default function ShipmentsPage() {
           <option value="">ทุก Channel</option>
           <option value="Online">Online</option>
           <option value="Offline">Offline</option>
-        </select>
+        </select> */}
         <select
           value={accountTypeFilter}
           onChange={(e) => { setAccountTypeFilter(e.target.value); setPage(1) }}
@@ -109,14 +118,14 @@ export default function ShipmentsPage() {
             {isLoading ? (
               [...Array(6)].map((_, i) => (
                 <tr key={i}>
-                  {[...Array(8)].map((_, j) => (
+                  {[...Array(10)].map((_, j) => (
                     <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>
                   ))}
                 </tr>
               ))
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
+                <td colSpan={10} className="px-5 py-12 text-center text-slate-400">
                   <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   ไม่พบข้อมูล
                 </td>
