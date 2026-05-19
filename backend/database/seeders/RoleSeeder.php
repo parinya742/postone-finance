@@ -64,7 +64,7 @@ class RoleSeeder extends Seeder
         $superAdmin->permissions()->sync($allPerms->pluck('id'));
 
         $admin = Role::where('slug', 'admin')->first();
-        $adminPerms = $allPerms->whereIn('module', ['users', 'roles', 'permissions', 'finance', 'reports', 'settings', 'audit_logs', 'dashboard']);
+        $adminPerms = $allPerms->whereIn('module', ['users', 'roles', 'permissions', 'finance', 'reports', 'settings', 'audit_logs', 'dashboard', 'line-files', 'thaipost']);
         $admin->permissions()->sync($adminPerms->pluck('id'));
 
         $manager = Role::where('slug', 'manager')->first();

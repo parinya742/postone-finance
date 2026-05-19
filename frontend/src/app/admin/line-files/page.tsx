@@ -40,6 +40,7 @@ interface PreviewData {
   headers: PreviewHeader[]
   rows: string[][]
   totalRows: number
+  isZip?: boolean
 }
 
 function ImportModal({ onClose }: { onClose: () => void }) {
@@ -68,6 +69,17 @@ function ImportModal({ onClose }: { onClose: () => void }) {
   const parsePreview = async (f: File) => {
     setParsing(true)
     setPreview(null)
+    const ext = f.name.split('.').pop()?.toLowerCase()
+    if (ext === 'zip') {
+      setPreview({
+        headers: [],
+        rows: [],
+        totalRows: 0,
+        isZip: true
+      })
+      setParsing(false)
+      return
+    }
     try {
       const XLSX = await import('xlsx')
       const buf = await f.arrayBuffer()
@@ -283,13 +295,13 @@ function ImportModal({ onClose }: { onClose: () => void }) {
                 ) : (
                   <>
                     <p className="text-sm font-medium text-slate-600">วางไฟล์ที่นี่ หรือคลิกเพื่อเลือก</p>
-                    <p className="text-xs text-slate-400 mt-1">รองรับ .xlsx, .xls, .csv (สูงสุด 20 MB)</p>
+                    <p className="text-xs text-slate-400 mt-1">รองรับ .xlsx, .xls, .csv, .zip (สูงสุด 20 MB)</p>
                   </>
                 )}
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".xlsx,.xls,.csv"
+                  accept=".xlsx,.xls,.csv,.zip"
                   className="hidden"
                   onChange={(e) => { if (e.target.files?.[0]) handleSelect(e.target.files[0]) }}
                 />
@@ -305,54 +317,68 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 
               {preview && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-slate-500">
-                    Preview — {preview.rows.length} แถวแรกจาก{' '}
-                    <span className="text-slate-700 font-semibold">{preview.totalRows.toLocaleString('th-TH')}</span> แถว
-                    &nbsp;·&nbsp; {preview.headers.length} คอลัมน์
-                  </p>
-                  <div className="border border-slate-200 rounded-lg overflow-auto max-h-56 custom-scrollbar">
-                    <table className="text-xs min-w-full">
-                      <thead className="bg-slate-50 sticky top-0 z-10">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium text-slate-400 border-b border-slate-200 whitespace-nowrap">#</th>
-                          {preview.headers.map((h, i) => (
-                            <th key={i} className="px-3 py-2 text-left font-medium border-b border-slate-200 whitespace-nowrap max-w-[180px]">
-                              <span className="block truncate max-w-[180px]">
-                                {h.name ? (
-                                  <span className={clsx(h.isInherited ? 'text-slate-400 font-normal italic' : 'text-slate-600 font-semibold')}>
-                                    {h.name}
-                                    {h.showSuffix && (
-                                      <span className="text-[10px] text-slate-300 font-normal ml-1">
-                                        ({h.originalIndex + 1})
+                  {preview.isZip ? (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 flex flex-col gap-1.5 shadow-sm">
+                      <span className="font-semibold text-sm flex items-center gap-1.5">
+                        <FileArchive className="w-5 h-5 text-blue-600 animate-pulse" /> 
+                        รองรับไฟล์บีบอัด (.zip)
+                      </span>
+                      <span className="text-xs text-blue-600 leading-relaxed">
+                        ระบบจะทำการแตกไฟล์ ZIP อัตโนมัติและนำเข้าข้อมูลจากทุกไฟล์ Excel (.xlsx, .xls) หรือ .csv ที่อยู่ด้านในทีละไฟล์แบบเป็นชุด (Bulk Import) เหมือนการทำงานใน n8n เพื่อความรวดเร็ว
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs font-medium text-slate-500">
+                        Preview — {preview.rows.length} แถวแรกจาก{' '}
+                        <span className="text-slate-700 font-semibold">{preview.totalRows.toLocaleString('th-TH')}</span> แถว
+                        &nbsp;·&nbsp; {preview.headers.length} คอลัมน์
+                      </p>
+                      <div className="border border-slate-200 rounded-lg overflow-auto max-h-56 custom-scrollbar">
+                        <table className="text-xs min-w-full">
+                          <thead className="bg-slate-50 sticky top-0 z-10">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium text-slate-400 border-b border-slate-200 whitespace-nowrap">#</th>
+                              {preview.headers.map((h, i) => (
+                                <th key={i} className="px-3 py-2 text-left font-medium border-b border-slate-200 whitespace-nowrap max-w-[180px]">
+                                  <span className="block truncate max-w-[180px]">
+                                    {h.name ? (
+                                      <span className={clsx(h.isInherited ? 'text-slate-400 font-normal italic' : 'text-slate-600 font-semibold')}>
+                                        {h.name}
+                                        {h.showSuffix && (
+                                          <span className="text-[10px] text-slate-300 font-normal ml-1">
+                                            ({h.originalIndex + 1})
+                                          </span>
+                                        )}
                                       </span>
+                                    ) : (
+                                      <span className="text-slate-300">คอลัมน์ {h.originalIndex + 1}</span>
                                     )}
                                   </span>
-                                ) : (
-                                  <span className="text-slate-300">คอลัมน์ {h.originalIndex + 1}</span>
-                                )}
-                              </span>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {preview.rows.map((row, i) => (
-                          <tr key={i} className="hover:bg-slate-50">
-                            <td className="px-3 py-1.5 text-slate-300 font-mono">{i + 1}</td>
-                            {preview.headers.map((_, j) => (
-                              <td key={j} className="px-3 py-1.5 text-slate-600 whitespace-nowrap">
-                                <span className="block truncate max-w-[180px]">{row[j] ?? ''}</span>
-                              </td>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {preview.rows.map((row, i) => (
+                              <tr key={i} className="hover:bg-slate-50">
+                                <td className="px-3 py-1.5 text-slate-300 font-mono">{i + 1}</td>
+                                {preview.headers.map((_, j) => (
+                                  <td key={j} className="px-3 py-1.5 text-slate-600 whitespace-nowrap">
+                                    <span className="block truncate max-w-[180px]">{row[j] ?? ''}</span>
+                                  </td>
+                                ))}
+                              </tr>
                             ))}
-                          </tr>
-                        ))}
-                        {/* Spacer row to prevent horizontal scrollbar from overlapping last row data */}
-                        <tr className="h-3 pointer-events-none">
-                          <td colSpan={preview.headers.length + 1} className="p-0"></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                            {/* Spacer row to prevent horizontal scrollbar from overlapping last row data */}
+                            <tr className="h-3 pointer-events-none">
+                              <td colSpan={preview.headers.length + 1} className="p-0"></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -422,7 +448,10 @@ function ImportModal({ onClose }: { onClose: () => void }) {
               {importMutation.isPending ? (
                 <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />กำลังนำเข้า...</>
               ) : (
-                <><Upload className="w-4 h-4" />นำเข้าข้อมูล{preview && ` (${preview.totalRows.toLocaleString('th-TH')} แถว)`}</>
+                <>
+                  <Upload className="w-4 h-4" />
+                  {preview?.isZip ? 'นำเข้าไฟล์ ZIP' : `นำเข้าข้อมูล ${preview ? `(${preview.totalRows.toLocaleString('th-TH')} แถว)` : ''}`}
+                </>
               )}
             </button>
           )}
@@ -470,7 +499,7 @@ export default function LineFilesPage() {
             className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
           >
             <FileSpreadsheet className="w-4 h-4" />
-            นำเข้า Excel
+            นำเข้า Files
           </button>
         )}
       </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\LineGroupFile;
+use App\Models\LineGroupExtractedFile;
 use App\Models\ThailandPostAcceptance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,53 +55,210 @@ class ThaipostImportController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:20480',
+            'file' => 'required|file|mimes:xlsx,xls,csv,zip|max:20480',
         ]);
 
         $uploadedFile = $request->file('file');
+        $ext = strtolower($uploadedFile->getClientOriginalExtension());
 
-        $fileUrl = null;
-        try {
-            /** @var \Illuminate\Filesystem\FilesystemAdapter $s3 */
-            $s3 = Storage::disk('s3');
-            $s3Path = 'thaipost-imports/' . date('Y/m') . '/' . uniqid() . '_' . $uploadedFile->getClientOriginalName();
-            if ($s3->put($s3Path, file_get_contents($uploadedFile->getRealPath()))) {
-                $fileUrl = $s3->url($s3Path);
+        if ($ext === 'zip') {
+            $zipUrl = null;
+            try {
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3 */
+                $s3 = Storage::disk('s3');
+                $s3Path = 'thaipost-imports/' . date('Y/m') . '/' . uniqid() . '_' . $uploadedFile->getClientOriginalName();
+                if ($s3->put($s3Path, file_get_contents($uploadedFile->getRealPath()))) {
+                    $zipUrl = $s3->url($s3Path);
+                }
+            } catch (\Throwable) {
+                // S3 upload failed — continue without file_url
             }
-        } catch (\Throwable) {
-            // S3 upload failed — continue without file_url
+
+            $parentZipFile = LineGroupFile::create([
+                'original_file_name' => $uploadedFile->getClientOriginalName(),
+                'file_extension'     => 'zip',
+                'content_type'       => $uploadedFile->getMimeType() ?: 'application/zip',
+                'source_type'        => 'excel_upload',
+                'file_url'           => $zipUrl,
+                'imported_by'        => auth()->id(),
+                'created_at'         => now(),
+            ]);
+
+            $zip = new \ZipArchive();
+            if ($zip->open($uploadedFile->getRealPath()) !== true) {
+                $parentZipFile->delete();
+                return response()->json(['message' => 'ไม่สามารถเปิดไฟล์ ZIP ได้'], 422);
+            }
+
+            $tempDir = storage_path('app/temp-zip-' . uniqid());
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $zip->extractTo($tempDir);
+            $zip->close();
+
+            $files = $this->getExcelCsvFilesRecursive($tempDir);
+            if (empty($files)) {
+                $this->removeDirectory($tempDir);
+                $parentZipFile->delete();
+                return response()->json(['message' => 'ไม่พบไฟล์ Excel (.xlsx, .xls) หรือ .csv ภายในไฟล์ ZIP'], 422);
+            }
+
+            $totalInserted = 0;
+            $totalUpdated = 0;
+            $totalSkipped = 0;
+            $allErrors = [];
+            $importedFileIds = [];
+
+            foreach ($files as $filePath) {
+                $fileName = basename($filePath);
+                // Skip macOS hidden files like ._filename.xlsx or __MACOSX folders
+                if (str_starts_with($fileName, '._') || str_contains($filePath, '__MACOSX')) {
+                    continue;
+                }
+
+                $extractedUrl = null;
+                try {
+                    $s3 = Storage::disk('s3');
+                    $s3Path = 'thaipost-imports/extracted/' . date('Y/m') . '/' . uniqid() . '_' . $fileName;
+                    if ($s3->put($s3Path, file_get_contents($filePath))) {
+                        $extractedUrl = $s3->url($s3Path);
+                    }
+                } catch (\Throwable) {
+                    // S3 upload failed — continue without file_url
+                }
+
+                $fileExt = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+                $extractedFile = LineGroupExtractedFile::create([
+                    'parent_file_id' => $parentZipFile->id,
+                    'message_id'     => null,
+                    'file_name'      => $fileName,
+                    'file_extension' => $fileExt,
+                    'file_type'      => $this->getMimeTypeFromExtension($fileExt),
+                    's3_url'         => $extractedUrl,
+                    'created_at'     => now(),
+                ]);
+
+                $res = $this->importSingleFile(
+                    $filePath,
+                    $fileName,
+                    $this->getMimeTypeFromExtension($fileExt),
+                    $parentZipFile,
+                    $extractedFile
+                );
+
+                if (isset($res['success']) && $res['success']) {
+                    $totalInserted += $res['inserted'] ?? 0;
+                    $totalUpdated += $res['updated'] ?? 0;
+                    $totalSkipped += $res['skipped'] ?? 0;
+                    if (!empty($res['errors'])) {
+                        $allErrors = array_merge($allErrors, $res['errors']);
+                    }
+                    $importedFileIds[] = $extractedFile->id;
+                } else {
+                    $allErrors[] = "ไฟล์ {$fileName}: " . ($res['message'] ?? 'ข้อผิดพลาดที่ไม่ทราบสาเหตุ');
+                }
+            }
+
+            $this->removeDirectory($tempDir);
+
+            return response()->json([
+                'message'  => 'นำเข้าไฟล์จาก ZIP สำเร็จ',
+                'file_ids' => $importedFileIds,
+                'inserted' => $totalInserted,
+                'updated'  => $totalUpdated,
+                'skipped'  => $totalSkipped,
+                'errors'   => $allErrors,
+            ]);
         }
 
-        $lineFile = LineGroupFile::create([
-            'original_file_name' => $uploadedFile->getClientOriginalName(),
-            'file_extension'     => strtolower($uploadedFile->getClientOriginalExtension()),
-            'content_type'       => $uploadedFile->getMimeType(),
-            'source_type'        => 'excel_upload',
-            'file_url'           => $fileUrl,
-            'imported_by'        => auth()->id(),
-            'created_at'         => now(),
-        ]);
+        $res = $this->importSingleFile(
+            $uploadedFile->getRealPath(),
+            $uploadedFile->getClientOriginalName(),
+            $uploadedFile->getMimeType()
+        );
+
+        if (isset($res['success']) && $res['success']) {
+            return response()->json([
+                'message'  => 'นำเข้าสำเร็จ',
+                'file_id'  => $res['file_id'],
+                'inserted' => $res['inserted'],
+                'updated'  => $res['updated'],
+                'skipped'  => $res['skipped'],
+                'errors'   => $res['errors'],
+            ]);
+        }
+
+        return response()->json(['message' => $res['message'] ?? 'นำเข้าไม่สำเร็จ'], 422);
+    }
+
+    private function importSingleFile(
+        string $filePath,
+        string $originalName,
+        ?string $mimeType = null,
+        ?LineGroupFile $parentZipFile = null,
+        ?LineGroupExtractedFile $extractedFile = null
+    ): array {
+        if (!$parentZipFile) {
+            $fileUrl = null;
+            try {
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3 */
+                $s3 = Storage::disk('s3');
+                $s3Path = 'thaipost-imports/' . date('Y/m') . '/' . uniqid() . '_' . $originalName;
+                if ($s3->put($s3Path, file_get_contents($filePath))) {
+                    $fileUrl = $s3->url($s3Path);
+                }
+            } catch (\Throwable) {
+                // S3 upload failed — continue without file_url
+            }
+
+            $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+            $lineFile = LineGroupFile::create([
+                'original_file_name' => $originalName,
+                'file_extension'     => $ext,
+                'content_type'       => $mimeType ?: ($this->getMimeTypeFromExtension($ext)),
+                'source_type'        => 'excel_upload',
+                'file_url'           => $fileUrl,
+                'imported_by'        => auth()->id(),
+                'created_at'         => now(),
+            ]);
+        } else {
+            $lineFile = $parentZipFile;
+        }
 
         try {
-            $spreadsheet = IOFactory::load($uploadedFile->getRealPath());
+            $spreadsheet = IOFactory::load($filePath);
             $sheet = $spreadsheet->getActiveSheet();
             // letter-keyed columns (A, B, C ...) so TP_COL map works correctly
             $rows = $sheet->toArray(null, true, true, true);
         } catch (\Throwable $e) {
-            $lineFile->delete();
-            return response()->json(['message' => 'ไม่สามารถอ่านไฟล์ได้: ' . $e->getMessage()], 422);
+            if (!$parentZipFile) {
+                $lineFile->delete();
+            }
+            return [
+                'success' => false,
+                'message' => 'ไม่สามารถอ่านไฟล์ได้: ' . $e->getMessage()
+            ];
         }
 
         if (empty($rows)) {
-            $lineFile->delete();
-            return response()->json(['message' => 'ไฟล์ว่างเปล่า'], 422);
+            if (!$parentZipFile) {
+                $lineFile->delete();
+            }
+            return [
+                'success' => false,
+                'message' => 'ไฟล์ว่างเปล่า'
+            ];
         }
 
         if ($this->isThaipostTemplate($rows)) {
-            return $this->processThaipostTemplate($rows, $lineFile);
+            return $this->processThaipostTemplateData($rows, $lineFile, $extractedFile);
         }
 
-        return $this->processGenericFormat($rows, $lineFile);
+        return $this->processGenericFormatData($rows, $lineFile, $extractedFile);
     }
 
     // ─── Thailand Post report template ────────────────────────────────────────
@@ -119,7 +277,7 @@ class ThaipostImportController extends Controller
         return false;
     }
 
-    private function processThaipostTemplate(array $rows, LineGroupFile $lineFile): JsonResponse
+    private function processThaipostTemplateData(array $rows, LineGroupFile $lineFile, ?LineGroupExtractedFile $extractedFile = null): array
     {
         $meta = $this->extractThaipostMeta($rows);
         $senderCol = $this->findSenderNameColumn($rows);
@@ -156,10 +314,11 @@ class ThaipostImportController extends Controller
                 'cod_amount'       => $this->num($row[self::TP_COL['cod_amount']] ?? null),
                 'wallet_phone'     => $this->val($row[self::TP_COL['wallet_phone']] ?? null),
                 'sender_name'      => $this->val($row[$senderCol] ?? null),
-                'source_file'      => $lineFile->original_file_name,
+                'source_file'      => $extractedFile ? $extractedFile->file_name : $lineFile->original_file_name,
                 'parent_file_id'   => $lineFile->id,
+                'extracted_file_id'=> $extractedFile ? $extractedFile->id : null,
                 'import_batch_id'  => (string) $lineFile->id,
-                'file_source_type' => 'excel_upload',
+                'file_source_type' => $extractedFile ? 'zip_extracted' : 'excel_upload',
                 'imported_by'      => auth()->id(),
                 'imported_at'      => now(),
             ]);
@@ -173,14 +332,14 @@ class ThaipostImportController extends Controller
             }
         }
 
-        return response()->json([
-            'message'  => 'นำเข้าสำเร็จ',
-            'file_id'  => $lineFile->id,
+        return [
+            'success'  => true,
+            'file_id'  => $extractedFile ? $extractedFile->id : $lineFile->id,
             'inserted' => $inserted,
             'updated'  => $updated,
             'skipped'  => $skipped,
             'errors'   => $errors,
-        ]);
+        ];
     }
 
     private function extractThaipostMeta(array $rows): array
@@ -321,17 +480,19 @@ class ThaipostImportController extends Controller
 
     // ─── Generic / fallback format ────────────────────────────────────────────
 
-    private function processGenericFormat(array $rows, LineGroupFile $lineFile): JsonResponse
+    private function processGenericFormatData(array $rows, LineGroupFile $lineFile, ?LineGroupExtractedFile $extractedFile = null): array
     {
         $headerRow = array_shift($rows);
         $columnMap = $this->resolveColumnMap($headerRow);
 
         if (!in_array('barcode', $columnMap)) {
-            $lineFile->delete();
-            return response()->json([
-                'message'          => 'ไม่พบคอลัมน์ barcode ในไฟล์ กรุณาตรวจสอบหัวตาราง',
-                'detected_headers' => array_values($headerRow),
-            ], 422);
+            if (!$extractedFile) {
+                $lineFile->delete();
+            }
+            return [
+                'success' => false,
+                'message' => 'ไม่พบคอลัมน์ barcode ในไฟล์ กรุณาตรวจสอบหัวตาราง',
+            ];
         }
 
         $inserted = $updated = $skipped = 0;
@@ -350,10 +511,11 @@ class ThaipostImportController extends Controller
                 ThailandPostAcceptance::updateOrCreate(
                     ['barcode' => $data['barcode']],
                     array_merge($data, [
-                        'source_file'      => $lineFile->original_file_name,
+                        'source_file'      => $extractedFile ? $extractedFile->file_name : $lineFile->original_file_name,
                         'parent_file_id'   => $lineFile->id,
+                        'extracted_file_id'=> $extractedFile ? $extractedFile->id : null,
                         'import_batch_id'  => (string) $lineFile->id,
-                        'file_source_type' => 'excel_upload',
+                        'file_source_type' => $extractedFile ? 'zip_extracted' : 'excel_upload',
                         'imported_by'      => auth()->id(),
                         'imported_at'      => now(),
                     ])
@@ -364,14 +526,14 @@ class ThaipostImportController extends Controller
             }
         }
 
-        return response()->json([
-            'message'  => 'นำเข้าสำเร็จ',
-            'file_id'  => $lineFile->id,
+        return [
+            'success'  => true,
+            'file_id'  => $extractedFile ? $extractedFile->id : $lineFile->id,
             'inserted' => $inserted,
             'updated'  => $updated,
             'skipped'  => $skipped,
             'errors'   => $errors,
-        ]);
+        ];
     }
 
     private function resolveColumnMap(array $headerRow): array
@@ -406,5 +568,42 @@ class ThaipostImportController extends Controller
         }
 
         return $data;
+    }
+
+    private function getExcelCsvFilesRecursive(string $dir): array
+    {
+        $files = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir));
+        foreach ($iterator as $file) {
+            if ($file->isFile()) {
+                $ext = strtolower($file->getExtension());
+                if (in_array($ext, ['xlsx', 'xls', 'csv'])) {
+                    $files[] = $file->getPathname();
+                }
+            }
+        }
+        return $files;
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        if (is_dir($dir)) {
+            $files = array_diff(scandir($dir), ['.', '..']);
+            foreach ($files as $file) {
+                $path = $dir . DIRECTORY_SEPARATOR . $file;
+                is_dir($path) ? $this->removeDirectory($path) : unlink($path);
+            }
+            rmdir($dir);
+        }
+    }
+
+    private function getMimeTypeFromExtension(string $ext): string
+    {
+        return match ($ext) {
+            'xlsx'  => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'xls'   => 'application/vnd.ms-excel',
+            'csv'   => 'text/csv',
+            default => 'application/octet-stream',
+        };
     }
 }

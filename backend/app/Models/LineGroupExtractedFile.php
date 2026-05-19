@@ -9,6 +9,7 @@ class LineGroupExtractedFile extends Model
     protected $connection = 'n8n';
     protected $table = 'line_group_extracted_files';
     public $timestamps = false;
+    protected $guarded = [];
 
     protected $casts = [
         'created_at' => 'datetime',

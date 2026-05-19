@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { Lock, Pencil, Trash2, Plus, Search } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
+import PermissionFormModal from '@/components/rbac/PermissionFormModal'
 
 const ACTION_COLORS: Record<string, string> = {
   view: 'bg-blue-100 text-blue-700',
@@ -22,6 +23,8 @@ export default function PermissionsPage() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [moduleFilter, setModuleFilter] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [selectedPermission, setSelectedPermission] = useState<Permission | null>(null)
 
   const { data, isLoading } = useQuery<{ data: Permission[]; grouped: { module: string; permissions: Permission[] }[]; modules: string[] }>({
     queryKey: ['permissions', search, moduleFilter],
@@ -43,6 +46,22 @@ export default function PermissionsPage() {
     )
   }
 
+  const handleOpenAdd = () => {
+    setSelectedPermission(null)
+    setShowModal(true)
+  }
+
+  const handleOpenEdit = (perm: Permission) => {
+    setSelectedPermission(perm)
+    setShowModal(true)
+  }
+
+  const handleSuccess = () => {
+    setShowModal(false)
+    setSelectedPermission(null)
+    qc.invalidateQueries({ queryKey: ['permissions'] })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -51,7 +70,10 @@ export default function PermissionsPage() {
           <p className="text-gray-500 text-sm mt-1">ทั้งหมด {data?.data.length ?? 0} permissions</p>
         </div>
         {can('permissions.create') && (
-          <button className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+          >
             <Plus className="w-4 h-4" />
             เพิ่ม Permission
           </button>
@@ -87,7 +109,7 @@ export default function PermissionsPage() {
       ) : (
         <div className="space-y-4">
           {(data?.grouped ?? []).map(({ module, permissions }) => (
-            <div key={module} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div key={module} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-700 uppercase text-sm tracking-wide">
                   {module.replace(/_/g, ' ')}
@@ -109,7 +131,10 @@ export default function PermissionsPage() {
                     <div className="flex items-center gap-1">
                       <span className={clsx('w-2 h-2 rounded-full', perm.is_active ? 'bg-green-500' : 'bg-gray-300')} />
                       {can('permissions.edit') && (
-                        <button className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded transition-colors ml-2">
+                        <button
+                          onClick={() => handleOpenEdit(perm)}
+                          className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded transition-colors ml-2"
+                        >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -128,6 +153,14 @@ export default function PermissionsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {showModal && (
+        <PermissionFormModal
+          permission={selectedPermission}
+          onClose={() => { setShowModal(false); setSelectedPermission(null) }}
+          onSuccess={handleSuccess}
+        />
       )}
     </div>
   )

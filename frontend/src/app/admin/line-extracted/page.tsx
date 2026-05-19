@@ -118,7 +118,7 @@ export default function LineExtractedPage() {
                     ) : '—'}
                   </td>
                   <td className="px-5 py-4 text-slate-500 text-xs truncate max-w-[180px]">
-                    {item.parent_file?.original_file_name ?? `#${item.parent_file_id}` ?? '—'}
+                    {item.parent_file?.original_file_name ?? (item.parent_file_id ? `#${item.parent_file_id}` : '—')}
                   </td>
                   <td className="px-5 py-4 text-slate-400 text-xs">{fmtDate(item.created_at)}</td>
                   <td className="px-5 py-4">

@@ -44,7 +44,7 @@ class PermissionController extends Controller
     {
         $data = $request->validate([
             'name'        => 'required|string|max:100',
-            'slug'        => 'required|string|max:100|unique:permissions,slug|regex:/^[a-z0-9_.]+$/',
+            'slug'        => 'required|string|max:100|unique:permissions,slug|regex:/^[a-z0-9_.-]+$/',
             'description' => 'nullable|string|max:500',
             'module'      => 'required|string|max:50',
             'action'      => 'required|string|max:50',
@@ -65,7 +65,7 @@ class PermissionController extends Controller
     {
         $data = $request->validate([
             'name'        => 'sometimes|string|max:100',
-            'slug'        => ['sometimes', 'string', 'max:100', Rule::unique('permissions', 'slug')->ignore($permission->id), 'regex:/^[a-z0-9_.]+$/'],
+            'slug'        => ['sometimes', 'string', 'max:100', Rule::unique('permissions', 'slug')->ignore($permission->id), 'regex:/^[a-z0-9_.-]+$/'],
             'description' => 'nullable|string|max:500',
             'module'      => 'sometimes|string|max:50',
             'action'      => 'sometimes|string|max:50',
