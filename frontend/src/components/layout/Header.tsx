@@ -39,6 +39,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
+        <img src="/pumpkin.png" alt="Logo" className="w-7 h-7 object-contain lg:hidden" />
         <div>
           <h1 className="text-base font-semibold text-slate-800 leading-tight">{title}</h1>
           <p className="text-xs text-slate-400 hidden sm:block">Postone Finance</p>

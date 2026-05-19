@@ -56,25 +56,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-300 ease-in-out flex-shrink-0',
+        'fixed inset-y-0 left-0 z-30 w-64 bg-slate-50 border-r border-slate-200 text-slate-800 flex flex-col transition-transform duration-300 ease-in-out flex-shrink-0',
         'lg:relative lg:translate-x-0 lg:z-auto',
         isOpen ? 'translate-x-0' : '-translate-x-full'
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-slate-700/60 flex-shrink-0">
+      <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Building2 className="w-4 h-4 text-white" />
-          </div>
+          <img src="/pumpkin.png" alt="POSTONE Logo" className="w-8 h-8 object-contain" />
           <div>
-            <p className="font-bold text-sm tracking-wide">POSTONE</p>
-            <p className="text-slate-400 text-[10px] uppercase tracking-widest">Finance</p>
+            <p className="font-bold text-sm tracking-wide text-slate-900">POSTONE</p>
+            <p className="text-slate-500 text-[10px] uppercase tracking-widest">Finance</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+          className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -90,7 +88,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           return (
             <div key={group.label} className="mb-5">
-              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                 {group.label}
               </p>
               <div className="space-y-0.5">
@@ -106,8 +104,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       className={clsx(
                         'group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
                         active
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10 font-medium'
+                          : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
                       )}
                     >
                       <div className="flex items-center gap-3">
@@ -125,10 +123,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-slate-700/60 flex-shrink-0">
+      <div className="p-3 border-t border-slate-200 flex-shrink-0">
         <div className="px-3 py-2">
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest">Version</p>
-          <p className="text-xs text-slate-400 mt-0.5">v1.0.0 — Development</p>
+          <p className="text-[10px] text-slate-400 uppercase tracking-widest">Version</p>
+          <p className="text-xs text-slate-500 mt-0.5">v1.0.0 — Development</p>
         </div>
       </div>
     </aside>

@@ -1,64 +1,93 @@
-'use client'
+"use client";
 
-import { useAuth } from '@/context/AuthContext'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { Building2, Eye, EyeOff, LogIn } from 'lucide-react'
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Building2, Eye, EyeOff, LogIn } from "lucide-react";
 
 export default function LoginPage() {
-  const { login, user } = useAuth()
-  const router = useRouter()
-  const [email, setEmail] = useState('superadmin@postone.local')
-  const [password, setPassword] = useState('password')
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const { login, user } = useAuth();
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
-  if (user) { router.push('/admin'); return null }
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("remember_email");
+    const savedPassword = localStorage.getItem("remember_password");
+    if (savedEmail && savedPassword) {
+      setEmail(savedEmail);
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+  }, []);
+
+  if (user) {
+    router.push("/admin");
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
-      await login(email, password)
-      router.push('/admin')
+      await login(email, password);
+      if (rememberMe) {
+        localStorage.setItem("remember_email", email);
+        localStorage.setItem("remember_password", password);
+      } else {
+        localStorage.removeItem("remember_email");
+        localStorage.removeItem("remember_password");
+      }
+      router.push("/admin");
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่')
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
+      setError(msg ?? "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex bg-slate-100">
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex-col justify-between p-12">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
+          <img
+            src="/pumpkin.png"
+            alt="POSTONE Logo"
+            className="w-9 h-9 object-contain"
+          />
           <div>
-            <p className="font-bold text-white text-sm tracking-wide">POSTONE</p>
-            <p className="text-blue-400 text-[10px] uppercase tracking-widest">Finance</p>
+            <p className="font-bold text-white text-sm tracking-wide">
+              POSTONE
+            </p>
+            <p className="text-blue-400 text-[10px] uppercase tracking-widest">
+              Finance
+            </p>
           </div>
         </div>
 
         <div>
           <h2 className="text-4xl font-bold text-white leading-tight">
-            ระบบจัดการ<br />
-            <span className="text-blue-400">การเงิน & สิทธิ์</span>
+            ระบบจัดการ
+            <br />
+            <span className="text-blue-400">Report</span>
           </h2>
           <p className="text-slate-400 mt-4 text-sm leading-relaxed max-w-sm">
-            ระบบ ERP สำหรับจัดการสิทธิ์การเข้าถึง บทบาทผู้ใช้งาน และข้อมูลทางการเงินขององค์กร
+            ระบบสำหรับจัดการรายงาน POSTONE 
           </p>
 
           <div className="flex gap-6 mt-10">
             {[
-              { label: 'Roles', value: '5' },
-              { label: 'Modules', value: '8' },
-              { label: 'Permissions', value: '34+' },
+              { label: "Roles", value: "5" },
+              { label: "Modules", value: "8" },
+              { label: "Permissions", value: "34+" },
             ].map(({ label, value }) => (
               <div key={label}>
                 <p className="text-2xl font-bold text-white">{value}</p>
@@ -68,7 +97,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-slate-600 text-xs">© 2026 Postone Finance. All rights reserved.</p>
+        <p className="text-slate-600 text-xs">
+          © 2026 Postone Finance. All rights reserved.
+        </p>
       </div>
 
       {/* Right panel - Login form */}
@@ -76,18 +107,24 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src="/pumpkin.png"
+              alt="POSTONE Logo"
+              className="w-9 h-9 object-contain"
+            />
             <div>
-              <p className="font-bold text-slate-800 text-sm">POSTONE Finance</p>
+              <p className="font-bold text-slate-800 text-sm">
+                POSTONE Finance
+              </p>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-slate-800">เข้าสู่ระบบ</h1>
-              <p className="text-slate-500 text-sm mt-1">กรอกข้อมูลเพื่อเข้าใช้งานระบบ</p>
+              <p className="text-slate-500 text-sm mt-1">
+                กรอกข้อมูลเพื่อเข้าใช้งานระบบ
+              </p>
             </div>
 
             {error && (
@@ -97,7 +134,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   อีเมล
@@ -106,7 +143,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
+                  autoComplete="off"
                   className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-400"
                   placeholder="email@example.com"
                   required
@@ -119,10 +156,10 @@ export default function LoginPage() {
                 </label>
                 <div className="relative">
                   <input
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 pr-10 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     required
                   />
@@ -131,9 +168,25 @@ export default function LoginPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-xs font-medium text-slate-600">จดจำรหัสผ่าน</span>
+                </label>
               </div>
 
               <button
@@ -162,5 +215,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
