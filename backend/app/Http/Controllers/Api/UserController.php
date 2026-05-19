@@ -55,8 +55,14 @@ class UserController extends Controller
         $user = User::create($data);
 
         if (! empty($data['role_ids'])) {
-            $pivotData = collect($data['role_ids'])->mapWithKeys(fn($id) => [
-                $id => ['assigned_by' => $request->user()->id, 'assigned_at' => now()],
+            $roles = Role::whereIn('id', $data['role_ids'])->get();
+            foreach ($roles as $role) {
+                if (! $request->user()->canManageRole($role)) {
+                    return response()->json(['message' => 'ไม่สามารถกำหนด role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+                }
+            }
+            $pivotData = $roles->mapWithKeys(fn($role) => [
+                $role->id => ['assigned_by' => $request->user()->id, 'assigned_at' => now()],
             ])->toArray();
             $user->roles()->sync($pivotData);
         }
@@ -91,9 +97,23 @@ class UserController extends Controller
         $user->update($data);
 
         if (array_key_exists('role_ids', $data)) {
-            $pivotData = collect($data['role_ids'] ?? [])->mapWithKeys(fn($id) => [
-                $id => ['assigned_by' => $request->user()->id, 'assigned_at' => now()],
-            ])->toArray();
+            if (! $request->user()->canManageUser($user)) {
+                return response()->json(['message' => 'ไม่สามารถแก้ไข roles ของผู้ใช้ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+            }
+            $roleIds = $data['role_ids'] ?? [];
+            if (! empty($roleIds)) {
+                $roles = Role::whereIn('id', $roleIds)->get();
+                foreach ($roles as $role) {
+                    if (! $request->user()->canManageRole($role)) {
+                        return response()->json(['message' => 'ไม่สามารถกำหนด role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+                    }
+                }
+                $pivotData = $roles->mapWithKeys(fn($role) => [
+                    $role->id => ['assigned_by' => $request->user()->id, 'assigned_at' => now()],
+                ])->toArray();
+            } else {
+                $pivotData = [];
+            }
             $user->roles()->sync($pivotData);
         }
 
@@ -106,6 +126,13 @@ class UserController extends Controller
             return response()->json(['message' => 'Cannot delete your own account.'], 422);
         }
 
+        if (! $request->user()->isSuperAdmin()) {
+            $targetMinLevel = (int) ($user->roles()->min('level') ?? PHP_INT_MAX);
+            if ($targetMinLevel <= $request->user()->minRoleLevel()) {
+                return response()->json(['message' => 'ไม่สามารถลบผู้ใช้ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+            }
+        }
+
         $user->delete();
 
         return response()->json(['message' => 'User deleted successfully.']);
@@ -113,13 +140,24 @@ class UserController extends Controller
 
     public function assignRoles(Request $request, User $user): JsonResponse
     {
+        if (! $request->user()->canManageUser($user)) {
+            return response()->json(['message' => 'ไม่สามารถแก้ไข roles ของผู้ใช้ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+        }
+
         $data = $request->validate([
             'role_ids'   => 'required|array',
             'role_ids.*' => 'exists:roles,id',
         ]);
 
-        $pivotData = collect($data['role_ids'])->mapWithKeys(fn($id) => [
-            $id => ['assigned_by' => $request->user()->id, 'assigned_at' => now()],
+        $roles = Role::whereIn('id', $data['role_ids'])->get();
+        foreach ($roles as $role) {
+            if (! $request->user()->canManageRole($role)) {
+                return response()->json(['message' => 'ไม่สามารถกำหนด role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+            }
+        }
+
+        $pivotData = $roles->mapWithKeys(fn($role) => [
+            $role->id => ['assigned_by' => $request->user()->id, 'assigned_at' => now()],
         ])->toArray();
 
         $user->roles()->sync($pivotData);
@@ -127,8 +165,16 @@ class UserController extends Controller
         return response()->json($user->load('roles:id,name,slug,color'));
     }
 
-    public function revokeRole(User $user, Role $role): JsonResponse
+    public function revokeRole(Request $request, User $user, Role $role): JsonResponse
     {
+        if (! $request->user()->canManageUser($user)) {
+            return response()->json(['message' => 'ไม่สามารถแก้ไข roles ของผู้ใช้ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+        }
+
+        if (! $request->user()->canManageRole($role)) {
+            return response()->json(['message' => 'ไม่สามารถถอด role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+        }
+
         $user->roles()->detach($role->id);
 
         return response()->json(['message' => 'Role revoked successfully.']);

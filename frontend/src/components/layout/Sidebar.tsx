@@ -43,7 +43,7 @@ const navGroups = [
       { href: '/admin/sessions', label: 'Sessions', icon: Activity, permission: 'sessions.view', exact: false },
       { href: '/admin/shipments', label: 'Postone Shipments Sync', icon: Package, permission: 'shipments.view', exact: false },
       { href: '/admin/line-files', label: 'Files Import', icon: FileArchive, permission: 'line-files.view', exact: false },
-      { href: '/admin/line-extracted', label: 'Extracted Files', icon: FileText, permission: 'line-files.view', exact: false },
+      { href: '/admin/line-extracted', label: 'Files Extracted ', icon: FileText, permission: 'line-files.view', exact: false },
       { href: '/admin/thaipost', label: 'Files Data', icon: Truck, permission: 'thaipost.view', exact: false },
       { href: '/admin/shipment-acceptance', label: 'Data Reconciliation', icon: GitMerge, permission: 'shipments.view', exact: false },
     ],

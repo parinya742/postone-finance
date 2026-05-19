@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -11,7 +9,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use HasApiTokens, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -85,5 +83,22 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->hasRole('super_admin');
+    }
+
+    public function minRoleLevel(): int
+    {
+        return (int) ($this->roles()->min('level') ?? PHP_INT_MAX);
+    }
+
+    public function canManageRole(Role $role): bool
+    {
+        return $this->isSuperAdmin() || $role->level > $this->minRoleLevel();
+    }
+
+    public function canManageUser(User $target): bool
+    {
+        if ($this->isSuperAdmin()) return true;
+        $targetMinLevel = (int) ($target->roles()->min('level') ?? PHP_INT_MAX);
+        return $targetMinLevel > $this->minRoleLevel();
     }
 }

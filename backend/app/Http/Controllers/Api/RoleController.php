@@ -33,6 +33,10 @@ class RoleController extends Controller
             'permission_ids.*' => 'exists:permissions,id',
         ]);
 
+        if (! $request->user()->isSuperAdmin() && $data['level'] <= $request->user()->minRoleLevel()) {
+            return response()->json(['message' => 'ไม่สามารถสร้าง role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+        }
+
         $role = Role::create($data);
 
         if (! empty($data['permission_ids'])) {
@@ -51,6 +55,10 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): JsonResponse
     {
+        if (! $request->user()->canManageRole($role)) {
+            return response()->json(['message' => 'ไม่สามารถแก้ไข role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+        }
+
         $data = $request->validate([
             'name'           => 'sometimes|string|max:100',
             'slug'           => ['sometimes', 'string', 'max:100', Rule::unique('roles', 'slug')->ignore($role->id), 'regex:/^[a-z0-9_]+$/'],
@@ -75,8 +83,12 @@ class RoleController extends Controller
         return response()->json($role->load('permissions:id,name,slug,module,action'));
     }
 
-    public function destroy(Role $role): JsonResponse
+    public function destroy(Request $request, Role $role): JsonResponse
     {
+        if (! $request->user()->canManageRole($role)) {
+            return response()->json(['message' => 'ไม่สามารถลบ role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+        }
+
         if ($role->is_system) {
             return response()->json(['message' => 'System roles cannot be deleted.'], 422);
         }
@@ -88,6 +100,10 @@ class RoleController extends Controller
 
     public function syncPermissions(Request $request, Role $role): JsonResponse
     {
+        if (! $request->user()->canManageRole($role)) {
+            return response()->json(['message' => 'ไม่สามารถแก้ไข permissions ของ role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+        }
+
         $data = $request->validate([
             'permission_ids'   => 'required|array',
             'permission_ids.*' => 'exists:permissions,id',
