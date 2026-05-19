@@ -21,6 +21,7 @@ const pageTitles: Record<string, string> = {
   '/admin/line-files': 'Files Import',
   '/admin/line-extracted': 'Extracted Files',
   '/admin/thaipost': 'Files Data',
+  '/admin/shipment-acceptance': 'Data Reconciliation',
 }
 
 export default function Header({ onMenuToggle }: HeaderProps) {
