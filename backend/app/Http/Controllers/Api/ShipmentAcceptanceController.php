@@ -66,6 +66,14 @@ class ShipmentAcceptanceController extends Controller
             }
         }
 
+        if ($request->filled('date_from')) {
+            $query->whereDate('thpa.deposit_datetime', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('thpa.deposit_datetime', '<=', $request->date_to);
+        }
+
         return $query;
     }
 

@@ -37,16 +37,20 @@ export default function ThaipostPage() {
   const { can } = useAuth();
   const [search, setSearch] = useState("");
   const [sourceType, setSourceType] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
+
+  const resetPage = () => setPage(1);
 
   const { data, isLoading } = useQuery<
     PaginatedResponse<ThailandPostAcceptance>
   >({
-    queryKey: ["thaipost", search, sourceType, page],
+    queryKey: ["thaipost", search, sourceType, dateFrom, dateTo, page],
     queryFn: () =>
       api
         .get("/thaipost", {
-          params: { search, file_source_type: sourceType, page, per_page: 20 },
+          params: { search, file_source_type: sourceType, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 },
         })
         .then((r) => r.data),
     enabled: can("thaipost.view"),
@@ -86,20 +90,14 @@ export default function ThaipostPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setSearch(e.target.value); resetPage(); }}
             placeholder="Barcode, ชื่อผู้รับ, ผู้ส่ง, TR No..."
             className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         <select
           value={sourceType}
-          onChange={(e) => {
-            setSourceType(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setSourceType(e.target.value); resetPage(); }}
           className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">ทุกประเภท</option>
@@ -107,6 +105,22 @@ export default function ThaipostPage() {
           <option value="direct">Direct</option>
           <option value="excel_upload">excel_upload</option>
         </select>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-500 whitespace-nowrap">วันฝากส่ง</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); resetPage(); }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-slate-400 text-sm">—</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); resetPage(); }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">

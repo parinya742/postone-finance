@@ -34,6 +34,14 @@ class ThailandPostAcceptanceController extends Controller
             $query->where('file_source_type', $request->file_source_type);
         }
 
+        if ($request->filled('date_from')) {
+            $query->whereDate('deposit_datetime', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('deposit_datetime', '<=', $request->date_to);
+        }
+
         $items = $query->orderByDesc('imported_at')->paginate($request->integer('per_page', 20));
 
         return response()->json($items);

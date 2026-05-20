@@ -4,7 +4,7 @@ import api from '@/lib/api'
 import { LineSoJoin, PaginatedResponse } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Search, Lock, FileSpreadsheet, CheckCircle, AlertTriangle, Download } from 'lucide-react'
+import { Search, Lock, FileSpreadsheet, AlertTriangle, Download } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 import * as XLSX from 'xlsx'
@@ -74,13 +74,17 @@ function buildExcelRows(items: LineSoJoin[]) {
 export default function LineSoPage() {
   const { can } = useAuth()
   const [search, setSearch] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
+
+  const resetPage = () => setPage(1)
 
   async function handleExport() {
     setExporting(true)
     try {
-      const res = await api.get('/iscode/line-so/export', { params: { search } })
+      const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined } })
       const rows = buildExcelRows(res.data as LineSoJoin[])
       const ws = XLSX.utils.json_to_sheet(rows)
       const wb = XLSX.utils.book_new()
@@ -95,9 +99,9 @@ export default function LineSoPage() {
   }
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineSoJoin>>({
-    queryKey: ['line-so', search, page],
+    queryKey: ['line-so', search, dateFrom, dateTo, page],
     queryFn: () =>
-      api.get('/iscode/line-so', { params: { search, page, per_page: 15 } }).then((r) => r.data),
+      api.get('/iscode/line-so', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 15 } }).then((r) => r.data),
     enabled: can('iscode.view'),
   })
 
@@ -126,9 +130,25 @@ export default function LineSoPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            onChange={(e) => { setSearch(e.target.value); resetPage() }}
             placeholder="Barcode, PI No, SO No, PO No, ชื่อลูกค้า..."
             className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-500 whitespace-nowrap">วันฝากส่ง</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-slate-400 text-sm">—</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); resetPage() }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         <button
@@ -208,7 +228,6 @@ export default function LineSoPage() {
             ) : (
               items.map((item, idx) => {
                 const hasIscode = item.PINo !== null
-                const hasPostone = item.customer_name !== null || item.product_details !== null
                 return (
                   <tr
                     key={`${item.barcode ?? ''}-${idx}`}

@@ -60,13 +60,17 @@ export default function ShipmentAcceptancePage() {
   const { can } = useAuth()
   const [search, setSearch] = useState('')
   const [matchStatus, setMatchStatus] = useState('matched')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
 
-  const params = { search, match_status: matchStatus, page, per_page: 20 }
+  const resetPage = () => setPage(1)
+
+  const params = { search, match_status: matchStatus, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 }
 
   const { data, isLoading } = useQuery<ShipmentAcceptanceResponse>({
-    queryKey: ['shipment-acceptance', search, matchStatus, page],
+    queryKey: ['shipment-acceptance', search, matchStatus, dateFrom, dateTo, page],
     queryFn: () =>
       api.get('/shipment-acceptance', { params }).then((r) => r.data),
     enabled: can('shipments.view'),
@@ -84,7 +88,7 @@ export default function ShipmentAcceptancePage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const exportParams = { search, match_status: matchStatus }
+      const exportParams = { search, match_status: matchStatus, date_from: dateFrom || undefined, date_to: dateTo || undefined }
       const res = await api.get('/shipment-acceptance/export', { params: exportParams })
       const rows = buildExcelRows(res.data as ShipmentAcceptanceJoin[])
       const ws = XLSX.utils.json_to_sheet(rows)
@@ -156,20 +160,36 @@ export default function ShipmentAcceptancePage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            onChange={(e) => { setSearch(e.target.value); resetPage() }}
             placeholder="Label ID, ชื่อลูกค้า, Tracking, TR No..."
             className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         <select
           value={matchStatus}
-          onChange={(e) => { setMatchStatus(e.target.value); setPage(1) }}
+          onChange={(e) => { setMatchStatus(e.target.value); resetPage() }}
           className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">ทั้งหมด</option>
           <option value="matched">พบในเว็บ Postone</option>
           <option value="unmatched">ยังไม่พบในเว็บ Postone</option>
         </select>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-500 whitespace-nowrap">วันฝากส่ง</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-slate-400 text-sm">—</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); resetPage() }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
         <button
           onClick={handleExport}
           disabled={exporting}
