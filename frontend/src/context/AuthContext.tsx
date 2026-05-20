@@ -4,12 +4,15 @@ import api from '@/lib/api'
 import { AuthState } from '@/lib/types'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
+const SESSION_TIMEOUT_MS = 120 * 60 * 1000 // 120 minutes
+
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   can: (permission: string) => boolean
   hasRole: (role: string) => boolean
   loading: boolean
+  sessionExpiresAt: number | null
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -17,6 +20,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ user: null, roles: [], permissions: [] })
   const [loading, setLoading] = useState(true)
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null)
 
   const fetchMe = useCallback(async () => {
     try {
@@ -30,19 +34,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (localStorage.getItem('token')) fetchMe()
+    const token = localStorage.getItem('token')
+    const expiresAt = localStorage.getItem('session_expires_at')
+
+    if (token && expiresAt && Date.now() > Number(expiresAt)) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('session_expires_at')
+      setLoading(false)
+      return
+    }
+
+    if (expiresAt) setSessionExpiresAt(Number(expiresAt))
+    if (token) fetchMe()
     else setLoading(false)
   }, [fetchMe])
 
+  // Periodic session expiry check every 30 seconds
+  useEffect(() => {
+    if (!auth.user) return
+
+    const check = () => {
+      const expiresAt = localStorage.getItem('session_expires_at')
+      if (!expiresAt || Date.now() > Number(expiresAt)) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('session_expires_at')
+        setAuth({ user: null, roles: [], permissions: [] })
+        window.location.href = '/login?reason=session_expired'
+      }
+    }
+
+    const id = setInterval(check, 30_000)
+    return () => clearInterval(id)
+  }, [auth.user])
+
   const login = async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password })
+    const expiresAt = Date.now() + SESSION_TIMEOUT_MS
     localStorage.setItem('token', data.token)
+    localStorage.setItem('session_expires_at', String(expiresAt))
+    setSessionExpiresAt(expiresAt)
     await fetchMe()
   }
 
   const logout = async () => {
     try { await api.post('/auth/logout') } catch { /* ignore */ }
     localStorage.removeItem('token')
+    localStorage.removeItem('session_expires_at')
+    setSessionExpiresAt(null)
     setAuth({ user: null, roles: [], permissions: [] })
     window.location.href = '/login'
   }
@@ -53,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasRole = (role: string) => auth.roles.some((r) => r.slug === role)
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout, can, hasRole, loading }}>
+    <AuthContext.Provider value={{ ...auth, login, logout, can, hasRole, loading, sessionExpiresAt }}>
       {children}
     </AuthContext.Provider>
   )

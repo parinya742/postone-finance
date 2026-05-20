@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 import * as XLSX from 'xlsx'
 
-const COL_COUNT = 26
+const COL_COUNT = 27
 
 function fmtDate(d: string | null) {
   if (!d) return '—'
@@ -51,7 +51,7 @@ function buildExcelRows(items: LineSoJoin[]) {
     'ค่าบริการ': item.service_fee ?? '',
     'SO Date': item.SODate ?? '',
     'SO No': item.SoNo ?? '',
-    'PI No': item.PINo ?? '',
+    'PI No': item.PINo ? item.PINo : (item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'),
     'DI No': item.DINo ?? '',
     'PO No': item.PONo ?? '',
     'รหัสลูกค้า': item.CustID ?? '',
@@ -59,6 +59,7 @@ function buildExcelRows(items: LineSoJoin[]) {
     'จำนวน': item.NumOfItem ?? '',
     'รหัสเซลล์': item.FieldSaleID ?? '',
     'ชื่อเซลล์': item.FieldSaleName ?? '',
+    'Area': item.Area ?? '',
     'CreateBy': item.CreateBy ?? '',
     'ชื่อผู้สร้าง': item.CreateByName ?? '',
     'Doc Remark': item.DocRemark ?? '',
@@ -76,6 +77,7 @@ export default function LineSoPage() {
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [noIscode, setNoIscode] = useState(false)
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
 
@@ -84,7 +86,7 @@ export default function LineSoPage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined } })
+      const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_iscode: noIscode ? 1 : undefined } })
       const rows = buildExcelRows(res.data as LineSoJoin[])
       const ws = XLSX.utils.json_to_sheet(rows)
       const wb = XLSX.utils.book_new()
@@ -99,13 +101,13 @@ export default function LineSoPage() {
   }
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineSoJoin>>({
-    queryKey: ['line-so', search, dateFrom, dateTo, page],
+    queryKey: ['line-so', search, dateFrom, dateTo, noIscode, page],
     queryFn: () =>
-      api.get('/iscode/line-so', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 15 } }).then((r) => r.data),
-    enabled: can('iscode.view'),
+      api.get('/iscode/line-so', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_iscode: noIscode ? 1 : undefined, page, per_page: 15 } }).then((r) => r.data),
+    enabled: can('line-so.view'),
   })
 
-  if (!can('iscode.view')) {
+  if (!can('line-so.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <Lock className="w-12 h-12 mb-3" />
@@ -151,6 +153,18 @@ export default function LineSoPage() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        {/* <button
+          onClick={() => { setNoIscode((v) => !v); resetPage() }}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors',
+            noIscode
+              ? 'bg-amber-50 border-amber-400 text-amber-700 hover:bg-amber-100'
+              : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+          )}
+        >
+          <AlertTriangle className="w-4 h-4" />
+          ไม่พบข้อมูล ISCODE
+        </button> */}
         <button
           onClick={handleExport}
           disabled={exporting}
@@ -167,7 +181,7 @@ export default function LineSoPage() {
             {/* Group headers */}
             <tr className="border-b border-slate-200">
               <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={7} color="bg-green-50 text-green-500 border-green-100" />
-              <GH label="ISCODE" span={14} color="bg-violet-50 text-violet-500 border-violet-100" />
+              <GH label="ISCODE" span={15} color="bg-violet-50 text-violet-500 border-violet-100" />
               <GH label="ระบบไปรษณีย์" span={2} color="bg-blue-50 text-blue-400 border-blue-100" />
               <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={2} color="bg-green-50 text-green-500 border-green-100" />
               <GH label="พื้นที่พิเศษ" span={1} color="bg-orange-50 text-orange-500 border-orange-100" />
@@ -193,6 +207,7 @@ export default function LineSoPage() {
               <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">จำนวน</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสเซลล์</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อเซลล์</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Area</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">CreateBy</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อผู้สร้าง</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Doc Remark</th>
@@ -249,8 +264,8 @@ export default function LineSoPage() {
                     <td className="px-4 py-3 font-mono text-xs text-violet-700 whitespace-nowrap">{item.SoNo ?? '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs text-violet-700 whitespace-nowrap">
                       {item.PINo ?? (
-                        <span className="text-amber-400 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" /> ไม่พบ
+                        <span className="text-amber-500 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> {item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'}
                         </span>
                       )}
                     </td>
@@ -261,6 +276,7 @@ export default function LineSoPage() {
                     <td className="px-4 py-3 text-xs text-right text-slate-600">{item.NumOfItem ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.FieldSaleID ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.FieldSaleName ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-700 whitespace-nowrap">{item.Area ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.CreateBy ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.CreateByName ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 max-w-[160px] truncate">{item.DocRemark ?? '—'}</td>

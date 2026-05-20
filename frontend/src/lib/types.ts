@@ -189,6 +189,8 @@ export interface LineSoJoin {
   ACCRemark: string | null
   // Special Postal Zone (null when destination_name has no match)
   special_zone_rate: number | null
+  account_type_name?: string | null
+  Area?: string | null
 }
 
 export interface SoHead {

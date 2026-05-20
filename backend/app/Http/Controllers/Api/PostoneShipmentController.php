@@ -19,6 +19,7 @@ class PostoneShipmentController extends Controller
                   ->orWhere('customer_name', 'ilike', "%{$request->search}%")
                   ->orWhere('tracking_no', 'ilike', "%{$request->search}%")
                   ->orWhere('so_number', 'ilike', "%{$request->search}%")
+                  ->orWhere('product_details', 'ilike', "%{$request->search}%")
                   ->orWhere('pi_number', 'ilike', "%{$request->search}%");
             });
         }

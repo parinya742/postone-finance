@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("remember_email");
@@ -23,6 +24,8 @@ export default function LoginPage() {
       setPassword(savedPassword);
       setRememberMe(true);
     }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reason") === "session_expired") setSessionExpired(true);
   }, []);
 
   if (user) {
@@ -80,7 +83,7 @@ export default function LoginPage() {
             <span className="text-blue-400">Report</span>
           </h2>
           <p className="text-slate-400 mt-4 text-sm leading-relaxed max-w-sm">
-            ระบบสำหรับจัดการรายงาน POSTONE 
+            ระบบสำหรับจัดการรายงานไปรษณีย์ 
           </p>
 
           <div className="flex gap-6 mt-10">
@@ -126,6 +129,13 @@ export default function LoginPage() {
                 กรอกข้อมูลเพื่อเข้าใช้งานระบบ
               </p>
             </div>
+
+            {sessionExpired && (
+              <div className="mb-5 p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-sm flex items-start gap-2">
+                <span className="mt-0.5">⚠</span>
+                <span>เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่</span>
+              </div>
+            )}
 
             {error && (
               <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-start gap-2">

@@ -106,6 +106,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // === ISCODE — SO Head ===
     Route::middleware('permission:iscode.view')->group(function () {
         Route::get('/iscode/so-head', [SoHeadController::class, 'index']);
+    });
+
+    // === ISCODE — Line SO Report ===
+    Route::middleware('permission:line-so.view')->group(function () {
         Route::get('/iscode/line-so', [LineSoController::class, 'index']);
         Route::get('/iscode/line-so/export', [LineSoController::class, 'export']);
     });

@@ -103,6 +103,7 @@ export default function ShipmentsPage() {
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="text-left px-5 py-3 font-medium text-slate-600">Label ID</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600">Product Details</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">PI NO</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">SO NO</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">ลูกค้า</th>
@@ -134,6 +135,7 @@ export default function ShipmentsPage() {
               items.map((item) => (
                 <tr key={item.label_id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-4 font-mono text-xs text-blue-600">{item.label_id}</td>
+                  <td className="px-5 py-4 font-mono text-xs text-slate-700 font-mono">{item.product_details ?? '—'}</td>
                   <td className="px-5 py-4 font-mono text-xs text-slate-700 font-mono">{item.pi_number ?? '—'}</td>
                   <td className="px-5 py-4 font-mono text-xs text-slate-700 font-mono">{item.so_number ?? '—'}</td>
                   <td className="px-5 py-4">
