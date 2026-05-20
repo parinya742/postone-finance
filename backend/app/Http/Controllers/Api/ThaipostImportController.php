@@ -395,7 +395,7 @@ class ThaipostImportController extends Controller
         if (is_float($value) || (is_int($value) && $value > 1000)) {
             try {
                 $dt = ExcelDate::excelToDateTimeObject($value);
-                return $dt->format('Y-m-d H:i:s');
+                return $dt->format('Y-m-d\TH:i:s');
             } catch (\Throwable) {}
         }
 
@@ -410,7 +410,7 @@ class ThaipostImportController extends Controller
         if (preg_match('#(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2}:\d{2}:\d{2})#', $str, $m)) {
             $year = (int) $m[3];
             if ($year > 2400) $year -= 543;
-            return sprintf('%04d-%02d-%02d %s', $year, (int) $m[2], (int) $m[1], $m[4]);
+            return sprintf('%04d-%02d-%02dT%s', $year, (int) $m[2], (int) $m[1], $m[4]);
         }
 
         // "1/04/2569" — date only

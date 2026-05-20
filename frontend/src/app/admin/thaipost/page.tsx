@@ -16,7 +16,10 @@ const SOURCE_COLORS: Record<string, string> = {
 
 function fmtDate(d: string | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleString("th-TH", {
+  // Normalize space-separated datetime ("2025-05-20 14:43:00") to ISO 8601 for cross-browser support
+  const dt = new Date(d.includes('T') ? d : d.replace(' ', 'T'))
+  if (isNaN(dt.getTime())) return String(d)
+  return dt.toLocaleString("th-TH", {
     dateStyle: "short",
     timeStyle: "short",
   });
@@ -64,7 +67,7 @@ export default function ThaipostPage() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-800">Files Data</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Files Data Server Fee</h1>
           <div className="relative group flex items-center">
             <Info className="w-4 h-4 text-slate-400 hover:text-slate-650 cursor-pointer transition-colors" />
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 hidden group-hover:block w-64 bg-slate-900 text-slate-100 text-xs rounded-lg py-2 px-3 shadow-xl z-20 pointer-events-none border border-slate-800 text-center font-normal leading-normal">
@@ -159,7 +162,10 @@ export default function ThaipostPage() {
                 แหล่งข้อมูล
               </th>
               <th className="text-left px-4 py-3 font-medium text-slate-600">
-                รหัสไฟล์
+                parent_file_id
+              </th>
+               <th className="text-left px-4 py-3 font-medium text-slate-600">
+                extracted_file_id
               </th>
               <th className="text-left px-4 py-3 font-medium text-slate-600">
                 นำเข้า
@@ -255,6 +261,9 @@ export default function ThaipostPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
                     {item.parent_file_id}
+                  </td>
+                  <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
+                    {item.extracted_file_id}
                   </td>
                   <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
                     {fmtDate(item.imported_at)}

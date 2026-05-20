@@ -112,6 +112,7 @@ export interface ImportResult {
 export interface LineGroupExtractedFile {
   id: number
   parent_file_id: number | null
+  extracted_file_id : number| null
   message_id: string | null
   file_name: string | null
   file_extension: string | null
@@ -224,6 +225,7 @@ export interface ThailandPostAcceptance {
   id: number
   source_file: string | null
   parent_file_id: number | null
+  extracted_file_id: number | null
   import_batch_id: string | null
   imported_by: number | null
   imported_at: string | null
