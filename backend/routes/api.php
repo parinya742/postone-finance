@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\PostoneSessionController;
 use App\Http\Controllers\Api\PostoneShipmentController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\ShipmentAcceptanceController;
+use App\Http\Controllers\Api\LineSoController;
+use App\Http\Controllers\Api\SoHeadController;
+use App\Http\Controllers\Api\SpecialPostalZoneController;
 use App\Http\Controllers\Api\ThailandPostAcceptanceController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -99,4 +102,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/shipment-acceptance', [ShipmentAcceptanceController::class, 'index']);
         Route::get('/shipment-acceptance/export', [ShipmentAcceptanceController::class, 'export']);
     });
+
+    // === ISCODE — SO Head ===
+    Route::middleware('permission:iscode.view')->group(function () {
+        Route::get('/iscode/so-head', [SoHeadController::class, 'index']);
+        Route::get('/iscode/line-so', [LineSoController::class, 'index']);
+        Route::get('/iscode/line-so/export', [LineSoController::class, 'export']);
+    });
+
+    // === Master Data — Special Postal Zones ===
+    Route::middleware('permission:special-zones.view')->group(function () {
+        Route::get('/special-postal-zones', [SpecialPostalZoneController::class, 'index']);
+    });
+    Route::middleware('permission:special-zones.create')->post('/special-postal-zones', [SpecialPostalZoneController::class, 'store']);
+    Route::middleware('permission:special-zones.edit')->put('/special-postal-zones/{id}', [SpecialPostalZoneController::class, 'update']);
+    Route::middleware('permission:special-zones.delete')->delete('/special-postal-zones/{id}', [SpecialPostalZoneController::class, 'destroy']);
 });

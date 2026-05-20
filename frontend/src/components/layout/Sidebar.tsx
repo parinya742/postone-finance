@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X, Building2,
-  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge,
+  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -42,10 +42,23 @@ const navGroups = [
       { href: '/admin/account-types', label: 'Account Types', icon: Tag, permission: 'account-types.view', exact: false },
       { href: '/admin/sessions', label: 'Sessions', icon: Activity, permission: 'sessions.view', exact: false },
       { href: '/admin/shipments', label: 'Postone Shipments Sync', icon: Package, permission: 'shipments.view', exact: false },
-      { href: '/admin/line-files', label: 'Files Import', icon: FileArchive, permission: 'line-files.view', exact: false },
+      { href: '/admin/line-files', label: 'Files Services Fee', icon: FileArchive, permission: 'line-files.view', exact: false },
       { href: '/admin/line-extracted', label: 'Files Extracted ', icon: FileText, permission: 'line-files.view', exact: false },
       { href: '/admin/thaipost', label: 'Files Data', icon: Truck, permission: 'thaipost.view', exact: false },
       { href: '/admin/shipment-acceptance', label: 'Data Reconciliation', icon: GitMerge, permission: 'shipments.view', exact: false },
+    ],
+  },
+  {
+    label: 'ISCODE',
+    items: [
+      { href: '/admin/so-head', label: 'SO Head Data', icon: Database, permission: 'iscode.view', exact: false },
+      { href: '/admin/line-so', label: 'ตรวจสอบข้อมูลไปรษณีย์ (Report)', icon: BarChart2, permission: 'iscode.view', exact: false },
+    ],
+  },
+  {
+    label: 'Master Data',
+    items: [
+      { href: '/admin/special-postal-zones', label: 'พื้นที่ไปรษณีย์พิเศษ', icon: MapPin, permission: 'special-zones.view', exact: false },
     ],
   },
 ]

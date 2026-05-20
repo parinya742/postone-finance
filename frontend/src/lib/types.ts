@@ -122,18 +122,8 @@ export interface LineGroupExtractedFile {
 }
 
 export interface ShipmentAcceptanceJoin {
-  label_id: string
-  customer_name: string | null
-  product_details: string | null
-  pi_number: string | null
-  so_number: string | null
-  ps_cod_amount: string | null
-  shipping_by: string | null
-  shipping_cost: string | null
-  tracking_no: string | null
-  due_date: string | null
-  latest_status: string | null
-  // Thailand Post fields (null when unmatched)
+  // Thailand Post (base — always present)
+  barcode: string
   office_code: string | null
   office_name: string | null
   print_datetime: string | null
@@ -150,10 +140,84 @@ export interface ShipmentAcceptanceJoin {
   thpa_cod_amount: number | null
   wallet_phone: string | null
   sender_name: string | null
+  // Postone fields (null when unmatched)
+  label_id: string | null
+  customer_name: string | null
+  product_details: string | null
+  pi_number: string | null
+  so_number: string | null
+  ps_cod_amount: string | null
+  shipping_by: string | null
+  shipping_cost: string | null
+  tracking_no: string | null
+  due_date: string | null
+  latest_status: string | null
 }
 
 export interface ShipmentAcceptanceResponse extends PaginatedResponse<ShipmentAcceptanceJoin> {
   unmatched_count: number
+}
+
+export interface LineSoJoin {
+  // LINE file (thailand_post_acceptance) — always present
+  barcode: string
+  deposit_datetime: string | null
+  destination_code: string | null
+  destination_name: string | null
+  weight_grams: number | null
+  service_name: string | null
+  service_fee: number | null
+  // Postone (null when no match)
+  pi_number: string | null
+  customer_name: string | null
+  product_details: string | null
+  // ISCODE SO_Head (null when no match)
+  SODate: string | null
+  NumOfItem: number | null
+  PINo: string | null
+  DINo: string | null
+  SoNo: string | null
+  PONo: string | null
+  CustID: string | null
+  CustName: string | null
+  FieldSaleID: string | null
+  FieldSaleName: string | null
+  CreateBy: string | null
+  CreateByName: string | null
+  DocRemark: string | null
+  ACCRemark: string | null
+  // Special Postal Zone (null when destination_name has no match)
+  special_zone_rate: number | null
+}
+
+export interface SoHead {
+  SODate: string | null
+  NumOfItem: number | null
+  PINo: string | null
+  DINo: string | null
+  SoNo: string | null
+  PONo: string | null
+  CustID: string | null
+  CustName: string | null
+  FieldSaleID: string | null
+  FieldSaleName: string | null
+  DocRemark: string | null
+  CreateBy: string | null
+  CreateByName: string | null
+  ACCRemark: string | null
+}
+
+export interface SpecialPostalZone {
+  id: number
+  seq: number
+  area_group: number
+  province: string
+  office_name: string
+  postal_code: string
+  area_description: string | null
+  rate: number
+  created_at: string | null
+  updated_at: string | null
 }
 
 export interface ThailandPostAcceptance {

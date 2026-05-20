@@ -99,6 +99,20 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        'dbctl' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST_DBCTL', '127.0.0.1'),
+            'port' => env('DB_PORT_DBCTL', '5432'),
+            'database' => env('DB_DATABASE_DBCTL', 'postgres'),
+            'username' => env('DB_USERNAME_DBCTL', 'postgres'),
+            'password' => env('DB_PASSWORD_DBCTL', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'n8n' => [
             'driver' => 'pgsql',
             'host' => env('DB_HOST_N8N', '127.0.0.1'),
@@ -129,7 +143,7 @@ return [
         ],
 
         'iscodeselect' => [
-            'driver' => 'sqlsrv',
+            'driver' => env('DB_DRIVER_ISCODE', 'sqlsrv'),
             'host' => env('DB_HOST_ISCODE', 'database-2.ctuqbcneumgf.ap-southeast-1.rds.amazonaws.com'),
             'port' => env('DB_PORT_ISCODE', '1433'),
             'database' => env('DB_DATABASE_ISCODE', 'master'),

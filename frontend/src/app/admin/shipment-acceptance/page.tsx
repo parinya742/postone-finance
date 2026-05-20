@@ -38,7 +38,7 @@ function buildExcelRows(items: ShipmentAcceptanceJoin[]) {
     'COD (เว็บ Postone)': item.ps_cod_amount ?? '',
     'จัดส่งโดย': item.shipping_by ?? '',
     'ค่าส่ง': item.shipping_cost ?? '',
-    'Tracking No': item.tracking_no ?? '',
+    'Tracking No': item.barcode ?? '',
     'Due Date': item.due_date ?? '',
     'สถานะล่าสุด': item.latest_status ?? '',
     'ที่ทำการ': item.office_name ?? item.office_code ?? '',
@@ -111,7 +111,7 @@ export default function ShipmentAcceptancePage() {
           <div className="relative group flex items-center">
             <Info className="w-4 h-4 text-slate-400 hover:text-slate-650 cursor-pointer transition-colors" />
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 hidden group-hover:block w-80 bg-slate-900 text-slate-100 text-xs rounded-lg py-2 px-3 shadow-xl z-20 pointer-events-none border border-slate-800 text-center font-normal leading-normal">
-              เปรียบเทียบรายการจาก <span className="text-blue-300 font-semibold">เว็บ Postone</span> กับข้อมูล <span className="text-green-300 font-semibold">ไฟล์ LINE</span> โดยใช้ Tracking No จับคู่ — แสดงว่ารายการไหนยังไม่มีไฟล์รับฝากจากไปรษณีย์
+              เปรียบเทียบรายการจาก <span className="text-green-300 font-semibold">ข้อมูลไปรษณีย์ (ไฟล์บริการ)</span> กับข้อมูล <span className="text-blue-300 font-semibold">เว็บ Postone</span> โดยใช้ Barcode จับคู่ — แสดงว่ารายการไหนในไฟล์ LINE ยังไม่มีในระบบ Postone
               <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
             </div>
           </div>
@@ -126,7 +126,7 @@ export default function ShipmentAcceptancePage() {
             <GitMerge className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">รายการทั้งหมด (เว็บ Postone)</p>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">รายการทั้งหมด (ไฟล์ LINE)</p>
             <p className="text-2xl font-bold text-slate-800">{unmatchedCount + matchedCount > 0 ? (unmatchedCount + matchedCount).toLocaleString('th-TH') : '—'}</p>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function ShipmentAcceptancePage() {
             <CheckCircle className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">พบในไฟล์ LINE แล้ว</p>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">พบในเว็บ Postone แล้ว</p>
             <p className="text-2xl font-bold text-green-700">{data ? matchedCount.toLocaleString('th-TH') : '—'}</p>
           </div>
         </div>
@@ -144,7 +144,7 @@ export default function ShipmentAcceptancePage() {
             <AlertTriangle className="w-5 h-5 text-red-500" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">ยังไม่พบในไฟล์ LINE</p>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">ยังไม่พบในเว็บ Postone</p>
             <p className="text-2xl font-bold text-red-600">{data ? unmatchedCount.toLocaleString('th-TH') : '—'}</p>
           </div>
         </div>
@@ -167,8 +167,8 @@ export default function ShipmentAcceptancePage() {
           className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">ทั้งหมด</option>
-          <option value="matched">พบในไฟล์ LINE</option>
-          <option value="unmatched">ยังไม่พบในไฟล์ LINE</option>
+          <option value="matched">พบในเว็บ Postone</option>
+          <option value="unmatched">ยังไม่พบในเว็บ Postone</option>
         </select>
         <button
           onClick={handleExport}
@@ -186,7 +186,7 @@ export default function ShipmentAcceptancePage() {
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               {/* Divider marker */}
-              <th className="px-2 py-3 bg-blue-50 border-x border-blue-100 text-center text-[10px] font-semibold text-blue-400 tracking-widest uppercase whitespace-nowrap">ไฟล์ LINE</th>
+              <th className="px-2 py-3 bg-blue-50 border-x border-blue-100 text-center text-[10px] font-semibold text-blue-400 tracking-widest uppercase whitespace-nowrap">Postone</th>
               {/* Postone columns */}
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Label ID</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Product Details</th>
@@ -233,18 +233,18 @@ export default function ShipmentAcceptancePage() {
               </tr>
             ) : (
               items.map((item) => {
-                const hasPost = item.tr_number !== null || item.deposit_datetime !== null
+                const hasPostone = item.label_id !== null || item.tracking_no !== null
                 return (
                   <tr
-                    key={item.label_id}
+                    key={item.barcode ?? item.tr_number}
                     className={clsx(
                       'hover:bg-slate-50 transition-colors',
-                      !hasPost && 'bg-red-50/40'
+                      !hasPostone && 'bg-red-50/40'
                     )}
                   >
                     {/* Divider */}
                     <td className="px-2 py-3 bg-blue-50 border-x border-blue-100">
-                      {hasPost ? (
+                      {hasPostone ? (
                         <span className="flex justify-center">
                           <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                         </span>
@@ -260,7 +260,7 @@ export default function ShipmentAcceptancePage() {
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.pi_number ?? '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.so_number ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-700 max-w-[140px] truncate">{item.customer_name ?? '—'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-700 whitespace-nowrap">{item.tracking_no ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-700 whitespace-nowrap">{item.barcode}</td>
                     <td className="px-4 py-3 text-xs text-right text-slate-700">{item.ps_cod_amount ? `฿${item.ps_cod_amount}` : '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.shipping_by ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate">{item.latest_status ?? '—'}</td>

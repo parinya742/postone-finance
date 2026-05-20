@@ -12,19 +12,9 @@ class ShipmentAcceptanceController extends Controller
     private function baseQuery(Request $request)
     {
         $query = DB::connection('n8n')
-            ->table('postone_shipments as ps')
+            ->table('thailand_post_acceptance as thpa')
             ->select([
-                'ps.label_id',
-                'ps.customer_name',
-                'ps.product_details',
-                'ps.pi_number',
-                'ps.so_number',
-                DB::raw('ps.cod_amount as ps_cod_amount'),
-                'ps.shipping_by',
-                'ps.shipping_cost',
-                'ps.tracking_no',
-                'ps.due_date',
-                'ps.latest_status',
+                'thpa.barcode',
                 'thpa.office_code',
                 'thpa.office_name',
                 'thpa.print_datetime',
@@ -41,27 +31,38 @@ class ShipmentAcceptanceController extends Controller
                 DB::raw('thpa.cod_amount as thpa_cod_amount'),
                 'thpa.wallet_phone',
                 'thpa.sender_name',
+                'ps.label_id',
+                'ps.customer_name',
+                'ps.product_details',
+                'ps.pi_number',
+                'ps.so_number',
+                DB::raw('ps.cod_amount as ps_cod_amount'),
+                'ps.shipping_by',
+                'ps.shipping_cost',
+                'ps.tracking_no',
+                'ps.due_date',
+                'ps.latest_status',
             ])
-            ->leftJoin('thailand_post_acceptance as thpa', 'thpa.barcode', '=', 'ps.tracking_no')
-            ->orderByDesc('ps.due_date');
+            ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
+            ->orderByDesc('thpa.deposit_datetime');
 
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
-                $q->where('ps.label_id', 'ilike', "%{$s}%")
+                $q->where('thpa.barcode', 'ilike', "%{$s}%")
+                  ->orWhere('thpa.tr_number', 'ilike', "%{$s}%")
+                  ->orWhere('ps.label_id', 'ilike', "%{$s}%")
                   ->orWhere('ps.customer_name', 'ilike', "%{$s}%")
-                  ->orWhere('ps.tracking_no', 'ilike', "%{$s}%")
                   ->orWhere('ps.so_number', 'ilike', "%{$s}%")
-                  ->orWhere('ps.pi_number', 'ilike', "%{$s}%")
-                  ->orWhere('thpa.tr_number', 'ilike', "%{$s}%");
+                  ->orWhere('ps.pi_number', 'ilike', "%{$s}%");
             });
         }
 
         if ($request->filled('match_status')) {
             if ($request->match_status === 'matched') {
-                $query->whereNotNull('thpa.barcode');
+                $query->whereNotNull('ps.tracking_no');
             } elseif ($request->match_status === 'unmatched') {
-                $query->whereNull('thpa.barcode');
+                $query->whereNull('ps.tracking_no');
             }
         }
 
@@ -71,9 +72,9 @@ class ShipmentAcceptanceController extends Controller
     public function index(Request $request): JsonResponse
     {
         $unmatchedCount = DB::connection('n8n')
-            ->table('postone_shipments as ps')
-            ->leftJoin('thailand_post_acceptance as thpa', 'thpa.barcode', '=', 'ps.tracking_no')
-            ->whereNull('thpa.barcode')
+            ->table('thailand_post_acceptance as thpa')
+            ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
+            ->whereNull('ps.tracking_no')
             ->count();
 
         $paginated = $this->baseQuery($request)->paginate($request->integer('per_page', 20));
