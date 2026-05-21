@@ -1,7 +1,7 @@
 'use client'
 
 import api from '@/lib/api'
-import { LineSoJoin, PaginatedResponse } from '@/lib/types'
+import { LineSoJoin, PaginatedResponse, PostoneAccountType } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Search, Lock, FileSpreadsheet, AlertTriangle, Download } from 'lucide-react'
@@ -78,6 +78,8 @@ export default function LineSoPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [noIscode, setNoIscode] = useState(false)
+  const [noPiNumber, setNoPiNumber] = useState(false)
+  const [area, setArea] = useState('')
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
 
@@ -86,7 +88,7 @@ export default function LineSoPage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_iscode: noIscode ? 1 : undefined } })
+      const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_iscode: noIscode ? 1 : undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined } })
       const rows = buildExcelRows(res.data as LineSoJoin[])
       const ws = XLSX.utils.json_to_sheet(rows)
       const wb = XLSX.utils.book_new()
@@ -101,9 +103,15 @@ export default function LineSoPage() {
   }
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineSoJoin>>({
-    queryKey: ['line-so', search, dateFrom, dateTo, noIscode, page],
+    queryKey: ['line-so', search, dateFrom, dateTo, noIscode, noPiNumber, area, page],
     queryFn: () =>
-      api.get('/iscode/line-so', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_iscode: noIscode ? 1 : undefined, page, per_page: 15 } }).then((r) => r.data),
+      api.get('/iscode/line-so', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_iscode: noIscode ? 1 : undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, page, per_page: 15 } }).then((r) => r.data),
+    enabled: can('line-so.view'),
+  })
+
+  const { data: accountTypes } = useQuery<PaginatedResponse<PostoneAccountType>>({
+    queryKey: ['account-types-all'],
+    queryFn: () => api.get('/account-types', { params: { per_page: 100 } }).then((r) => r.data),
     enabled: can('line-so.view'),
   })
 
@@ -153,18 +161,47 @@ export default function LineSoPage() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        {/* <button
-          onClick={() => { setNoIscode((v) => !v); resetPage() }}
+        <select
+          value={area}
+          onChange={(e) => { setArea(e.target.value); resetPage() }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          <option value="">ทุก Area</option>
+          <optgroup label="ข้อมูล ISCODE">
+            <option value="BKK">BKK</option>
+            <option value="UPC">UPC</option>
+            <option value="MT">MT</option>
+            <option value="ช่าง">ช่าง</option>
+            <option value="เคลมสินค้า Customer Service">เคลมสินค้า Customer Service</option>
+            <option value="PRODUCT SPECIALIST">PRODUCT SPECIALIST</option>
+            <option value="แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง">แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง</option>
+            <option value="แผนกการตลาดออนไลน์(เคลมสินค้า)">แผนกการตลาดออนไลน์(เคลมสินค้า)</option>
+            <option value="แผนกการตลาด Branding Media">แผนกการตลาด Branding Media</option>
+            <option value="แผนกการตลาดเบิกสินค้าตัวอย่าง">แผนกการตลาดเบิกสินค้าตัวอย่าง</option>
+            <option value="ผู้บริหารเบิกสินค้า">ผู้บริหารเบิกสินค้า</option>
+          </optgroup>
+          {accountTypes?.data && accountTypes.data.length > 0 && (
+            <optgroup label="Account Type (ไม่มีข้อมูล ISCODE)">
+              {accountTypes.data.map((at) => (
+                <option key={at.id} value={at.name}>
+                  {at.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+        <button
+          onClick={() => { setNoPiNumber((v) => !v); resetPage() }}
           className={clsx(
             'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors',
-            noIscode
-              ? 'bg-amber-50 border-amber-400 text-amber-700 hover:bg-amber-100'
+            noPiNumber
+              ? 'bg-red-50 border-red-400 text-red-700 hover:bg-red-100'
               : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
           )}
         >
           <AlertTriangle className="w-4 h-4" />
-          ไม่พบข้อมูล ISCODE
-        </button> */}
+          ไม่พบ PI No
+        </button>
         <button
           onClick={handleExport}
           disabled={exporting}
@@ -265,7 +302,8 @@ export default function LineSoPage() {
                     <td className="px-4 py-3 font-mono text-xs text-violet-700 whitespace-nowrap">
                       {item.PINo ?? (
                         <span className="text-amber-500 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" /> {item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'}
+                          {/* <AlertTriangle className="w-3 h-3" /> {item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'} */}
+                          <AlertTriangle className="w-3 h-3" /> ไม่พบ
                         </span>
                       )}
                     </td>

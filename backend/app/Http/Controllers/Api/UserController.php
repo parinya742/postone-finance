@@ -51,9 +51,7 @@ class UserController extends Controller
             'role_ids.*' => 'exists:roles,id',
         ]);
 
-        $data['password'] = Hash::make($data['password']);
-        $user = User::create($data);
-
+        $roles = collect();
         if (! empty($data['role_ids'])) {
             $roles = Role::whereIn('id', $data['role_ids'])->get();
             foreach ($roles as $role) {
@@ -61,6 +59,12 @@ class UserController extends Controller
                     return response()->json(['message' => 'ไม่สามารถกำหนด role ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
                 }
             }
+        }
+
+        $data['password'] = Hash::make($data['password']);
+        $user = User::create($data);
+
+        if ($roles->isNotEmpty()) {
             $pivotData = $roles->mapWithKeys(fn($role) => [
                 $role->id => ['assigned_by' => $request->user()->id, 'assigned_at' => now()],
             ])->toArray();

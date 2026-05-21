@@ -54,6 +54,12 @@ class SpecialPostalZoneController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $row = $this->query()->where('id', $id)->first();
+
+        if (! $row) {
+            return response()->json(['message' => 'ไม่พบข้อมูล'], 404);
+        }
+
         $data = $request->validate([
             'seq'              => 'sometimes|integer',
             'area_group'       => 'sometimes|integer',
@@ -74,7 +80,11 @@ class SpecialPostalZoneController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $this->query()->where('id', $id)->delete();
+        $affected = $this->query()->where('id', $id)->delete();
+
+        if (! $affected) {
+            return response()->json(['message' => 'ไม่พบข้อมูล'], 404);
+        }
 
         return response()->json(['message' => 'Deleted successfully.']);
     }

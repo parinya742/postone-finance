@@ -26,6 +26,8 @@ const pageTitles: Record<string, string> = {
   '/admin/line-so': 'ตรวจสอบข้อมูลไปรษณีย์ (Report)',
 }
 
+const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
+
 export default function Header({ onMenuToggle }: HeaderProps) {
   const { user, roles, logout } = useAuth()
   const [open, setOpen] = useState(false)
@@ -34,7 +36,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   const title = pageTitles[pathname] ?? 'Admin'
 
   return (
-    <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-4 lg:px-6 flex-shrink-0 shadow-sm z-10">
+    <header className={`h-16 border-b flex items-center justify-between px-4 lg:px-6 flex-shrink-0 shadow-sm z-10 ${isDemo ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuToggle}
@@ -47,6 +49,11 @@ export default function Header({ onMenuToggle }: HeaderProps) {
           <h1 className="text-base font-semibold text-slate-800 leading-tight">{title}</h1>
           <p className="text-xs text-slate-400 hidden sm:block">Postone Finance</p>
         </div>
+        {isDemo && (
+          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-400 text-amber-900 tracking-wide">
+            DEMO
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-1">

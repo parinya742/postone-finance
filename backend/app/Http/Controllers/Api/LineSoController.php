@@ -85,27 +85,118 @@ class LineSoController extends Controller
             $query->whereDate('thpa.deposit_datetime', '<=', $request->date_to);
         }
 
-        if ($request->boolean('no_iscode')) {
-            // Records with no pi_number (no Postone match) are always missing ISCODE data.
-            // Records with a pi_number but not found in ct_so_head are also missing.
-            $iscodePinos = DB::connection('dbctl')
-                ->table('ct_so_head')
-                ->whereNotNull('pino')
-                ->where('pino', '!=', '')
-                ->pluck('pino')
+        if ($request->boolean('no_pi_number')) {
+            $query->whereNull('ps.pi_number');
+        }
+
+        if ($request->boolean('no_iscode') || $request->filled('area')) {
+            $activePiNos = $query->clone()
+                ->whereNotNull('ps.pi_number')
+                ->pluck('ps.pi_number')
                 ->unique()
+                ->filter()
                 ->values()
                 ->all();
 
-            $query->where(function ($q) use ($iscodePinos) {
-                $q->whereNull('ps.pi_number');
-                if (!empty($iscodePinos)) {
-                    $q->orWhereNotIn('ps.pi_number', $iscodePinos);
-                }
-            });
+            $existingIscodePiNos = [];
+            if (!empty($activePiNos)) {
+                $existingIscodePiNos = DB::connection('dbctl')
+                    ->table('ct_so_head')
+                    ->whereIn('pino', $activePiNos)
+                    ->pluck('pino')
+                    ->unique()
+                    ->all();
+            }
+
+            if ($request->boolean('no_iscode')) {
+                $query->where(function ($q) use ($existingIscodePiNos) {
+                    $q->whereNull('ps.pi_number');
+                    if (!empty($existingIscodePiNos)) {
+                        $q->orWhereNotIn('ps.pi_number', $existingIscodePiNos);
+                    }
+                });
+            }
+
+            if ($request->filled('area')) {
+                $this->applyAreaFilterOptimized($query, trim($request->area), $activePiNos, $existingIscodePiNos);
+            }
         }
 
         return $query;
+    }
+
+    private function applyAreaFilterOptimized($query, string $area, array $activePiNos, array $existingIscodePiNos): void
+    {
+        $custidAreaMap = [
+            'เคลมสินค้า Customer Service'              => 'f680000004',
+            'PRODUCT SPECIALIST'                        => '777-7015s',
+            'แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง'   => '777-7010s',
+            'แผนกการตลาดออนไลน์(เคลมสินค้า)'          => '888-7010s',
+            'แผนกการตลาด Branding Media'               => '777-7014s',
+            'แผนกการตลาดเบิกสินค้าตัวอย่าง'           => '777-7008s',
+            'ผู้บริหารเบิกสินค้า'                       => '777-7003s',
+        ];
+        $prefixAreaMap  = ['BKK' => '7', 'UPC' => '8', 'MT' => '2'];
+        $specialCustIds = array_map('strtolower', array_values($custidAreaMap));
+
+        $filteredPiNos = [];
+        $isIscodeArea = isset($custidAreaMap[$area]) || $area === 'ช่าง' || isset($prefixAreaMap[$area]);
+
+        if ($isIscodeArea && !empty($activePiNos)) {
+            $dbctlQuery = DB::connection('dbctl')
+                ->table('ct_so_head')
+                ->whereIn('pino', $activePiNos);
+
+            if (isset($custidAreaMap[$area])) {
+                $custid = strtolower($custidAreaMap[$area]);
+                $dbctlQuery->whereRaw('lower(trim(custid)) = ?', [$custid]);
+
+            } elseif ($area === 'ช่าง') {
+                $dbctlQuery->whereRaw("trim(fieldsaleid) = '9980-0'")
+                    ->where(function ($q) use ($specialCustIds) {
+                        $q->whereNotIn(DB::raw('lower(trim(custid))'), $specialCustIds)
+                          ->orWhereNull('custid');
+                    });
+
+            } elseif (isset($prefixAreaMap[$area])) {
+                $prefix = $prefixAreaMap[$area];
+                $dbctlQuery->where(function ($q) use ($specialCustIds) {
+                        $q->whereNotIn(DB::raw('lower(trim(custid))'), $specialCustIds)
+                          ->orWhereNull('custid');
+                    })
+                    ->where(function ($q) {
+                        $q->whereRaw("trim(fieldsaleid) != '9980-0'")
+                          ->orWhereNull('fieldsaleid');
+                    })
+                    ->where(function ($q) use ($prefix) {
+                        $q->where(function ($inner) use ($prefix) {
+                            $inner->whereNotNull('sono')
+                                  ->where('sono', '!=', '')
+                                  ->where('sono', 'ilike', "{$prefix}%");
+                        })->orWhere(function ($inner) use ($prefix) {
+                            $inner->where(function ($s) {
+                                $s->whereNull('sono')->orWhere('sono', '');
+                            })->where('pino', 'ilike', "{$prefix}%");
+                        });
+                    });
+            }
+
+            $filteredPiNos = $dbctlQuery->pluck('pino')->filter()->unique()->all();
+        }
+
+        $query->where(function ($q) use ($filteredPiNos, $existingIscodePiNos, $area, $isIscodeArea) {
+            if ($isIscodeArea) {
+                $q->whereIn('ps.pi_number', $filteredPiNos);
+            } else {
+                $q->where('pat.name', $area)
+                    ->where(function ($s) use ($existingIscodePiNos) {
+                        $s->whereNull('ps.pi_number');
+                        if (!empty($existingIscodePiNos)) {
+                            $s->orWhereNotIn('ps.pi_number', $existingIscodePiNos);
+                        }
+                    });
+            }
+        });
     }
 
     private function mergeSoHeadData($items)

@@ -3,7 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Building2, Eye, EyeOff, LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -18,10 +18,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("remember_email");
-    const savedPassword = localStorage.getItem("remember_password");
-    if (savedEmail && savedPassword) {
+    if (savedEmail) {
       setEmail(savedEmail);
-      setPassword(savedPassword);
       setRememberMe(true);
     }
     const params = new URLSearchParams(window.location.search);
@@ -33,7 +31,7 @@ export default function LoginPage() {
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -41,10 +39,8 @@ export default function LoginPage() {
       await login(email, password);
       if (rememberMe) {
         localStorage.setItem("remember_email", email);
-        localStorage.setItem("remember_password", password);
       } else {
         localStorage.removeItem("remember_email");
-        localStorage.removeItem("remember_password");
       }
       router.push("/admin");
     } catch (err: unknown) {
@@ -195,7 +191,7 @@ export default function LoginPage() {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                   />
-                  <span className="text-xs font-medium text-slate-600">จดจำรหัสผ่าน</span>
+                  <span className="text-xs font-medium text-slate-600">จดจำอีเมล</span>
                 </label>
               </div>
 

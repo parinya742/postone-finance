@@ -28,6 +28,17 @@ function fmtNum(n: number | null, decimals = 2) {
   return n.toLocaleString('th-TH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
+function GH({ label, span, color }: { label: string; span: number; color: string }) {
+  return (
+    <th
+      colSpan={span}
+      className={clsx('px-3 py-1.5 text-center text-[10px] font-semibold tracking-widest uppercase border-x', color)}
+    >
+      {label}
+    </th>
+  )
+}
+
 function buildExcelRows(items: ShipmentAcceptanceJoin[]) {
   return items.map((item) => ({
     'Label ID': item.label_id,
@@ -96,6 +107,8 @@ export default function ShipmentAcceptancePage() {
       XLSX.utils.book_append_sheet(wb, ws, 'Shipment Report')
       const date = new Date().toISOString().slice(0, 10)
       XLSX.writeFile(wb, `shipment-acceptance-${date}.xlsx`)
+    } catch (err) {
+      console.error('Export failed:', err)
     } finally {
       setExporting(false)
     }
@@ -203,10 +216,17 @@ export default function ShipmentAcceptancePage() {
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
         <table className="w-full text-sm min-w-[2000px]">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              {/* Divider marker */}
-              <th className="px-2 py-3 bg-blue-50 border-x border-blue-100 text-center text-[10px] font-semibold text-blue-400 tracking-widest uppercase whitespace-nowrap">Postone</th>
+          <thead>
+            {/* Group headers */}
+            <tr className="border-b border-slate-200">
+              <GH label="" span={1} color="bg-slate-50 text-slate-400 border-slate-200" />
+              <GH label="เว็บ Postone" span={10} color="bg-blue-50 text-blue-500 border-blue-100" />
+              <GH label="ข้อมูลไปรษณีย์ (ไฟล์บริการ)" span={11} color="bg-green-50 text-green-500 border-green-100" />
+            </tr>
+            {/* Column headers */}
+            <tr className="bg-slate-50 border-b border-slate-200">
+              {/* Status */}
+              <th className="px-2 py-3 bg-blue-50 border-x border-blue-100 text-center text-[10px] font-semibold text-blue-400 tracking-widest uppercase whitespace-nowrap"></th>
               {/* Postone columns */}
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Label ID</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Product Details</th>
