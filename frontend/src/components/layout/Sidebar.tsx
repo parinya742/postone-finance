@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
-  Settings, ChevronRight, X, Building2,
-  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin,
+  Settings, ChevronRight, X,
+  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -59,6 +59,8 @@ const navGroups = [
     label: 'Master Data',
     items: [
       { href: '/admin/special-postal-zones', label: 'พื้นที่ไปรษณีย์พิเศษ', icon: MapPin, permission: 'special-zones.view', exact: false },
+      { href: '/admin/ems-rates', label: 'อัตราค่าขนส่ง EMS', icon: PackageCheck, permission: 'ems-rates.view', exact: false },
+      { href: '/admin/domestic-letter-rates', label: 'อัตราค่าขนส่งจดหมายในประเทศ - ซอง', icon: PackageCheck, permission: 'domestic-letter-rates.view', exact: false },
     ],
   },
 ]

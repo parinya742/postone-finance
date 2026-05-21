@@ -42,6 +42,32 @@ class ShipmentAcceptanceController extends Controller
                 'ps.tracking_no',
                 'ps.due_date',
                 'ps.latest_status',
+                DB::raw("
+                    CASE WHEN thpa.service_name ILIKE '%EMS%' THEN (
+                        SELECT CEIL(er.rate + COALESCE(
+                            (SELECT value FROM ems_settings WHERE key = 'offset' LIMIT 1), 0
+                        ))
+                        FROM ems_rates er
+                        WHERE er.weight >= CEIL(
+                            CASE WHEN thpa.weight_grams < 10 THEN thpa.weight_grams ELSE thpa.weight_grams / 1000.0 END
+                        )
+                        ORDER BY er.weight ASC
+                        LIMIT 1
+                    ) ELSE NULL END AS ems_calculated_cost
+                "),
+                DB::raw("
+                    CASE WHEN thpa.service_name ILIKE '%จดหมาย%' THEN (
+                        SELECT CEIL(dlr.rate + COALESCE(
+                            (SELECT value FROM domestic_letter_settings WHERE key = 'offset' LIMIT 1), 0
+                        ))
+                        FROM domestic_letter_rates dlr
+                        WHERE dlr.weight >= CEIL(
+                            (CASE WHEN thpa.weight_grams < 10 THEN thpa.weight_grams ELSE thpa.weight_grams / 1000.0 END) * 100.0
+                        ) / 100.0
+                        ORDER BY dlr.weight ASC
+                        LIMIT 1
+                    ) ELSE NULL END AS dl_calculated_cost
+                "),
             ])
             ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
             ->orderByDesc('thpa.deposit_datetime');
@@ -72,6 +98,10 @@ class ShipmentAcceptanceController extends Controller
 
         if ($request->filled('date_to')) {
             $query->whereDate('thpa.deposit_datetime', '<=', $request->date_to);
+        }
+
+        if ($request->filled('service_type')) {
+            $query->where('thpa.service_name', 'ilike', '%' . $request->service_type . '%');
         }
 
         return $query;

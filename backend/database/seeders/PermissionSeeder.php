@@ -23,6 +23,9 @@ class PermissionSeeder extends Seeder
             'shipments'     => ['view'],
             'line-files'    => ['view', 'create'],
             'thaipost'      => ['view'],
+            'special-zones' => ['view', 'create', 'edit', 'delete'],
+            'ems-rates'     => ['view', 'create', 'edit', 'delete'],
+            'domestic-letter-rates' => ['view', 'create', 'edit', 'delete'],
         ];
 
         $labelMap = [

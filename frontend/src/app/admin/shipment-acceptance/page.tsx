@@ -28,6 +28,35 @@ function fmtNum(n: number | null, decimals = 2) {
   return n.toLocaleString('th-TH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
+function fmtKg(val: number | null) {
+  if (val == null) return '—'
+  const kg = val < 10 ? val : val / 1000
+  return kg.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ฟังก์ชันแปลงน้ำหนักให้อยู่ในหน่วยกิโลกรัมเสมอ
+function getKg(val: number | null) {
+  if (val == null) return null
+  // ถ้าค่าน้อยกว่า 10 ถือว่าเป็น Kg อยู่แล้ว (เช่น 0.0140)
+  // ถ้ามากกว่า 10 ถือว่าเป็น กรัม ต้องหาร 1000 (เช่น 2348)
+  return val < 10 ? val : val / 1000
+}
+
+// ฟังก์ชันสำหรับปัดทศนิยมจดหมายขึ้น 2 ตำแหน่ง (เช่น 0.0140 -> 0.02)
+function calculateLetterKg(val: number | null) {
+  if (val == null) return null
+  const kg = getKg(val) as number
+  // ป้องกันบั๊ก Float Precision ของ JS โดยใช้ Math.round ช่วยก่อนปัดเศษขึ้น
+  return Math.ceil(Math.round(kg * 10000) / 100) / 100
+}
+
+// ฟังก์ชันสำหรับปัดเศษ EMS ขึ้นเป็นจำนวนเต็ม (เช่น 2.348 -> 3)
+function calculateEmsKg(val: number | null) {
+  if (val == null) return null
+  const kg = getKg(val) as number
+  return Math.ceil(kg)
+}
+
 function GH({ label, span, color }: { label: string; span: number; color: string }) {
   return (
     <th
@@ -40,37 +69,57 @@ function GH({ label, span, color }: { label: string; span: number; color: string
 }
 
 function buildExcelRows(items: ShipmentAcceptanceJoin[]) {
-  return items.map((item) => ({
-    'Label ID': item.label_id,
-    'ชื่อลูกค้า': item.customer_name ?? '',
-    'รายละเอียดสินค้า': item.product_details ?? '',
-    'PI Number': item.pi_number ?? '',
-    'SO Number': item.so_number ?? '',
-    'COD (เว็บ Postone)': item.ps_cod_amount ?? '',
-    'จัดส่งโดย': item.shipping_by ?? '',
-    'ค่าส่ง': item.shipping_cost ?? '',
-    'Tracking No': item.barcode ?? '',
-    'Due Date': item.due_date ?? '',
-    'สถานะล่าสุด': item.latest_status ?? '',
-    'ที่ทำการ': item.office_name ?? item.office_code ?? '',
-    'TR Number': item.tr_number ?? '',
-    'วันฝากส่ง': item.deposit_datetime ?? '',
-    'ชื่อผู้รับ': item.recipient_name ?? '',
-    'เบอร์ผู้รับ': item.recipient_phone ?? '',
-    'รหัสปลายทาง': item.destination_code ?? '',
-    'ชื่อปลายทาง': item.destination_name ?? '',
-    'น้ำหนัก (g)': item.weight_grams ?? '',
-    'บริการ': item.service_name ?? '',
-    'ค่าบริการ': item.service_fee ?? '',
-    'COD (ไฟล์ LINE)': item.thpa_cod_amount ?? '',
-    'เบอร์ Wallet': item.wallet_phone ?? '',
-  }))
+  return items.map((item) => {
+    // จัดการโลจิกน้ำหนักสำหรับ Export
+    let excelKg: number | string = ''
+    if (item.weight_grams != null) {
+      if (item.dl_calculated_cost != null) {
+        // จดหมาย: ปัดทศนิยมขึ้น 2 ตำแหน่ง
+        excelKg = calculateLetterKg(item.weight_grams) as number
+      } else if (item.ems_calculated_cost != null) {
+        // EMS: แปลงเป็นกิโลกรัมแล้วปัดเศษขึ้นเป็นจำนวนเต็ม
+        excelKg = calculateEmsKg(item.weight_grams) as number
+      } else {
+        // อื่นๆ ใช้การแปลงเป็นกิโลกรัมปกติ
+        excelKg = item.weight_grams / 1000
+      }
+    }
+
+    return {
+      'Label ID': item.label_id,
+      'ชื่อลูกค้า': item.customer_name ?? '',
+      'รายละเอียดสินค้า': item.product_details ?? '',
+      'PI Number': item.pi_number ?? '',
+      'SO Number': item.so_number ?? '',
+      'COD (เว็บ Postone)': item.ps_cod_amount ?? '',
+      'จัดส่งโดย': item.shipping_by ?? '',
+      'ค่าส่ง': item.shipping_cost ?? '',
+      'Tracking No': item.barcode ?? '',
+      'Due Date': item.due_date ?? '',
+      'สถานะล่าสุด': item.latest_status ?? '',
+      'ที่ทำการ': item.office_name ?? item.office_code ?? '',
+      'TR Number': item.tr_number ?? '',
+      'วันฝากส่ง': item.deposit_datetime ?? '',
+      'ชื่อผู้รับ': item.recipient_name ?? '',
+      'เบอร์ผู้รับ': item.recipient_phone ?? '',
+      'รหัสปลายทาง': item.destination_code ?? '',
+      'ชื่อปลายทาง': item.destination_name ?? '',
+      'น้ำหนัก (g)': item.weight_grams ?? '',
+      'น้ำหนัก (กก.)': excelKg,
+      'บริการ': item.service_name ?? '',
+      'ค่าบริการ': item.service_fee ?? '',
+      'ค่าส่ง (คำนวณ)': item.dl_calculated_cost ?? item.ems_calculated_cost ?? '',
+      'COD (ไฟล์ LINE)': item.thpa_cod_amount ?? '',
+      'เบอร์ Wallet': item.wallet_phone ?? '',
+    }
+  })
 }
 
 export default function ShipmentAcceptancePage() {
   const { can } = useAuth()
   const [search, setSearch] = useState('')
   const [matchStatus, setMatchStatus] = useState('matched')
+  const [serviceType, setServiceType] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
@@ -78,10 +127,10 @@ export default function ShipmentAcceptancePage() {
 
   const resetPage = () => setPage(1)
 
-  const params = { search, match_status: matchStatus, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 }
+  const params = { search, match_status: matchStatus, service_type: serviceType || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 }
 
   const { data, isLoading } = useQuery<ShipmentAcceptanceResponse>({
-    queryKey: ['shipment-acceptance', search, matchStatus, dateFrom, dateTo, page],
+    queryKey: ['shipment-acceptance', search, matchStatus, serviceType, dateFrom, dateTo, page],
     queryFn: () =>
       api.get('/shipment-acceptance', { params }).then((r) => r.data),
     enabled: can('shipments.view'),
@@ -99,7 +148,7 @@ export default function ShipmentAcceptancePage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const exportParams = { search, match_status: matchStatus, date_from: dateFrom || undefined, date_to: dateTo || undefined }
+      const exportParams = { search, match_status: matchStatus, service_type: serviceType || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined }
       const res = await api.get('/shipment-acceptance/export', { params: exportParams })
       const rows = buildExcelRows(res.data as ShipmentAcceptanceJoin[])
       const ws = XLSX.utils.json_to_sheet(rows)
@@ -187,6 +236,17 @@ export default function ShipmentAcceptancePage() {
           <option value="matched">พบในเว็บ Postone</option>
           <option value="unmatched">ยังไม่พบในเว็บ Postone</option>
         </select>
+        <select
+          value={serviceType}
+          onChange={(e) => { setServiceType(e.target.value); resetPage() }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">ทุกประเภทบริการ</option>
+          <option value="EMS">EMS</option>
+          <option value="จดหมาย">จดหมาย</option>
+          <option value="พัสดุ">พัสดุ</option>
+          <option value="ลงทะเบียน">ลงทะเบียน</option>
+        </select>
         <div className="flex items-center gap-2">
           <label className="text-xs text-slate-500 whitespace-nowrap">วันฝากส่ง</label>
           <input
@@ -220,7 +280,7 @@ export default function ShipmentAcceptancePage() {
             {/* Group headers */}
             <tr className="border-b border-slate-200">
               <GH label="" span={1} color="bg-slate-50 text-slate-400 border-slate-200" />
-              <GH label="ข้อมูลไปรษณีย์ (ไฟล์บริการ)" span={11} color="bg-green-50 text-green-500 border-green-100" />
+              <GH label="ข้อมูลไปรษณีย์ (ไฟล์บริการ)" span={12} color="bg-green-50 text-green-500 border-green-100" />
               <GH label="เว็บ Postone" span={10} color="bg-blue-50 text-blue-500 border-blue-100" />
             </tr>
             {/* Column headers */}
@@ -235,10 +295,10 @@ export default function ShipmentAcceptancePage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">เบอร์ผู้รับ</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสปลายทาง</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อปลายทาง</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">น้ำหนัก (g)</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">น้ำหนัก (g/Kg)</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">บริการ</th>
               <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าบริการ</th>
-              {/* <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">COD (ไฟล์ LINE)</th> */}
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าส่ง (คำนวณ)</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">เบอร์ Wallet</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ที่ทำการ</th>
               {/* Postone columns */}
@@ -258,7 +318,7 @@ export default function ShipmentAcceptancePage() {
             {isLoading ? (
               [...Array(8)].map((_, i) => (
                 <tr key={i}>
-                  {[...Array(22)].map((_, j) => (
+                  {[...Array(23)].map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-4 bg-slate-100 rounded animate-pulse" />
                     </td>
@@ -267,7 +327,7 @@ export default function ShipmentAcceptancePage() {
               ))
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={22} className="px-5 py-12 text-center text-slate-400">
+                <td colSpan={23} className="px-5 py-12 text-center text-slate-400">
                   <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   ไม่พบข้อมูล
                 </td>
@@ -283,7 +343,7 @@ export default function ShipmentAcceptancePage() {
                       !hasPostone && 'bg-red-50/40'
                     )}
                   >
-                    {/* Status */}
+                    {/* Divider */}
                     <td className="px-2 py-3 bg-blue-50 border-x border-blue-100">
                       {hasPostone ? (
                         <span className="flex justify-center">
@@ -294,7 +354,7 @@ export default function ShipmentAcceptancePage() {
                           <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
                         </span>
                       )}
-                    </td>
+                    </td>   
                     {/* Thailand Post columns */}
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.tr_number ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(item.deposit_datetime)}</td>
@@ -302,10 +362,33 @@ export default function ShipmentAcceptancePage() {
                     <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.recipient_phone ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500">{item.destination_code ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">{item.destination_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right text-slate-600">{fmtNum(item.weight_grams, 0)}</td>
+                    <td className="px-4 py-3 text-xs text-right">
+                      {item.dl_calculated_cost != null ? (
+                        <span className="font-semibold text-blue-600">
+                          {fmtNum(calculateLetterKg(item.weight_grams), 2)}
+                        </span>
+                      ) : item.ems_calculated_cost != null ? (
+                        <span className="font-semibold text-orange-600">
+                          {fmtNum(calculateEmsKg(item.weight_grams), 0)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">{fmtKg(item.weight_grams)}</span>
+                      )}
+                    </td>
+
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.service_name ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-right text-slate-700">{fmtNum(item.service_fee)}</td>
-                    {/* <td className="px-4 py-3 text-xs text-right text-slate-700">{fmtNum(item.thpa_cod_amount)}</td> */}
+                    
+                    <td className="px-4 py-3 text-xs text-right">
+                      {item.dl_calculated_cost != null ? (
+                        <span className="font-semibold text-blue-600">{fmtNum(item.dl_calculated_cost, 0)}</span>
+                      ) : item.ems_calculated_cost != null ? (
+                        <span className="font-semibold text-orange-600">{fmtNum(item.ems_calculated_cost, 0)}</span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+
                     <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.wallet_phone ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.office_name ?? item.office_code ?? '—'}</td>
                     {/* Postone columns */}
@@ -314,7 +397,7 @@ export default function ShipmentAcceptancePage() {
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.pi_number ?? '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.so_number ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-700 max-w-[140px] truncate">{item.customer_name ?? '—'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-700 whitespace-nowrap">{item.tracking_no ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-700 whitespace-nowrap">{item.barcode}</td>
                     <td className="px-4 py-3 text-xs text-right text-slate-700">{item.ps_cod_amount ? `฿${item.ps_cod_amount}` : '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.shipping_by ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate">{item.latest_status ?? '—'}</td>

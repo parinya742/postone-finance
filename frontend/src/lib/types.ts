@@ -153,6 +153,9 @@ export interface ShipmentAcceptanceJoin {
   tracking_no: string | null
   due_date: string | null
   latest_status: string | null
+  // Calculated EMS cost (non-null only when service_name contains EMS)
+  ems_calculated_cost: number | null
+  dl_calculated_cost: number | null
 }
 
 export interface ShipmentAcceptanceResponse extends PaginatedResponse<ShipmentAcceptanceJoin> {
@@ -193,6 +196,9 @@ export interface LineSoJoin {
   special_zone_rate: number | null
   account_type_name?: string | null
   Area?: string | null
+  // Calculated EMS cost (non-null only when service_name contains EMS)
+  ems_calculated_cost: number | null
+  dl_calculated_cost: number | null
 }
 
 export interface SoHead {
@@ -210,6 +216,32 @@ export interface SoHead {
   CreateBy: string | null
   CreateByName: string | null
   ACCRemark: string | null
+}
+
+export interface EmsRate {
+  id: number
+  weight: number
+  rate: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface EmsRatesResponse {
+  data: EmsRate[]
+  offset: number
+}
+
+export interface DomesticLetterRate {
+  id: number
+  weight: number
+  rate: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface DomesticLetterRatesResponse {
+  data: DomesticLetterRate[]
+  offset: number
 }
 
 export interface SpecialPostalZone {

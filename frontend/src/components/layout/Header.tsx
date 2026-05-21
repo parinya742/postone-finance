@@ -24,6 +24,9 @@ const pageTitles: Record<string, string> = {
   '/admin/shipment-acceptance': 'Data Reconciliation',
   '/admin/so-head': 'SO Head Data',
   '/admin/line-so': 'ตรวจสอบข้อมูลไปรษณีย์ (Report)',
+  '/admin/special-postal-zones' : 'พื้นที่พิเศษ',
+  '/admin/ems-rates' : 'อัตราค่าขนส่ง EMS',
+  '/admin/domestic-letter-rates' : 'อัตราค่าขนส่งจดหมายในประเทศ - ซอง'
 }
 
 const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'

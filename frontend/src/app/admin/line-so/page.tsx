@@ -23,9 +23,33 @@ function fmtNum(n: number | null, decimals = 2) {
   return n.toLocaleString('th-TH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
-function fmtKg(grams: number | null) {
-  if (grams == null) return '—'
-  return (grams / 1000).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function fmtKg(val: number | null) {
+  if (val == null) return '—'
+  const kg = val < 10 ? val : val / 1000
+  return kg.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ฟังก์ชันแปลงน้ำหนักให้อยู่ในหน่วยกิโลกรัมเสมอ
+function getKg(val: number | null) {
+  if (val == null) return null
+  // ถ้าค่าน้อยกว่า 10 ถือว่าเป็น Kg อยู่แล้ว (เช่น 0.0140)
+  // ถ้ามากกว่า 10 ถือว่าเป็น กรัม ต้องหาร 1000 (เช่น 2348)
+  return val < 10 ? val : val / 1000
+}
+
+// ฟังก์ชันสำหรับปัดทศนิยมจดหมายขึ้น 2 ตำแหน่ง (เช่น 0.0140 -> 0.02)
+function calculateLetterKg(val: number | null) {
+  if (val == null) return null
+  const kg = getKg(val) as number
+  // ป้องกันบั๊ก Float Precision ของ JS โดยใช้ Math.round ช่วยก่อนปัดเศษขึ้น
+  return Math.ceil(Math.round(kg * 10000) / 100) / 100
+}
+
+// ฟังก์ชันสำหรับปัดเศษ EMS ขึ้นเป็นจำนวนเต็ม (เช่น 2.348 -> 3)
+function calculateEmsKg(val: number | null) {
+  if (val == null) return null
+  const kg = getKg(val) as number
+  return Math.ceil(kg)
 }
 
 // Group header cell
@@ -41,35 +65,52 @@ function GH({ label, span, color }: { label: string; span: number; color: string
 }
 
 function buildExcelRows(items: LineSoJoin[]) {
-  return items.map((item) => ({
-    'วันฝากส่ง': item.deposit_datetime ?? '',
-    'Barcode': item.barcode ?? '',
-    'รหัสปลายทาง': item.destination_code ?? '',
-    'ชื่อปลายทาง': item.destination_name ?? '',
-    'น้ำหนัก (g)': item.weight_grams ?? '',
-    'บริการ': item.service_name ?? '',
-    'ค่าบริการ': item.service_fee ?? '',
-    'SO Date': item.SODate ?? '',
-    'SO No': item.SoNo ?? '',
-    'PI No': item.PINo ? item.PINo : (item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'),
-    'DI No': item.DINo ?? '',
-    'PO No': item.PONo ?? '',
-    'รหัสลูกค้า': item.CustID ?? '',
-    'ชื่อลูกค้า': item.CustName ?? '',
-    'จำนวน': item.NumOfItem ?? '',
-    'รหัสเซลล์': item.FieldSaleID ?? '',
-    'ชื่อเซลล์': item.FieldSaleName ?? '',
-    'Area': item.Area ?? '',
-    'CreateBy': item.CreateBy ?? '',
-    'ชื่อผู้สร้าง': item.CreateByName ?? '',
-    'Doc Remark': item.DocRemark ?? '',
-    'ACC Remark': item.ACCRemark ?? '',
-    'ชื่อผู้รับ': item.customer_name ?? '',
-    'สินค้า': item.product_details ?? '',
-    'น้ำหนัก (กก.)': item.weight_grams ? (item.weight_grams / 1000) : '',
-    'ค่าขนส่ง': item.service_fee ?? '',
-    'อัตราพื้นที่พิเศษ': item.special_zone_rate ?? '',
-  }))
+  return items.map((item) => {
+    // จัดการโลจิกน้ำหนักสำหรับ Export
+    let excelKg: number | string = ''
+    if (item.weight_grams != null) {
+      if (item.dl_calculated_cost != null) {
+        // จดหมาย: ปัดทศนิยมขึ้น 2 ตำแหน่ง
+        excelKg = calculateLetterKg(item.weight_grams) as number
+      } else if (item.ems_calculated_cost != null) {
+        // EMS: แปลงเป็นกิโลกรัมแล้วปัดเศษขึ้นเป็นจำนวนเต็ม
+        excelKg = calculateEmsKg(item.weight_grams) as number
+      } else {
+        // อื่นๆ ใช้การแปลงเป็นกิโลกรัมปกติ
+        excelKg = item.weight_grams / 1000
+      }
+    }
+
+    return {
+      'วันฝากส่ง': item.deposit_datetime ?? '',
+      'Barcode': item.barcode ?? '',
+      'รหัสปลายทาง': item.destination_code ?? '',
+      'ชื่อปลายทาง': item.destination_name ?? '',
+      'น้ำหนัก (g)': item.weight_grams ?? '',
+      'บริการ': item.service_name ?? '',
+      'ค่าบริการ': item.service_fee ?? '',
+      'SO Date': item.SODate ?? '',
+      'SO No': item.SoNo ?? '',
+      'PI No': item.PINo ? item.PINo : (item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'),
+      'DI No': item.DINo ?? '',
+      'PO No': item.PONo ?? '',
+      'รหัสลูกค้า': item.CustID ?? '',
+      'ชื่อลูกค้า': item.CustName ?? '',
+      'จำนวน': item.NumOfItem ?? '',
+      'รหัสเซลล์': item.FieldSaleID ?? '',
+      'ชื่อเซลล์': item.FieldSaleName ?? '',
+      'Area': item.Area ?? '',
+      'CreateBy': item.CreateBy ?? '',
+      'ชื่อผู้สร้าง': item.CreateByName ?? '',
+      'Doc Remark': item.DocRemark ?? '',
+      'ACC Remark': item.ACCRemark ?? '',
+      'ชื่อผู้รับ': item.customer_name ?? '',
+      'สินค้า': item.product_details ?? '',
+      'น้ำหนัก (กก.)': excelKg,
+      'ค่าขนส่ง': item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? '',
+      'อัตราพื้นที่พิเศษ': item.special_zone_rate ?? '',
+    }
+  })
 }
 
 export default function LineSoPage() {
@@ -77,9 +118,9 @@ export default function LineSoPage() {
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [noIscode, setNoIscode] = useState(false)
   const [noPiNumber, setNoPiNumber] = useState(false)
   const [area, setArea] = useState('')
+  const [serviceType, setServiceType] = useState('')
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
 
@@ -88,7 +129,7 @@ export default function LineSoPage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_iscode: noIscode ? 1 : undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined } })
+      const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined } })
       const rows = buildExcelRows(res.data as LineSoJoin[])
       const ws = XLSX.utils.json_to_sheet(rows)
       const wb = XLSX.utils.book_new()
@@ -103,9 +144,9 @@ export default function LineSoPage() {
   }
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineSoJoin>>({
-    queryKey: ['line-so', search, dateFrom, dateTo, noIscode, noPiNumber, area, page],
+    queryKey: ['line-so', search, dateFrom, dateTo, noPiNumber, area, serviceType, page],
     queryFn: () =>
-      api.get('/iscode/line-so', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_iscode: noIscode ? 1 : undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, page, per_page: 15 } }).then((r) => r.data),
+      api.get('/iscode/line-so', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined, page, per_page: 15 } }).then((r) => r.data),
     enabled: can('line-so.view'),
   })
 
@@ -168,17 +209,18 @@ export default function LineSoPage() {
         >
           <option value="">ทุก Area</option>
           <optgroup label="ข้อมูล ISCODE">
-            <option value="BKK">BKK</option>
-            <option value="UPC">UPC</option>
+            <option value="TT BKK">TT BKK</option>
+            <option value="TT UPC">TT UPC</option>
             <option value="MT">MT</option>
-            <option value="ช่าง">ช่าง</option>
-            <option value="เคลมสินค้า Customer Service">เคลมสินค้า Customer Service</option>
-            <option value="PRODUCT SPECIALIST">PRODUCT SPECIALIST</option>
-            <option value="แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง">แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง</option>
-            <option value="แผนกการตลาดออนไลน์(เคลมสินค้า)">แผนกการตลาดออนไลน์(เคลมสินค้า)</option>
-            <option value="แผนกการตลาด Branding Media">แผนกการตลาด Branding Media</option>
-            <option value="แผนกการตลาดเบิกสินค้าตัวอย่าง">แผนกการตลาดเบิกสินค้าตัวอย่าง</option>
-            <option value="ผู้บริหารเบิกสินค้า">ผู้บริหารเบิกสินค้า</option>
+            <option value="YP">YP</option>
+            <option value="Claim & Customer Service">Claim & Customer Service</option>
+            <option value="Product Special list">Product Special list</option>
+            <option value="ONL เบิกสินค้าตัวอย่าง">ONL เบิกสินค้าตัวอย่าง</option>
+            <option value="ONL เคลมสินค้า">ONL เคลมสินค้า</option>
+            <option value="MKT">MKT</option>
+            <option value="MKT เบิกสินค้าตัวอย่าง">MKT เบิกสินค้าตัวอย่าง</option>
+            <option value="CEO เบิกสินค้าตัวอย่าง">CEO เบิกสินค้าตัวอย่าง</option>
+            <option value="Aftersale service">Aftersale service</option>
           </optgroup>
           {accountTypes?.data && accountTypes.data.length > 0 && (
             <optgroup label="Account Type (ไม่มีข้อมูล ISCODE)">
@@ -189,6 +231,17 @@ export default function LineSoPage() {
               ))}
             </optgroup>
           )}
+        </select>
+        <select
+          value={serviceType}
+          onChange={(e) => { setServiceType(e.target.value); resetPage() }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          <option value="">ทุกประเภทบริการ</option>
+          <option value="EMS">EMS</option>
+          <option value="จดหมาย">จดหมาย</option>
+          <option value="พัสดุ">พัสดุ</option>
+          <option value="ลงทะเบียน">ลงทะเบียน</option>
         </select>
         <button
           onClick={() => { setNoPiNumber((v) => !v); resetPage() }}
@@ -218,7 +271,7 @@ export default function LineSoPage() {
             {/* Group headers */}
             <tr className="border-b border-slate-200">
               <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={7} color="bg-green-50 text-green-500 border-green-100" />
-              <GH label="ISCODE" span={15} color="bg-violet-50 text-violet-500 border-violet-100" />
+              <GH label="ISCODE" span={10} color="bg-violet-50 text-violet-500 border-violet-100" />
               <GH label="ระบบไปรษณีย์" span={2} color="bg-blue-50 text-blue-400 border-blue-100" />
               <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={2} color="bg-green-50 text-green-500 border-green-100" />
               <GH label="พื้นที่พิเศษ" span={1} color="bg-orange-50 text-orange-500 border-orange-100" />
@@ -230,25 +283,25 @@ export default function LineSoPage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Barcode</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสปลายทาง</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อปลายทาง</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">น้ำหนัก (g)</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">น้ำหนัก(g) Before</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">บริการ</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าบริการ</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าบริการ Before</th>
               {/* ISCODE group */}
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">SO Date</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">SO No</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">PI No</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">DI No</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">PO No</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสลูกค้า</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อลูกค้า</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">จำนวน</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสเซลล์</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อเซลล์</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Area</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">CreateBy</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อผู้สร้าง</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Doc Remark</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ACC Remark</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Area</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">แผนกที่ส่ง</th>
+              
+              {/* <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">CreateBy</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อผู้สร้าง</th> */}
+              {/* <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ACC Remark</th> */}
+
               {/* Postone group */}
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อผู้รับ</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">สินค้า</th>
@@ -297,12 +350,9 @@ export default function LineSoPage() {
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.service_name ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-right text-slate-700">{fmtNum(item.service_fee)}</td>
                     {/* ISCODE group */}
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(item.SODate)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-violet-700 whitespace-nowrap">{item.SoNo ?? '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs text-violet-700 whitespace-nowrap">
                       {item.PINo ?? (
                         <span className="text-amber-500 flex items-center gap-1">
-                          {/* <AlertTriangle className="w-3 h-3" /> {item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'} */}
                           <AlertTriangle className="w-3 h-3" /> ไม่พบ
                         </span>
                       )}
@@ -311,14 +361,14 @@ export default function LineSoPage() {
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.PONo ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.CustID ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-800 max-w-[160px] truncate">{item.CustName ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right text-slate-600">{item.NumOfItem ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.FieldSaleID ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.FieldSaleName ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-700 whitespace-nowrap">{item.Area ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.CreateBy ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.CreateByName ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 max-w-[160px] truncate">{item.DocRemark ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 max-w-[160px] truncate">{item.ACCRemark ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-700 whitespace-nowrap">{item.Area ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-700 whitespace-nowrap">{item.account_type_name ?? '—'}</td>
+                    {/* <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.CreateBy ?? '—'}</td> */}
+                    {/* <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.CreateByName ?? '—'}</td> */}
+                    {/* <td className="px-4 py-3 text-xs text-slate-500 max-w-[160px] truncate">{item.ACCRemark ?? '—'}</td> */}
                     {/* Postone group */}
                     <td className="px-4 py-3 text-xs text-slate-700 max-w-[140px] truncate">
                       {item.customer_name ?? (
@@ -327,8 +377,28 @@ export default function LineSoPage() {
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600 max-w-[160px] truncate">{item.product_details ?? '—'}</td>
                     {/* LINE group 2 */}
-                    <td className="px-4 py-3 text-xs text-right text-slate-600">{fmtKg(item.weight_grams)}</td>
-                    <td className="px-4 py-3 text-xs text-right text-slate-700">{fmtNum(item.service_fee)}</td>
+                    <td className="px-4 py-3 text-xs text-right">
+                      {item.dl_calculated_cost != null ? (
+                        <span className="font-semibold text-blue-600">
+                          {fmtNum(calculateLetterKg(item.weight_grams), 2)}
+                        </span>
+                      ) : item.ems_calculated_cost != null ? (
+                        <span className="font-semibold text-orange-600">
+                          {fmtNum(calculateEmsKg(item.weight_grams), 0)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">{fmtKg(item.weight_grams)}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-right">
+                      {item.dl_calculated_cost != null ? (
+                        <span className="font-semibold text-blue-600">{fmtNum(item.dl_calculated_cost, 0)}</span>
+                      ) : item.ems_calculated_cost != null ? (
+                        <span className="font-semibold text-orange-600">{fmtNum(item.ems_calculated_cost, 0)}</span>
+                      ) : (
+                        <span className="text-slate-700">{fmtNum(item.service_fee)}</span>
+                      )}
+                    </td>
                     {/* Special Zone group */}
                     <td className="px-4 py-3 text-xs text-right font-semibold text-orange-700">
                       {item.special_zone_rate != null ? fmtNum(item.special_zone_rate, 0) : <span className="text-slate-300">—</span>}

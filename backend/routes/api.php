@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EmsRateController;
+use App\Http\Controllers\Api\DomesticLetterRateController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
 use App\Http\Controllers\Api\LineGroupFileController;
 use App\Http\Controllers\Api\ThaipostImportController;
@@ -121,4 +123,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:special-zones.create')->post('/special-postal-zones', [SpecialPostalZoneController::class, 'store']);
     Route::middleware('permission:special-zones.edit')->put('/special-postal-zones/{id}', [SpecialPostalZoneController::class, 'update']);
     Route::middleware('permission:special-zones.delete')->delete('/special-postal-zones/{id}', [SpecialPostalZoneController::class, 'destroy']);
+
+    // === Master Data — EMS Rates ===
+    Route::middleware('permission:ems-rates.view')->group(function () {
+        Route::get('/ems-rates', [EmsRateController::class, 'index']);
+    });
+    Route::middleware('permission:ems-rates.create')->post('/ems-rates', [EmsRateController::class, 'store']);
+    Route::middleware('permission:ems-rates.edit')->group(function () {
+        Route::put('/ems-rates/offset', [EmsRateController::class, 'updateOffset']);
+        Route::put('/ems-rates/{id}', [EmsRateController::class, 'update']);
+    });
+    Route::middleware('permission:ems-rates.delete')->delete('/ems-rates/{id}', [EmsRateController::class, 'destroy']);
+
+    // === Master Data — Domestic Letter Rates ===
+    Route::middleware('permission:domestic-letter-rates.view')->group(function () {
+        Route::get('/domestic-letter-rates', [DomesticLetterRateController::class, 'index']);
+    });
+    Route::middleware('permission:domestic-letter-rates.create')->post('/domestic-letter-rates', [DomesticLetterRateController::class, 'store']);
+    Route::middleware('permission:domestic-letter-rates.edit')->group(function () {
+        Route::put('/domestic-letter-rates/offset', [DomesticLetterRateController::class, 'updateOffset']);
+        Route::put('/domestic-letter-rates/{id}', [DomesticLetterRateController::class, 'update']);
+    });
+    Route::middleware('permission:domestic-letter-rates.delete')->delete('/domestic-letter-rates/{id}', [DomesticLetterRateController::class, 'destroy']);
 });

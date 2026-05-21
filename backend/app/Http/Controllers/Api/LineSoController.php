@@ -10,16 +10,22 @@ use Illuminate\Support\Facades\DB;
 class LineSoController extends Controller
 {
     private const CUSTID_AREA_MAP = [
-        'f680000004' => 'เคลมสินค้า Customer Service',
-        '777-7015s'  => 'PRODUCT SPECIALIST',
-        '777-7010s'  => 'แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง',
-        '888-7010s'  => 'แผนกการตลาดออนไลน์(เคลมสินค้า)',
-        '777-7014s'  => 'แผนกการตลาด Branding Media',
-        '777-7008s'  => 'แผนกการตลาดเบิกสินค้าตัวอย่าง',
-        '777-7003s'  => 'ผู้บริหารเบิกสินค้า',
+        'f680000004' => 'Claim & Customer Service',
+        '777-7015s'  => 'Product Special list',
+        '777-7010s'  => 'ONL เบิกสินค้าตัวอย่าง',
+        '888-7010s'  => 'ONL เคลมสินค้า',
+        '777-7014s'  => 'MKT',
+        '777-7008s'  => 'MKT เบิกสินค้าตัวอย่าง',
+        '777-7003s'  => 'CEO เบิกสินค้าตัวอย่าง',
     ];
 
-    private const PREFIX_AREA_MAP = ['7' => 'BKK', '8' => 'UPC', '2' => 'MT'];
+    private const PREFIX_AREA_MAP = [
+        '70' => 'TT BKK', 
+        '80' => 'TT UPC', 
+        '20' => 'MT',
+        '70010' => 'YP',
+        '70370' => 'YP',
+    ];
 
     public function index(Request $request): JsonResponse
     {
@@ -74,6 +80,32 @@ class LineSoController extends Controller
                 'ps.product_details',
                 'spz.rate as special_zone_rate',
                 'pat.name as account_type_name',
+                DB::raw("
+                    CASE WHEN thpa.service_name ILIKE '%EMS%' THEN (
+                        SELECT CEIL(er.rate + COALESCE(
+                            (SELECT value FROM ems_settings WHERE key = 'offset' LIMIT 1), 0
+                        ))
+                        FROM ems_rates er
+                        WHERE er.weight >= CEIL(
+                            CASE WHEN thpa.weight_grams < 10 THEN thpa.weight_grams ELSE thpa.weight_grams / 1000.0 END
+                        )
+                        ORDER BY er.weight ASC
+                        LIMIT 1
+                    ) ELSE NULL END AS ems_calculated_cost
+                "),
+                DB::raw("
+                    CASE WHEN thpa.service_name ILIKE '%จดหมาย%' THEN (
+                        SELECT CEIL(dlr.rate + COALESCE(
+                            (SELECT value FROM domestic_letter_settings WHERE key = 'offset' LIMIT 1), 0
+                        ))
+                        FROM domestic_letter_rates dlr
+                        WHERE dlr.weight >= CEIL(
+                            (CASE WHEN thpa.weight_grams < 10 THEN thpa.weight_grams ELSE thpa.weight_grams / 1000.0 END) * 100.0
+                        ) / 100.0
+                        ORDER BY dlr.weight ASC
+                        LIMIT 1
+                    ) ELSE NULL END AS dl_calculated_cost
+                "),
             ])
             ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
             ->leftJoin('special_postal_zones as spz', 'spz.office_name', '=', 'thpa.destination_name')
@@ -99,6 +131,10 @@ class LineSoController extends Controller
 
         if ($request->boolean('no_pi_number')) {
             $query->whereNull('ps.pi_number');
+        }
+
+        if ($request->filled('service_type')) {
+            $query->where('thpa.service_name', 'ilike', '%' . $request->service_type . '%');
         }
 
         if ($request->boolean('no_iscode') || $request->filled('area')) {
@@ -144,26 +180,25 @@ class LineSoController extends Controller
         $specialCustIds = array_map('strtolower', array_keys(self::CUSTID_AREA_MAP));
 
         $filteredPiNos = [];
-        $isIscodeArea = isset($custidAreaMap[$area]) || $area === 'ช่าง' || isset($prefixAreaMap[$area]);
+        $isIscodeArea = isset($custidAreaMap[$area]) || isset($prefixAreaMap[$area]);
 
         if ($isIscodeArea && !empty($activePiNos)) {
             $dbctlQuery = DB::connection('dbctl')
                 ->table('ct_so_head')
                 ->whereIn('pino', $activePiNos);
 
-            if (isset($custidAreaMap[$area])) {
+            if ($area === 'Aftersale service') {
+                $dbctlQuery->where(function ($q) {
+                    $q->whereRaw("lower(trim(custid)) = '9980-0'")
+                      ->orWhereRaw("trim(fieldsaleid) = '9980-0'");
+                });
+
+            } elseif (isset($custidAreaMap[$area])) {
                 $custid = strtolower($custidAreaMap[$area]);
                 $dbctlQuery->whereRaw('lower(trim(custid)) = ?', [$custid]);
 
-            } elseif ($area === 'ช่าง') {
-                $dbctlQuery->whereRaw("trim(fieldsaleid) = '9980-0'")
-                    ->where(function ($q) use ($specialCustIds) {
-                        $q->whereNotIn(DB::raw('lower(trim(custid))'), $specialCustIds)
-                          ->orWhereNull('custid');
-                    });
-
             } elseif (isset($prefixAreaMap[$area])) {
-                $prefix = $prefixAreaMap[$area];
+                $prefixes = array_keys(array_filter(self::PREFIX_AREA_MAP, fn($a) => $a === $area));
                 $dbctlQuery->where(function ($q) use ($specialCustIds) {
                         $q->whereNotIn(DB::raw('lower(trim(custid))'), $specialCustIds)
                           ->orWhereNull('custid');
@@ -172,16 +207,20 @@ class LineSoController extends Controller
                         $q->whereRaw("trim(fieldsaleid) != '9980-0'")
                           ->orWhereNull('fieldsaleid');
                     })
-                    ->where(function ($q) use ($prefix) {
-                        $q->where(function ($inner) use ($prefix) {
-                            $inner->whereNotNull('sono')
-                                  ->where('sono', '!=', '')
-                                  ->where('sono', 'ilike', "{$prefix}%");
-                        })->orWhere(function ($inner) use ($prefix) {
-                            $inner->where(function ($s) {
-                                $s->whereNull('sono')->orWhere('sono', '');
-                            })->where('pino', 'ilike', "{$prefix}%");
-                        });
+                    ->where(function ($q) use ($prefixes) {
+                        foreach ($prefixes as $prefix) {
+                            $q->orWhere(function ($inner) use ($prefix) {
+                                $inner->where(function ($p) use ($prefix) {
+                                    $p->whereNotNull('sono')
+                                      ->where('sono', '!=', '')
+                                      ->where('sono', 'ilike', "{$prefix}%");
+                                })->orWhere(function ($p) use ($prefix) {
+                                    $p->where(function ($s) {
+                                        $s->whereNull('sono')->orWhere('sono', '');
+                                    })->where('pino', 'ilike', "{$prefix}%");
+                                });
+                            });
+                        }
                     });
             }
 
@@ -239,11 +278,18 @@ class LineSoController extends Controller
                 if (isset(self::CUSTID_AREA_MAP[$custidLower])) {
                     $area = self::CUSTID_AREA_MAP[$custidLower];
                 } elseif ($fieldsaleid === '9980-0') {
-                    $area = 'ช่าง';
+                    $area = 'Aftersale service';
                 } else {
                     $billingCode = $sono ?: $pino;
                     if ($billingCode !== '') {
-                        $area = self::PREFIX_AREA_MAP[$billingCode[0]] ?? null;
+                        $prefixMap = self::PREFIX_AREA_MAP;
+                        uksort($prefixMap, fn($a, $b) => strlen($b) - strlen($a));
+                        foreach ($prefixMap as $prefix => $areaName) {
+                            if (str_starts_with($billingCode, $prefix)) {
+                                $area = $areaName;
+                                break;
+                            }
+                        }
                     }
                 }
             }
