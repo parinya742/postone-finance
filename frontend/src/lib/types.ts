@@ -156,6 +156,7 @@ export interface ShipmentAcceptanceJoin {
   // Calculated EMS cost (non-null only when service_name contains EMS)
   ems_calculated_cost: number | null
   dl_calculated_cost: number | null
+  account_type_name: string | null
 }
 
 export interface ShipmentAcceptanceResponse extends PaginatedResponse<ShipmentAcceptanceJoin> {

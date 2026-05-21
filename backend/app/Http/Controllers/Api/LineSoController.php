@@ -180,7 +180,7 @@ class LineSoController extends Controller
         $specialCustIds = array_map('strtolower', array_keys(self::CUSTID_AREA_MAP));
 
         $filteredPiNos = [];
-        $isIscodeArea = isset($custidAreaMap[$area]) || isset($prefixAreaMap[$area]);
+        $isIscodeArea = isset($custidAreaMap[$area]) || isset($prefixAreaMap[$area]) || $area === 'Aftersale service';
 
         if ($isIscodeArea && !empty($activePiNos)) {
             $dbctlQuery = DB::connection('dbctl')

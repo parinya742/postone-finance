@@ -52,7 +52,7 @@ const navGroups = [
     label: 'ISCODE',
     items: [
       { href: '/admin/so-head', label: 'SO Head Data', icon: Database, permission: 'iscode.view', exact: false },
-      { href: '/admin/line-so', label: 'Post Report', icon: BarChart2, permission: 'line-so.view', exact: false },
+      { href: '/admin/line-so', label: 'Postal Report', icon: BarChart2, permission: 'line-so.view', exact: false },
     ],
   },
   {

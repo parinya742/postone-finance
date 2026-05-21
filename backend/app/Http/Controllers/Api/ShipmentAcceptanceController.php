@@ -42,6 +42,7 @@ class ShipmentAcceptanceController extends Controller
                 'ps.tracking_no',
                 'ps.due_date',
                 'ps.latest_status',
+                'pat.name as account_type_name',
                 DB::raw("
                     CASE WHEN thpa.service_name ILIKE '%EMS%' THEN (
                         SELECT CEIL(er.rate + COALESCE(
@@ -70,6 +71,7 @@ class ShipmentAcceptanceController extends Controller
                 "),
             ])
             ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
+            ->leftJoin('postone_account_types as pat', 'pat.id', '=', 'ps.account_type_id')
             ->orderByDesc('thpa.deposit_datetime');
 
         if ($request->filled('search')) {
@@ -102,6 +104,10 @@ class ShipmentAcceptanceController extends Controller
 
         if ($request->filled('service_type')) {
             $query->where('thpa.service_name', 'ilike', '%' . $request->service_type . '%');
+        }
+
+        if ($request->filled('account_type')) {
+            $query->where('pat.name', $request->account_type);
         }
 
         return $query;

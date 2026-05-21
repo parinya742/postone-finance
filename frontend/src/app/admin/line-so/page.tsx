@@ -101,17 +101,13 @@ function CopyCell({ value, className }: { value: string | null | undefined; clas
 
 function buildExcelRows(items: LineSoJoin[]) {
   return items.map((item) => {
-    // จัดการโลจิกน้ำหนักสำหรับ Export
     let excelKg: number | string = ''
     if (item.weight_grams != null) {
       if (item.dl_calculated_cost != null) {
-        // จดหมาย: ปัดทศนิยมขึ้น 2 ตำแหน่ง
         excelKg = calculateLetterKg(item.weight_grams) as number
       } else if (item.ems_calculated_cost != null) {
-        // EMS: แปลงเป็นกิโลกรัมแล้วปัดเศษขึ้นเป็นจำนวนเต็ม
         excelKg = calculateEmsKg(item.weight_grams) as number
       } else {
-        // อื่นๆ ใช้การแปลงเป็นกิโลกรัมปกติ
         excelKg = item.weight_grams / 1000
       }
     }
@@ -121,24 +117,19 @@ function buildExcelRows(items: LineSoJoin[]) {
       'Barcode': item.barcode ?? '',
       'รหัสปลายทาง': item.destination_code ?? '',
       'ชื่อปลายทาง': item.destination_name ?? '',
-      'น้ำหนัก (g)': item.weight_grams ?? '',
+      'น้ำหนัก(g) Before': item.weight_grams ?? '',
       'บริการ': item.service_name ?? '',
-      'ค่าบริการ': item.service_fee ?? '',
-      'SO Date': item.SODate ?? '',
-      'SO No': item.SoNo ?? '',
+      'ค่าบริการ Before': item.service_fee ?? '',
       'PI No': item.PINo ? item.PINo : (item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'),
       'DI No': item.DINo ?? '',
       'PO No': item.PONo ?? '',
       'รหัสลูกค้า': item.CustID ?? '',
       'ชื่อลูกค้า': item.CustName ?? '',
-      'จำนวน': item.NumOfItem ?? '',
       'รหัสเซลล์': item.FieldSaleID ?? '',
       'ชื่อเซลล์': item.FieldSaleName ?? '',
-      'Area': item.Area ?? '',
-      'CreateBy': item.CreateBy ?? '',
-      'ชื่อผู้สร้าง': item.CreateByName ?? '',
       'Doc Remark': item.DocRemark ?? '',
-      'ACC Remark': item.ACCRemark ?? '',
+      'Area': item.Area ?? '',
+      'แผนกที่ส่ง': item.account_type_name ?? '',
       'ชื่อผู้รับ': item.customer_name ?? '',
       'สินค้า': item.product_details ?? '',
       'น้ำหนัก (กก.)': excelKg,
@@ -275,8 +266,8 @@ export default function LineSoPage() {
           <option value="">ทุกประเภทบริการ</option>
           <option value="EMS">EMS</option>
           <option value="จดหมาย">จดหมาย</option>
-          <option value="พัสดุ">พัสดุ</option>
-          <option value="ลงทะเบียน">ลงทะเบียน</option>
+          {/* <option value="พัสดุ">พัสดุ</option>
+          <option value="ลงทะเบียน">ลงทะเบียน</option> */}
         </select>
         <button
           onClick={() => { setNoPiNumber((v) => !v); resetPage() }}

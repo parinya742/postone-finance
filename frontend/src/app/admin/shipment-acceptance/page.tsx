@@ -1,7 +1,7 @@
 'use client'
 
 import api from '@/lib/api'
-import { ShipmentAcceptanceJoin, ShipmentAcceptanceResponse } from '@/lib/types'
+import { ShipmentAcceptanceJoin, ShipmentAcceptanceResponse, PostoneAccountType, PaginatedResponse } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Search, Lock, FileSpreadsheet, AlertTriangle, CheckCircle, GitMerge, Info, Download } from 'lucide-react'
@@ -120,6 +120,7 @@ export default function ShipmentAcceptancePage() {
   const [search, setSearch] = useState('')
   const [matchStatus, setMatchStatus] = useState('matched')
   const [serviceType, setServiceType] = useState('')
+  const [accountType, setAccountType] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
@@ -127,12 +128,18 @@ export default function ShipmentAcceptancePage() {
 
   const resetPage = () => setPage(1)
 
-  const params = { search, match_status: matchStatus, service_type: serviceType || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 }
+  const params = { search, match_status: matchStatus, service_type: serviceType || undefined, account_type: accountType || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 }
 
   const { data, isLoading } = useQuery<ShipmentAcceptanceResponse>({
-    queryKey: ['shipment-acceptance', search, matchStatus, serviceType, dateFrom, dateTo, page],
+    queryKey: ['shipment-acceptance', search, matchStatus, serviceType, accountType, dateFrom, dateTo, page],
     queryFn: () =>
       api.get('/shipment-acceptance', { params }).then((r) => r.data),
+    enabled: can('shipments.view'),
+  })
+
+  const { data: accountTypes } = useQuery<PaginatedResponse<PostoneAccountType>>({
+    queryKey: ['account-types-all'],
+    queryFn: () => api.get('/account-types', { params: { per_page: 100 } }).then((r) => r.data),
     enabled: can('shipments.view'),
   })
 
@@ -148,7 +155,7 @@ export default function ShipmentAcceptancePage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const exportParams = { search, match_status: matchStatus, service_type: serviceType || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined }
+      const exportParams = { search, match_status: matchStatus, service_type: serviceType || undefined, account_type: accountType || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined }
       const res = await api.get('/shipment-acceptance/export', { params: exportParams })
       const rows = buildExcelRows(res.data as ShipmentAcceptanceJoin[])
       const ws = XLSX.utils.json_to_sheet(rows)
@@ -244,8 +251,18 @@ export default function ShipmentAcceptancePage() {
           <option value="">ทุกประเภทบริการ</option>
           <option value="EMS">EMS</option>
           <option value="จดหมาย">จดหมาย</option>
-          <option value="พัสดุ">พัสดุ</option>
-          <option value="ลงทะเบียน">ลงทะเบียน</option>
+          {/* <option value="พัสดุ">พัสดุ</option>
+          <option value="ลงทะเบียน">ลงทะเบียน</option> */}
+        </select>
+        <select
+          value={accountType}
+          onChange={(e) => { setAccountType(e.target.value); resetPage() }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          <option value="">ทุก Account Type</option>
+          {accountTypes?.data?.map((at) => (
+            <option key={at.id} value={at.name}>{at.name}</option>
+          ))}
         </select>
         <div className="flex items-center gap-2">
           <label className="text-xs text-slate-500 whitespace-nowrap">วันฝากส่ง</label>
