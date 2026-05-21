@@ -63,6 +63,8 @@ const navGroups = [
   },
 ]
 
+const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
+
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { can } = useAuth()
   const pathname = usePathname()
@@ -80,7 +82,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex items-center gap-3">
           <img src="/pumpkin.png" alt="POSTONE Logo" className="w-8 h-8 object-contain" />
           <div>
-            <p className="font-bold text-sm tracking-wide text-slate-900">POSTONE (Demo)</p>
+            <p className="font-bold text-sm tracking-wide text-slate-900">POSTONE {isDemo ? '(Demo)' : ''}</p>
             <p className="text-slate-500 text-[10px] uppercase tracking-widest">Finance</p>
           </div>
         </div>

@@ -26,10 +26,9 @@ export default function LoginPage() {
     if (params.get("reason") === "session_expired") setSessionExpired(true);
   }, []);
 
-  if (user) {
-    router.push("/admin");
-    return null;
-  }
+  useEffect(() => {
+    if (user) router.push("/admin");
+  }, [user, router]);
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();

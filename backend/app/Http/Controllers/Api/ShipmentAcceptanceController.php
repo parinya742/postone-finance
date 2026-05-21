@@ -79,23 +79,27 @@ class ShipmentAcceptanceController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $unmatchedCount = DB::connection('n8n')
+        $baseStats = DB::connection('n8n')
             ->table('thailand_post_acceptance as thpa')
             ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
-            ->whereNull('ps.tracking_no')
-            ->count();
+            ->selectRaw('COUNT(*) as total_all, COUNT(ps.tracking_no) as matched_all, SUM(CASE WHEN ps.tracking_no IS NULL THEN 1 ELSE 0 END) as unmatched_all')
+            ->first();
 
         $paginated = $this->baseQuery($request)->paginate($request->integer('per_page', 20));
 
         return response()->json(array_merge(
             $paginated->toArray(),
-            ['unmatched_count' => $unmatchedCount]
+            [
+                'total_all'      => (int) $baseStats->total_all,
+                'matched_count'  => (int) $baseStats->matched_all,
+                'unmatched_count'=> (int) $baseStats->unmatched_all,
+            ]
         ));
     }
 
     public function export(Request $request): JsonResponse
     {
-        $items = $this->baseQuery($request)->get();
+        $items = $this->baseQuery($request)->limit(50000)->get();
 
         return response()->json($items);
     }

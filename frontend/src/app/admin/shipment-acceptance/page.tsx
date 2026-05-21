@@ -115,9 +115,9 @@ export default function ShipmentAcceptancePage() {
   }
 
   const items = data?.data ?? []
+  const totalAll = data?.total_all ?? 0
+  const matchedCount = data?.matched_count ?? 0
   const unmatchedCount = data?.unmatched_count ?? 0
-  const totalShipments = data?.total ?? 0
-  const matchedCount = totalShipments - unmatchedCount
 
   return (
     <div className="space-y-6">
@@ -144,7 +144,7 @@ export default function ShipmentAcceptancePage() {
           </div>
           <div>
             <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">รายการทั้งหมด (ไฟล์ LINE)</p>
-            <p className="text-2xl font-bold text-slate-800">{unmatchedCount + matchedCount > 0 ? (unmatchedCount + matchedCount).toLocaleString('th-TH') : '—'}</p>
+            <p className="text-2xl font-bold text-slate-800">{totalAll > 0 ? totalAll.toLocaleString('th-TH') : '—'}</p>
           </div>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center gap-4">
@@ -220,24 +220,14 @@ export default function ShipmentAcceptancePage() {
             {/* Group headers */}
             <tr className="border-b border-slate-200">
               <GH label="" span={1} color="bg-slate-50 text-slate-400 border-slate-200" />
-              <GH label="เว็บ Postone" span={10} color="bg-blue-50 text-blue-500 border-blue-100" />
               <GH label="ข้อมูลไปรษณีย์ (ไฟล์บริการ)" span={11} color="bg-green-50 text-green-500 border-green-100" />
+              <GH label="เว็บ Postone" span={10} color="bg-blue-50 text-blue-500 border-blue-100" />
             </tr>
             {/* Column headers */}
             <tr className="bg-slate-50 border-b border-slate-200">
               {/* Status */}
               <th className="px-2 py-3 bg-blue-50 border-x border-blue-100 text-center text-[10px] font-semibold text-blue-400 tracking-widest uppercase whitespace-nowrap"></th>
-              {/* Postone columns */}
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Label ID</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Product Details</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">PI NO</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">SO NO</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อลูกค้า</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Tracking No</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">COD</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">จัดส่งโดย</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">สถานะล่าสุด</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Due Date</th>
+
               {/* Thailand Post columns */}
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">TR Number</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">วันฝากส่ง</th>
@@ -251,6 +241,17 @@ export default function ShipmentAcceptancePage() {
               {/* <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">COD (ไฟล์ LINE)</th> */}
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">เบอร์ Wallet</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ที่ทำการ</th>
+              {/* Postone columns */}
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Label ID</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Product Details</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">PI NO</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">SO NO</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อลูกค้า</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Tracking No</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">COD</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">จัดส่งโดย</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">สถานะล่าสุด</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Due Date</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -282,7 +283,7 @@ export default function ShipmentAcceptancePage() {
                       !hasPostone && 'bg-red-50/40'
                     )}
                   >
-                    {/* Divider */}
+                    {/* Status */}
                     <td className="px-2 py-3 bg-blue-50 border-x border-blue-100">
                       {hasPostone ? (
                         <span className="flex justify-center">
@@ -294,18 +295,6 @@ export default function ShipmentAcceptancePage() {
                         </span>
                       )}
                     </td>
-                    {/* Postone columns */}
-                    <td className="px-4 py-3 font-mono text-xs text-blue-600 whitespace-nowrap">{item.label_id}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.product_details ?? '—'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.pi_number ?? '—'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.so_number ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-700 max-w-[140px] truncate">{item.customer_name ?? '—'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-700 whitespace-nowrap">{item.barcode}</td>
-                    <td className="px-4 py-3 text-xs text-right text-slate-700">{item.ps_cod_amount ? `฿${item.ps_cod_amount}` : '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.shipping_by ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate">{item.latest_status ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{fmtDateOnly(item.due_date)}</td>
-                    
                     {/* Thailand Post columns */}
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.tr_number ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(item.deposit_datetime)}</td>
@@ -319,6 +308,17 @@ export default function ShipmentAcceptancePage() {
                     {/* <td className="px-4 py-3 text-xs text-right text-slate-700">{fmtNum(item.thpa_cod_amount)}</td> */}
                     <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.wallet_phone ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.office_name ?? item.office_code ?? '—'}</td>
+                    {/* Postone columns */}
+                    <td className="px-4 py-3 font-mono text-xs text-blue-600 whitespace-nowrap">{item.label_id ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.product_details ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.pi_number ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.so_number ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-700 max-w-[140px] truncate">{item.customer_name ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-700 whitespace-nowrap">{item.tracking_no ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-right text-slate-700">{item.ps_cod_amount ? `฿${item.ps_cod_amount}` : '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.shipping_by ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate">{item.latest_status ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{fmtDateOnly(item.due_date)}</td>
                   </tr>
                 )
               })

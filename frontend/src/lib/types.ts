@@ -156,6 +156,8 @@ export interface ShipmentAcceptanceJoin {
 }
 
 export interface ShipmentAcceptanceResponse extends PaginatedResponse<ShipmentAcceptanceJoin> {
+  total_all: number
+  matched_count: number
   unmatched_count: number
 }
 

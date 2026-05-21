@@ -9,6 +9,18 @@ use Illuminate\Support\Facades\DB;
 
 class LineSoController extends Controller
 {
+    private const CUSTID_AREA_MAP = [
+        'f680000004' => 'เคลมสินค้า Customer Service',
+        '777-7015s'  => 'PRODUCT SPECIALIST',
+        '777-7010s'  => 'แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง',
+        '888-7010s'  => 'แผนกการตลาดออนไลน์(เคลมสินค้า)',
+        '777-7014s'  => 'แผนกการตลาด Branding Media',
+        '777-7008s'  => 'แผนกการตลาดเบิกสินค้าตัวอย่าง',
+        '777-7003s'  => 'ผู้บริหารเบิกสินค้า',
+    ];
+
+    private const PREFIX_AREA_MAP = ['7' => 'BKK', '8' => 'UPC', '2' => 'MT'];
+
     public function index(Request $request): JsonResponse
     {
         $paginated = $this->buildQuery($request)->paginate($request->integer('per_page', 15));
@@ -23,7 +35,7 @@ class LineSoController extends Controller
 
     public function export(Request $request): JsonResponse
     {
-        $items = $this->buildQuery($request)->get();
+        $items = $this->buildQuery($request)->limit(50000)->get();
 
         $merged = $this->mergeSoHeadData($items);
 
@@ -127,17 +139,9 @@ class LineSoController extends Controller
 
     private function applyAreaFilterOptimized($query, string $area, array $activePiNos, array $existingIscodePiNos): void
     {
-        $custidAreaMap = [
-            'เคลมสินค้า Customer Service'              => 'f680000004',
-            'PRODUCT SPECIALIST'                        => '777-7015s',
-            'แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง'   => '777-7010s',
-            'แผนกการตลาดออนไลน์(เคลมสินค้า)'          => '888-7010s',
-            'แผนกการตลาด Branding Media'               => '777-7014s',
-            'แผนกการตลาดเบิกสินค้าตัวอย่าง'           => '777-7008s',
-            'ผู้บริหารเบิกสินค้า'                       => '777-7003s',
-        ];
-        $prefixAreaMap  = ['BKK' => '7', 'UPC' => '8', 'MT' => '2'];
-        $specialCustIds = array_map('strtolower', array_values($custidAreaMap));
+        $custidAreaMap  = array_flip(self::CUSTID_AREA_MAP); // area → custid
+        $prefixAreaMap  = array_flip(self::PREFIX_AREA_MAP); // area → prefix
+        $specialCustIds = array_map('strtolower', array_keys(self::CUSTID_AREA_MAP));
 
         $filteredPiNos = [];
         $isIscodeArea = isset($custidAreaMap[$area]) || $area === 'ช่าง' || isset($prefixAreaMap[$area]);
@@ -232,33 +236,14 @@ class LineSoController extends Controller
                 $sono = trim($so->sono ?? '');
                 $pino = trim($so->pino ?? '');
 
-                if ($custidLower === 'f680000004') {
-                    $area = 'เคลมสินค้า Customer Service';
-                } elseif ($custidLower === '777-7015s') {
-                    $area = 'PRODUCT SPECIALIST';
-                } elseif ($custidLower === '777-7010s') {
-                    $area = 'แผนกการตลาดออนไลน์เบิกสินค้าตัวอย่าง';
-                } elseif ($custidLower === '888-7010s') {
-                    $area = 'แผนกการตลาดออนไลน์(เคลมสินค้า)';
-                } elseif ($custidLower === '777-7014s') {
-                    $area = 'แผนกการตลาด Branding Media';
-                } elseif ($custidLower === '777-7008s') {
-                    $area = 'แผนกการตลาดเบิกสินค้าตัวอย่าง';
-                } elseif ($custidLower === '777-7003s') {
-                    $area = 'ผู้บริหารเบิกสินค้า';
+                if (isset(self::CUSTID_AREA_MAP[$custidLower])) {
+                    $area = self::CUSTID_AREA_MAP[$custidLower];
                 } elseif ($fieldsaleid === '9980-0') {
                     $area = 'ช่าง';
                 } else {
                     $billingCode = $sono ?: $pino;
                     if ($billingCode !== '') {
-                        $firstChar = $billingCode[0];
-                        if ($firstChar === '7') {
-                            $area = 'BKK';
-                        } elseif ($firstChar === '8') {
-                            $area = 'UPC';
-                        } elseif ($firstChar === '2') {
-                            $area = 'MT';
-                        }
+                        $area = self::PREFIX_AREA_MAP[$billingCode[0]] ?? null;
                     }
                 }
             }

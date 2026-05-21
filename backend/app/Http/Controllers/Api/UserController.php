@@ -84,6 +84,10 @@ class UserController extends Controller
 
     public function update(Request $request, User $user): JsonResponse
     {
+        if (! $request->user()->isSuperAdmin() && ! $request->user()->canManageUser($user)) {
+            return response()->json(['message' => 'ไม่สามารถแก้ไขผู้ใช้ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
+        }
+
         $data = $request->validate([
             'name'      => 'sometimes|string|max:100',
             'username'  => ['sometimes', 'nullable', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
@@ -101,9 +105,6 @@ class UserController extends Controller
         $user->update($data);
 
         if (array_key_exists('role_ids', $data)) {
-            if (! $request->user()->canManageUser($user)) {
-                return response()->json(['message' => 'ไม่สามารถแก้ไข roles ของผู้ใช้ที่มี level สูงกว่าหรือเท่ากับคุณได้'], 403);
-            }
             $roleIds = $data['role_ids'] ?? [];
             if (! empty($roleIds)) {
                 $roles = Role::whereIn('id', $roleIds)->get();

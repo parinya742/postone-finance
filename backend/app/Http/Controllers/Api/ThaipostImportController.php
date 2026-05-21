@@ -8,6 +8,7 @@ use App\Models\LineGroupExtractedFile;
 use App\Models\ThailandPostAcceptance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -141,13 +142,17 @@ class ThaipostImportController extends Controller
                     'created_at'     => now(),
                 ]);
 
-                $res = $this->importSingleFile(
-                    $filePath,
-                    $fileName,
-                    $this->getMimeTypeFromExtension($fileExt),
-                    $parentZipFile,
-                    $extractedFile
-                );
+                try {
+                    $res = DB::connection('n8n')->transaction(fn () => $this->importSingleFile(
+                        $filePath,
+                        $fileName,
+                        $this->getMimeTypeFromExtension($fileExt),
+                        $parentZipFile,
+                        $extractedFile
+                    ));
+                } catch (\Throwable $e) {
+                    $res = ['success' => false, 'message' => $e->getMessage()];
+                }
 
                 if (isset($res['success']) && $res['success']) {
                     $totalInserted += $res['inserted'] ?? 0;
@@ -174,11 +179,15 @@ class ThaipostImportController extends Controller
             ]);
         }
 
-        $res = $this->importSingleFile(
-            $uploadedFile->getRealPath(),
-            $uploadedFile->getClientOriginalName(),
-            $uploadedFile->getMimeType()
-        );
+        try {
+            $res = DB::connection('n8n')->transaction(fn () => $this->importSingleFile(
+                $uploadedFile->getRealPath(),
+                $uploadedFile->getClientOriginalName(),
+                $uploadedFile->getMimeType()
+            ));
+        } catch (\Throwable $e) {
+            $res = ['success' => false, 'message' => $e->getMessage()];
+        }
 
         if (isset($res['success']) && $res['success']) {
             return response()->json([
