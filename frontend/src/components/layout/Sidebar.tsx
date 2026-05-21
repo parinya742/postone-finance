@@ -52,15 +52,15 @@ const navGroups = [
     label: 'ISCODE',
     items: [
       { href: '/admin/so-head', label: 'SO Head Data', icon: Database, permission: 'iscode.view', exact: false },
-      { href: '/admin/line-so', label: 'ตรวจสอบข้อมูลไปรษณีย์ (Report)', icon: BarChart2, permission: 'line-so.view', exact: false },
+      { href: '/admin/line-so', label: 'Post Report', icon: BarChart2, permission: 'line-so.view', exact: false },
     ],
   },
   {
     label: 'Master Data',
     items: [
-      { href: '/admin/special-postal-zones', label: 'พื้นที่ไปรษณีย์พิเศษ', icon: MapPin, permission: 'special-zones.view', exact: false },
-      { href: '/admin/ems-rates', label: 'อัตราค่าขนส่ง EMS', icon: PackageCheck, permission: 'ems-rates.view', exact: false },
-      { href: '/admin/domestic-letter-rates', label: 'อัตราค่าขนส่งจดหมายในประเทศ - ซอง', icon: PackageCheck, permission: 'domestic-letter-rates.view', exact: false },
+      { href: '/admin/special-postal-zones', label: 'Special Postal Zones', icon: MapPin, permission: 'special-zones.view', exact: false },
+      { href: '/admin/ems-rates', label: 'EMS Rates', icon: PackageCheck, permission: 'ems-rates.view', exact: false },
+      { href: '/admin/domestic-letter-rates', label: 'Domestic Letter Rates', icon: PackageCheck, permission: 'domestic-letter-rates.view', exact: false },
     ],
   },
 ]

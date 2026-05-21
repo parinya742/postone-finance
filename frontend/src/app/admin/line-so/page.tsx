@@ -4,7 +4,7 @@ import api from '@/lib/api'
 import { LineSoJoin, PaginatedResponse, PostoneAccountType } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Search, Lock, FileSpreadsheet, AlertTriangle, Download } from 'lucide-react'
+import { Search, Lock, FileSpreadsheet, AlertTriangle, Download, Copy, Check } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 import * as XLSX from 'xlsx'
@@ -61,6 +61,41 @@ function GH({ label, span, color }: { label: string; span: number; color: string
     >
       {label}
     </th>
+  )
+}
+
+function CopyCell({ value, className }: { value: string | null | undefined; className?: string }) {
+  const [copied, setCopied] = useState(false)
+  if (!value) return <span className="text-slate-300">—</span>
+  function handleClick() {
+    const text = value as string
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) })
+    } else {
+      const el = document.createElement('textarea')
+      el.value = text
+      el.style.position = 'fixed'
+      el.style.opacity = '0'
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
+  }
+  return (
+    <button
+      onClick={handleClick}
+      title="คลิกเพื่อคัดลอก"
+      className={clsx('group flex items-center gap-1 hover:opacity-80 transition-opacity cursor-pointer', className)}
+    >
+      <span>{value}</span>
+      {copied
+        ? <Check className="w-3 h-3 text-green-500 shrink-0" />
+        : <Copy className="w-3 h-3 opacity-0 group-hover:opacity-40 shrink-0 transition-opacity" />
+      }
+    </button>
   )
 }
 
@@ -343,7 +378,9 @@ export default function LineSoPage() {
                   >
                     {/* LINE group 1 */}
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(item.deposit_datetime)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-green-700 whitespace-nowrap">{item.barcode}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-green-700 whitespace-nowrap">
+                      <CopyCell value={item.barcode} className="font-mono text-green-700" />
+                    </td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.destination_code ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.destination_name ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-right text-slate-600">{fmtNum(item.weight_grams, 0)}</td>
@@ -351,13 +388,14 @@ export default function LineSoPage() {
                     <td className="px-4 py-3 text-xs text-right text-slate-700">{fmtNum(item.service_fee)}</td>
                     {/* ISCODE group */}
                     <td className="px-4 py-3 font-mono text-xs text-violet-700 whitespace-nowrap">
-                      {item.PINo ?? (
-                        <span className="text-amber-500 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" /> ไม่พบ
-                        </span>
-                      )}
+                      {item.PINo
+                        ? <CopyCell value={item.PINo} className="font-mono text-violet-700" />
+                        : <span className="text-amber-500 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ไม่พบ</span>
+                      }
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.DINo ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
+                      <CopyCell value={item.DINo} className="font-mono text-slate-600" />
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.PONo ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.CustID ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-800 max-w-[160px] truncate">{item.CustName ?? '—'}</td>
