@@ -11,7 +11,7 @@ class SpecialPostalZoneController extends Controller
 {
     private function query()
     {
-        return DB::connection('n8n')->table('special_postal_zones');
+        return DB::connection('n8n')->table('special_postal_zones')->whereNull('deleted_at');
     }
 
     public function index(Request $request): JsonResponse
@@ -45,8 +45,10 @@ class SpecialPostalZoneController extends Controller
 
         $data['created_at'] = now();
         $data['updated_at'] = now();
+        $data['created_by'] = auth()->id();
+        $data['updated_by'] = auth()->id();
 
-        $id = $this->query()->insertGetId($data);
+        $id = DB::connection('n8n')->table('special_postal_zones')->insertGetId($data);
         $row = $this->query()->where('id', $id)->first();
 
         return response()->json($row, 201);
@@ -71,6 +73,7 @@ class SpecialPostalZoneController extends Controller
         ]);
 
         $data['updated_at'] = now();
+        $data['updated_by'] = auth()->id();
 
         $this->query()->where('id', $id)->update($data);
         $row = $this->query()->where('id', $id)->first();
@@ -80,11 +83,16 @@ class SpecialPostalZoneController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $affected = $this->query()->where('id', $id)->delete();
+        $row = $this->query()->where('id', $id)->first();
 
-        if (! $affected) {
+        if (! $row) {
             return response()->json(['message' => 'ไม่พบข้อมูล'], 404);
         }
+
+        DB::connection('n8n')->table('special_postal_zones')->where('id', $id)->update([
+            'deleted_at' => now(),
+            'deleted_by' => auth()->id(),
+        ]);
 
         return response()->json(['message' => 'Deleted successfully.']);
     }

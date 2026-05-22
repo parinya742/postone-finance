@@ -11,7 +11,7 @@ class EmsRateController extends Controller
 {
     private function query()
     {
-        return DB::connection('n8n')->table('ems_rates');
+        return DB::connection('n8n')->table('ems_rates')->whereNull('deleted_at');
     }
 
     private function settingsQuery()
@@ -39,8 +39,10 @@ class EmsRateController extends Controller
 
         $data['created_at'] = now();
         $data['updated_at'] = now();
+        $data['created_by'] = auth()->id();
+        $data['updated_by'] = auth()->id();
 
-        $id = $this->query()->insertGetId($data);
+        $id = DB::connection('n8n')->table('ems_rates')->insertGetId($data);
         $row = $this->query()->where('id', $id)->first();
 
         return response()->json($row, 201);
@@ -60,6 +62,7 @@ class EmsRateController extends Controller
         ]);
 
         $data['updated_at'] = now();
+        $data['updated_by'] = auth()->id();
 
         $this->query()->where('id', $id)->update($data);
         $row = $this->query()->where('id', $id)->first();
@@ -69,11 +72,16 @@ class EmsRateController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $affected = $this->query()->where('id', $id)->delete();
+        $row = $this->query()->where('id', $id)->first();
 
-        if (! $affected) {
+        if (! $row) {
             return response()->json(['message' => 'ไม่พบข้อมูล'], 404);
         }
+
+        DB::connection('n8n')->table('ems_rates')->where('id', $id)->update([
+            'deleted_at' => now(),
+            'deleted_by' => auth()->id(),
+        ]);
 
         return response()->json(['message' => 'Deleted successfully.']);
     }
@@ -86,7 +94,7 @@ class EmsRateController extends Controller
 
         $this->settingsQuery()->updateOrInsert(
             ['key' => 'offset'],
-            ['value' => $data['offset'], 'updated_at' => now()]
+            ['value' => $data['offset'], 'updated_at' => now(), 'updated_by' => auth()->id()]
         );
 
         return response()->json(['offset' => (float) $data['offset']]);
