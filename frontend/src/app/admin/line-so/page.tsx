@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 import * as XLSX from 'xlsx'
 
-const COL_COUNT = 27
+const COL_COUNT = 28
 
 function fmtDate(d: string | null) {
   if (!d) return '—'
@@ -112,6 +112,10 @@ function buildExcelRows(items: LineSoJoin[]) {
       }
     }
 
+    const transport = item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? null
+    const before = item.service_fee ?? null
+    const diff = transport != null && before != null ? transport - before : ''
+
     return {
       'วันฝากส่ง': item.deposit_datetime ?? '',
       'Barcode': item.barcode ?? '',
@@ -135,6 +139,7 @@ function buildExcelRows(items: LineSoJoin[]) {
       'น้ำหนัก (กก.)': excelKg,
       'ค่าขนส่ง': item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? '',
       'อัตราพื้นที่พิเศษ': item.special_zone_rate ?? '',
+      'Diff': diff,
     }
   })
 }
@@ -301,6 +306,7 @@ export default function LineSoPage() {
               <GH label="ระบบไปรษณีย์" span={2} color="bg-blue-50 text-blue-400 border-blue-100" />
               <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={2} color="bg-green-50 text-green-500 border-green-100" />
               <GH label="พื้นที่พิเศษ" span={1} color="bg-orange-50 text-orange-500 border-orange-100" />
+              <GH label="Diff" span={1} color="bg-slate-50 text-slate-500 border-slate-200" />
             </tr>
             {/* Column headers */}
             <tr className="bg-slate-50 border-b border-slate-200">
@@ -323,7 +329,7 @@ export default function LineSoPage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Doc Remark</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Area</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">แผนกที่ส่ง</th>
-              
+
               {/* <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">CreateBy</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อผู้สร้าง</th> */}
               {/* <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ACC Remark</th> */}
@@ -336,6 +342,7 @@ export default function LineSoPage() {
               <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าขนส่ง</th>
               {/* Special Zone group */}
               <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">อัตราพื้นที่พิเศษ</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Diff</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -431,6 +438,22 @@ export default function LineSoPage() {
                     {/* Special Zone group */}
                     <td className="px-4 py-3 text-xs text-right font-semibold text-orange-700">
                       {item.special_zone_rate != null ? fmtNum(item.special_zone_rate, 0) : <span className="text-slate-300">—</span>}
+                    </td>
+
+                    {/* Diff */}
+                    <td className="px-4 py-3 text-xs text-right font-semibold whitespace-nowrap">
+                      {(() => {
+                        const transport = item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? null
+                        const before = item.service_fee ?? null
+                        if (transport == null || before == null) return <span className="text-slate-300">—</span>
+                        const diff = transport - before
+                        if (diff === 0) return <span className="text-slate-400">0.00</span>
+                        return (
+                          <span className={diff > 0 ? 'text-red-600' : 'text-green-600'}>
+                            {diff > 0 ? '+' : ''}{fmtNum(diff)}
+                          </span>
+                        )
+                      })()}
                     </td>
                   </tr>
                 )

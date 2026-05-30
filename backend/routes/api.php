@@ -2,6 +2,10 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmsRateController;
+use App\Http\Controllers\Api\LazadaShopController;
+use App\Http\Controllers\Api\LazadaTransactionController;
+use App\Http\Controllers\Api\LazadaTransactionFileController;
+use App\Http\Controllers\Api\PostoneExportFileController;
 use App\Http\Controllers\Api\DomesticLetterRateController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
 use App\Http\Controllers\Api\LineGroupFileController;
@@ -86,6 +90,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/shipments/{labelId}', [PostoneShipmentController::class, 'show']);
     });
 
+    // === Postone Export Files ===
+    Route::middleware('permission:shipments.view')->group(function () {
+        Route::get('/export-files', [PostoneExportFileController::class, 'index']);
+    });
+
     // === LINE Group Files ===
     Route::middleware('permission:line-files.view')->group(function () {
         Route::get('/line-files', [LineGroupFileController::class, 'index']);
@@ -134,6 +143,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/ems-rates/{id}', [EmsRateController::class, 'update']);
     });
     Route::middleware('permission:ems-rates.delete')->delete('/ems-rates/{id}', [EmsRateController::class, 'destroy']);
+
+    // === Lazada ===
+    Route::middleware('permission:lazada-shops.view')->group(function () {
+        Route::get('/lazada/shops', [LazadaShopController::class, 'index']);
+        Route::get('/lazada/transactions', [LazadaTransactionController::class, 'index']);
+        Route::get('/lazada/files', [LazadaTransactionFileController::class, 'index']);
+    });
+    Route::middleware('permission:lazada-shops.create')->post('/lazada/shops', [LazadaShopController::class, 'store']);
+    Route::middleware('permission:lazada-shops.edit')->put('/lazada/shops/{id}', [LazadaShopController::class, 'update']);
+    Route::middleware('permission:lazada-shops.delete')->delete('/lazada/shops/{id}', [LazadaShopController::class, 'destroy']);
 
     // === Master Data — Domestic Letter Rates ===
     Route::middleware('permission:domestic-letter-rates.view')->group(function () {

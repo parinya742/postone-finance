@@ -69,6 +69,17 @@ export interface PostoneSession {
   status: string
 }
 
+export interface PostoneExportFile {
+  id: number
+  account_name: string | null
+  shop_id: string | null
+  file_name: string | null
+  s3_url: string | null
+  row_count: number | null
+  filter_range: string | null
+  created_at: string | null
+}
+
 export interface PostoneShipment {
   label_id: string
   customer_name: string | null
@@ -84,7 +95,9 @@ export interface PostoneShipment {
   pi_number: string | null
   so_number: string | null
   channel: string | null
+  last_export_file_id: number | null
   account_type?: PostoneAccountType
+  export_file?: PostoneExportFile
 }
 
 export interface LineGroupFile {
@@ -256,6 +269,65 @@ export interface SpecialPostalZone {
   rate: number
   created_at: string | null
   updated_at: string | null
+}
+
+export interface LazadaShop {
+  id: number
+  shop_name: string
+  app_key: string
+  app_secret: string
+  access_token: string | null
+  refresh_token: string | null
+  seller_id: string
+  short_code: string
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface LazadaTransaction {
+  id: number
+  shop_name: string
+  transaction_date: string | null
+  transaction_type: string | null
+  fee_name: string | null
+  transaction_number: string | null
+  details: string | null
+  seller_sku: string | null
+  lazada_sku: string | null
+  amount: number | null
+  vat_in_amount: number | null
+  wht_amount: number | null
+  wht_included_in_amount: string | null
+  statement: string | null
+  paid_status: string | null
+  order_no: string | null
+  order_item_no: string | null
+  order_item_status: string | null
+  shipping_provider: string | null
+  reference: string | null
+  comment: string | null
+  payment_ref_id: string | null
+  short_code: string | null
+  synced_at: string | null
+  file_id: number | null
+}
+
+export interface LazadaTransactionFile {
+  id: number
+  shop_name: string
+  short_code: string | null
+  seller_id: string | null
+  start_date: string | null
+  end_date: string | null
+  file_name: string | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  row_count: number | null
+  total_amount: number | null
+  file_size_bytes: number | null
+  status: string | null
+  created_at: string | null
 }
 
 export interface ThailandPostAcceptance {

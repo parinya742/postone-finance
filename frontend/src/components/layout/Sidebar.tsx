@@ -6,7 +6,8 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X,
-  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck,
+  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown,
+  Store, Receipt, FileSpreadsheet,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -39,28 +40,37 @@ const navGroups = [
   {
     label: 'Postone Data',
     items: [
-      { href: '/admin/account-types', label: 'Account Types', icon: Tag, permission: 'account-types.view', exact: false },
-      { href: '/admin/sessions', label: 'Sessions', icon: Activity, permission: 'sessions.view', exact: false },
-      { href: '/admin/shipments', label: 'Postone Shipments Sync', icon: Package, permission: 'shipments.view', exact: false },
-      { href: '/admin/line-files', label: 'Header Files Services Fee', icon: FileArchive, permission: 'line-files.view', exact: false },
-      { href: '/admin/line-extracted', label: 'Header Files Extracted', icon: FileText, permission: 'line-files.view', exact: false },
-      { href: '/admin/thaipost', label: 'Files Data Server Fee', icon: Truck, permission: 'thaipost.view', exact: false },
-      { href: '/admin/shipment-acceptance', label: 'Data Reconciliation', icon: GitMerge, permission: 'shipments.view', exact: false },
+      { href: '/admin/account-types', label: 'จัดการแอคเคาท์ไปรษณีย์', icon: Tag, permission: 'account-types.view', exact: false },
+      { href: '/admin/sessions', label: 'เซสชั่น', icon: Activity, permission: 'sessions.view', exact: false },
+      { href: '/admin/export-files', label: 'รายการไฟล์ไปรษณีย์', icon: FileDown, permission: 'shipments.view', exact: false },
+      { href: '/admin/shipments', label: 'รายการพัสดุไปรษณีย์', icon: Package, permission: 'shipments.view', exact: false },
+      { href: '/admin/line-files', label: 'รายการไฟล์บริการ', icon: FileArchive, permission: 'line-files.view', exact: false },
+      { href: '/admin/line-extracted', label: 'รายการคัดแยกไฟล์บริการ (zip)', icon: FileText, permission: 'line-files.view', exact: false },
+      { href: '/admin/thaipost', label: 'รายการพัสดุไฟล์บริการ', icon: Truck, permission: 'thaipost.view', exact: false },
+      { href: '/admin/shipment-acceptance', label: 'เปรียบเทียบข้อมูลไปรษณีย์', icon: GitMerge, permission: 'shipments.view', exact: false },
     ],
   },
   {
     label: 'ISCODE',
     items: [
-      { href: '/admin/so-head', label: 'SO Head Data', icon: Database, permission: 'iscode.view', exact: false },
-      { href: '/admin/line-so', label: 'Postal Report', icon: BarChart2, permission: 'line-so.view', exact: false },
+      { href: '/admin/so-head', label: 'ข้อมูล SO / ISCODE', icon: Database, permission: 'iscode.view', exact: false },
+      { href: '/admin/line-so', label: 'เปรียบเทียบข้อมูลไฟล์บริการ / ISCODE', icon: BarChart2, permission: 'line-so.view', exact: false },
+    ],
+  },
+  {
+    label: 'Lazada',
+    items: [
+      { href: '/admin/lazada/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'lazada-shops.view', exact: false },
+      { href: '/admin/lazada/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: false },
+      { href: '/admin/lazada/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'lazada-shops.view', exact: false },
     ],
   },
   {
     label: 'Master Data',
     items: [
-      { href: '/admin/special-postal-zones', label: 'Special Postal Zones', icon: MapPin, permission: 'special-zones.view', exact: false },
-      { href: '/admin/ems-rates', label: 'EMS Rates', icon: PackageCheck, permission: 'ems-rates.view', exact: false },
-      { href: '/admin/domestic-letter-rates', label: 'Domestic Letter Rates', icon: PackageCheck, permission: 'domestic-letter-rates.view', exact: false },
+      { href: '/admin/special-postal-zones', label: 'จัดการไปรษณีย์พื้นที่พิเศษ', icon: MapPin, permission: 'special-zones.view', exact: false },
+      { href: '/admin/ems-rates', label: 'จัดการอัตราค่าบริการ EMS', icon: PackageCheck, permission: 'ems-rates.view', exact: false },
+      { href: '/admin/domestic-letter-rates', label: 'จัดการอัตราค่าบริการไปรษณีย์ในประเทศ', icon: PackageCheck, permission: 'domestic-letter-rates.view', exact: false },
     ],
   },
 ]

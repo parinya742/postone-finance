@@ -11,22 +11,32 @@ interface HeaderProps {
 
 const pageTitles: Record<string, string> = {
   '/admin': 'Dashboard',
+
   '/admin/users': 'จัดการผู้ใช้งาน',
   '/admin/roles': 'จัดการ Roles',
   '/admin/permissions': 'จัดการ Permissions',
+  
   '/admin/settings': 'ตั้งค่าระบบ',
-  '/admin/account-types': 'Account Types',
-  '/admin/sessions': 'Postone Sessions',
-  '/admin/shipments': 'Postone Shipments Sync ',
-  '/admin/line-files': 'Header Files Services Fee',
-  '/admin/line-extracted': 'Header Files Extracted ',
-  '/admin/thaipost': 'Files Data Server Fee',
-  '/admin/shipment-acceptance': 'Data Reconciliation',
+
+  '/admin/account-types': 'จัดการแอคเคาท์ไปรษณีย์ (Account Types)',
+  '/admin/sessions': 'เซสชั่น (Postone Sessions)',
+  '/admin/export-files': 'รายการไฟล์ไปรษณีย์ (Header Export Files Shipments)',
+  '/admin/shipments': 'รายการพัสดุไปรษณีย์ (Postone Shipments Sync)',
+  '/admin/line-files': 'รายการไฟล์บริการ (Header Files Services Fee)',
+  '/admin/line-extracted': 'รายการคัดแยกไฟล์บริการ (zip) (Header Files Extracted)',
+  '/admin/thaipost': 'รายการพัสดุไฟล์บริการ (Files Data Server Fee)',
+  '/admin/shipment-acceptance': 'เปรียบเทียบข้อมูลไปรษณีย์ (Data Reconciliation)',
+  
   '/admin/so-head': 'SO Head Data',
   '/admin/line-so': 'ตรวจสอบข้อมูลไปรษณีย์ (Report)',
-  '/admin/special-postal-zones' : 'พื้นที่พิเศษ',
-  '/admin/ems-rates' : 'อัตราค่าขนส่ง EMS',
-  '/admin/domestic-letter-rates' : 'อัตราค่าขนส่งจดหมายในประเทศ - ซอง'
+  
+  '/admin/special-postal-zones': 'พื้นที่พิเศษ',
+  '/admin/ems-rates': 'อัตราค่าขนส่ง EMS',
+  '/admin/domestic-letter-rates': 'อัตราค่าขนส่งจดหมายในประเทศ - ซอง',
+
+  '/admin/lazada/shops': 'ร้านค้า lazada',
+  '/admin/lazada/transactions': 'ธุรกรรม lazada',
+  '/admin/lazada/files': 'ไฟล์ lazada'
 }
 
 const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'

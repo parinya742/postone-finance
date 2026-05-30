@@ -180,7 +180,7 @@ export default function ShipmentAcceptancePage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-800">Data Reconciliation</h1>
+          <h1 className="text-2xl font-bold text-slate-800">เปรียบเทียบข้อมูลไปรษณีย์ (Data Reconciliation)</h1>
           <div className="relative group flex items-center">
             <Info className="w-4 h-4 text-slate-400 hover:text-slate-650 cursor-pointer transition-colors" />
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 hidden group-hover:block w-80 bg-slate-900 text-slate-100 text-xs rounded-lg py-2 px-3 shadow-xl z-20 pointer-events-none border border-slate-800 text-center font-normal leading-normal">

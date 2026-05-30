@@ -55,7 +55,7 @@ export default function ShipmentsPage() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-800">Postone Shipments Sync</h1>
+          <h1 className="text-2xl font-bold text-slate-800">รายการพัสดุไปรษณีย์ (Postone Shipments Sync)</h1>
           <div className="relative group flex items-center">
             <Info className="w-4 h-4 text-slate-400 hover:text-slate-650 cursor-pointer transition-colors" />
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 hidden group-hover:block w-64 bg-slate-900 text-slate-100 text-xs rounded-lg py-2 px-3 shadow-xl z-20 pointer-events-none border border-slate-800 text-center font-normal leading-normal">
@@ -111,6 +111,7 @@ export default function ShipmentsPage() {
               <th className="text-left px-5 py-3 font-medium text-slate-600">Channel</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">Account Type</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">COD</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600">Export File Ref</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">สถานะล่าสุด</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">อัปเดต</th>
             </tr>
@@ -119,14 +120,14 @@ export default function ShipmentsPage() {
             {isLoading ? (
               [...Array(6)].map((_, i) => (
                 <tr key={i}>
-                  {[...Array(10)].map((_, j) => (
+                  {[...Array(11)].map((_, j) => (
                     <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>
                   ))}
                 </tr>
               ))
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-5 py-12 text-center text-slate-400">
+                <td colSpan={11} className="px-5 py-12 text-center text-slate-400">
                   <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   ไม่พบข้อมูล
                 </td>
@@ -157,6 +158,11 @@ export default function ShipmentsPage() {
                   <td className="px-5 py-4 text-slate-600 text-xs">{item.account_type?.name ?? '—'}</td>
                   <td className="px-5 py-4 text-slate-700 text-xs font-medium">
                     {item.cod_amount ? `฿${item.cod_amount}` : '—'}
+                  </td>
+                  <td className="px-5 py-4">
+                    {item.last_export_file_id != null ? (
+                      <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded text-xs font-mono font-medium">#{item.last_export_file_id}</span>
+                    ) : '—'}
                   </td>
                   <td className="px-5 py-4 text-slate-500 text-xs max-w-[160px] truncate">{item.latest_status ?? '—'}</td>
                   <td className="px-5 py-4 text-slate-400 text-xs">{fmtDate(item.updated_at)}</td>

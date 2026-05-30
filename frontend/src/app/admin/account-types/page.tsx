@@ -159,7 +159,7 @@ export default function AccountTypesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Postone Account Types</h1>
+          <h1 className="text-2xl font-bold text-slate-800">จัดการแอคเคาท์ไปรษณีย์ (Account Types)</h1>
           <p className="text-slate-500 text-sm mt-1">ทั้งหมด {data?.total ?? 0} รายการ</p>
         </div>
         {can('account-types.create') && (

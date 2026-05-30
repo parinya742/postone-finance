@@ -700,8 +700,8 @@ function ImportModal({ onClose }: { onClose: () => void }) {
                   {files.length > 1
                     ? `นำเข้าทั้งหมด (${files.length} ไฟล์)`
                     : preview?.isZip
-                    ? "นำเข้าไฟล์ ZIP"
-                    : `นำเข้าข้อมูล ${preview ? `(${preview.totalRows.toLocaleString("th-TH")} แถว)` : ""}`}
+                      ? "นำเข้าไฟล์ ZIP"
+                      : `นำเข้าข้อมูล ${preview ? `(${preview.totalRows.toLocaleString("th-TH")} แถว)` : ""}`}
                 </>
               )}
             </button>
@@ -747,12 +747,12 @@ export default function LineFilesPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-slate-800">
-              Header Files Services Fee
+              รายการไฟล์บริการ (Header Files Services Fee)
             </h1>
             <div className="relative group flex items-center">
               <Info className="w-4 h-4 text-slate-400 hover:text-slate-650 cursor-pointer transition-colors" />
               <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 hidden group-hover:block w-64 bg-slate-900 text-slate-100 text-xs rounded-lg py-2 px-3 shadow-xl z-20 pointer-events-none border border-slate-800 text-center font-normal leading-normal">
-                  เป็นข้อมูลที่ดึงมาจาก Bot Automation Line Platform แต่คุณสามารถนำเข้าไฟล์แบบ Manual ได้จากหน้านี้
+                เป็นข้อมูลที่ดึงมาจาก Bot Automation Line Platform แต่คุณสามารถนำเข้าไฟล์แบบ Manual ได้จากหน้านี้
                 <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
               </div>
             </div>
@@ -875,7 +875,7 @@ export default function LineFilesPage() {
                         className={clsx(
                           "px-2.5 py-1 rounded-full text-xs font-medium uppercase",
                           EXT_COLORS[item.file_extension.toLowerCase()] ??
-                            "bg-slate-100 text-slate-600",
+                          "bg-slate-100 text-slate-600",
                         )}
                       >
                         .{item.file_extension}
@@ -890,7 +890,7 @@ export default function LineFilesPage() {
                         className={clsx(
                           "px-2 py-0.5 rounded text-[10px] font-medium",
                           SOURCE_COLORS[item.source_type] ??
-                            "bg-slate-100 text-slate-600",
+                          "bg-slate-100 text-slate-600",
                         )}
                       >
                         {item.source_type === "excel_upload"
