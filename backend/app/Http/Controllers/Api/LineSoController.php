@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\AuditLog;
 
 class LineSoController extends Controller
 {
@@ -44,6 +45,22 @@ class LineSoController extends Controller
         $items = $this->buildQuery($request)->limit(50000)->get();
 
         $merged = $this->mergeSoHeadData($items);
+
+        AuditLog::record(
+            'export',
+            'line_so_report',
+            0,
+            'Line SO Report',
+            [
+                'search' => $request->query('search'),
+                'date_from' => $request->query('date_from'),
+                'date_to' => $request->query('date_to'),
+                'no_pi_number' => $request->boolean('no_pi_number'),
+                'area' => $request->query('area'),
+                'service_type' => $request->query('service_type'),
+                'record_count' => count($merged),
+            ]
+        );
 
         return response()->json($merged);
     }

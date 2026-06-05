@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\AuditLog;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
@@ -169,6 +170,21 @@ class ThaipostImportController extends Controller
 
             $this->removeDirectory($tempDir);
 
+            AuditLog::record(
+                'import',
+                'line_group_file',
+                $parentZipFile->id,
+                $parentZipFile->original_file_name,
+                [
+                    'file_extension' => 'zip',
+                    'inserted' => $totalInserted,
+                    'updated'  => $totalUpdated,
+                    'skipped'  => $totalSkipped,
+                    'extracted_files_count' => count($importedFileIds),
+                    'errors_count' => count($allErrors),
+                ]
+            );
+
             return response()->json([
                 'message'  => 'นำเข้าไฟล์จาก ZIP สำเร็จ',
                 'file_ids' => $importedFileIds,
@@ -190,6 +206,20 @@ class ThaipostImportController extends Controller
         }
 
         if (isset($res['success']) && $res['success']) {
+            AuditLog::record(
+                'import',
+                'line_group_file',
+                $res['file_id'],
+                $uploadedFile->getClientOriginalName(),
+                [
+                    'file_extension' => $ext,
+                    'inserted' => $res['inserted'],
+                    'updated'  => $res['updated'],
+                    'skipped'  => $res['skipped'],
+                    'errors_count' => count($res['errors'] ?? []),
+                ]
+            );
+
             return response()->json([
                 'message'  => 'นำเข้าสำเร็จ',
                 'file_id'  => $res['file_id'],

@@ -345,6 +345,70 @@ export interface AuditLog {
   created_at: string
 }
 
+export interface TikTokShop {
+  id: number
+  seller_id: string
+  seller_name: string | null
+  access_token: string | null
+  refresh_token: string | null
+  access_token_expires_at: string | null
+  refresh_token_expires_at: string | null
+  open_id: string | null
+  granted_scopes: unknown | null
+  shops_code: string | null
+  shops_cipher: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface TikTokTransaction {
+  id: number
+  shop_name: string
+  seller_id: string | null
+  shops_code: string | null
+  order_id: string | null
+  transaction_type: string | null
+  order_create_time: string | null
+  order_paid_time: string | null
+  currency: string | null
+  total_payment_amount: number | null
+  revenue_amount: number | null
+  settlement_amount: number | null
+  net_sales_amount: number | null
+  fee_amount: number | null
+  shipping_cost_amount: number | null
+  total_fee: number | null
+  tiktok_commission: number | null
+  seller_discount: number | null
+  payment_status: string | null
+  payment_id: string | null
+  statement_id: string | null
+  payment_time: string | null
+  statement_time: string | null
+  file_id: number | null
+}
+
+export interface TikTokTransactionFile {
+  id: number
+  shop_name: string
+  seller_id: string | null
+  shops_code: string | null
+  start_date: string | null
+  end_date: string | null
+  file_name: string | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  row_count: number | null
+  total_revenue: number | null
+  total_fee: number | null
+  total_settlement: number | null
+  file_size_bytes: number | null
+  report_mode: string | null
+  status: string | null
+  created_at: string | null
+}
+
 export interface ThailandPostAcceptance {
   id: number
   source_file: string | null

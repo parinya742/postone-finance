@@ -6,6 +6,9 @@ use App\Http\Controllers\Api\EmsRateController;
 use App\Http\Controllers\Api\LazadaShopController;
 use App\Http\Controllers\Api\LazadaTransactionController;
 use App\Http\Controllers\Api\LazadaTransactionFileController;
+use App\Http\Controllers\Api\TikTokShopController;
+use App\Http\Controllers\Api\TikTokTransactionController;
+use App\Http\Controllers\Api\TikTokTransactionFileController;
 use App\Http\Controllers\Api\PostoneExportFileController;
 use App\Http\Controllers\Api\DomesticLetterRateController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
@@ -162,6 +165,23 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::middleware('permission:lazada-shops.delete')->delete('/lazada/shops/{id}', [LazadaShopController::class, 'destroy']);
     Route::middleware('permission:lazada-shops.view')->get('/audit-logs', [AuditLogController::class, 'index']);
+
+    // === TikTok ===
+    Route::middleware('permission:tiktok-shops.view')->group(function () {
+        Route::get('/tiktok/shops', [TikTokShopController::class, 'index']);
+        Route::get('/tiktok/auth-config', [TikTokShopController::class, 'authConfig']);
+        Route::get('/tiktok/shops/{id}/auth-url', [TikTokShopController::class, 'getAuthUrl']);
+        Route::get('/tiktok/transactions', [TikTokTransactionController::class, 'index']);
+        Route::get('/tiktok/files', [TikTokTransactionFileController::class, 'index']);
+    });
+    Route::middleware('permission:tiktok-shops.create')->post('/tiktok/shops', [TikTokShopController::class, 'store']);
+    Route::middleware('permission:tiktok-shops.edit')->group(function () {
+        Route::put('/tiktok/shops/{id}', [TikTokShopController::class, 'update']);
+        Route::post('/tiktok/shops/{id}/exchange-token', [TikTokShopController::class, 'exchangeToken']);
+        Route::post('/tiktok/shops/{id}/refresh-token', [TikTokShopController::class, 'refreshToken']);
+        Route::post('/tiktok/shops/auto-refresh', [TikTokShopController::class, 'autoRefresh']);
+    });
+    Route::middleware('permission:tiktok-shops.delete')->delete('/tiktok/shops/{id}', [TikTokShopController::class, 'destroy']);
 
     // === Master Data — Domestic Letter Rates ===
     Route::middleware('permission:domestic-letter-rates.view')->group(function () {
