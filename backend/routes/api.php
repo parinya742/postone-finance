@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmsRateController;
 use App\Http\Controllers\Api\LazadaShopController;
@@ -147,12 +148,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // === Lazada ===
     Route::middleware('permission:lazada-shops.view')->group(function () {
         Route::get('/lazada/shops', [LazadaShopController::class, 'index']);
+        Route::get('/lazada/auth-config', [LazadaShopController::class, 'authConfig']);
+        Route::get('/lazada/shops/{id}/auth-url', [LazadaShopController::class, 'getAuthUrl']);
         Route::get('/lazada/transactions', [LazadaTransactionController::class, 'index']);
         Route::get('/lazada/files', [LazadaTransactionFileController::class, 'index']);
     });
     Route::middleware('permission:lazada-shops.create')->post('/lazada/shops', [LazadaShopController::class, 'store']);
-    Route::middleware('permission:lazada-shops.edit')->put('/lazada/shops/{id}', [LazadaShopController::class, 'update']);
+    Route::middleware('permission:lazada-shops.edit')->group(function () {
+        Route::put('/lazada/shops/{id}', [LazadaShopController::class, 'update']);
+        Route::post('/lazada/shops/{id}/exchange-token', [LazadaShopController::class, 'exchangeToken']);
+        Route::post('/lazada/shops/{id}/refresh-token', [LazadaShopController::class, 'refreshToken']);
+        Route::post('/lazada/shops/auto-refresh', [LazadaShopController::class, 'autoRefresh']);
+    });
     Route::middleware('permission:lazada-shops.delete')->delete('/lazada/shops/{id}', [LazadaShopController::class, 'destroy']);
+    Route::middleware('permission:lazada-shops.view')->get('/audit-logs', [AuditLogController::class, 'index']);
 
     // === Master Data — Domestic Letter Rates ===
     Route::middleware('permission:domestic-letter-rates.view')->group(function () {

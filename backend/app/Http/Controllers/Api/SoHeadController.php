@@ -13,6 +13,7 @@ class SoHeadController extends Controller
     {
         $query = DB::connection('dbctl')
             ->table('ct_so_head')
+            ->where('tranid', 'T2602001')
             ->selectRaw('
                 sodate      as "SODate",
                 sono        as "SoNo",

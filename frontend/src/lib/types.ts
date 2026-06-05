@@ -278,8 +278,10 @@ export interface LazadaShop {
   app_secret: string
   access_token: string | null
   refresh_token: string | null
+  access_token_expires_at: string | null
   seller_id: string
   short_code: string
+  is_active: boolean
   created_at: string | null
   updated_at: string | null
 }
@@ -328,6 +330,19 @@ export interface LazadaTransactionFile {
   file_size_bytes: number | null
   status: string | null
   created_at: string | null
+}
+
+export interface AuditLog {
+  id: number
+  user_id: number | null
+  user_name: string
+  action: string
+  target_type: string
+  target_id: number
+  target_name: string
+  payload: Record<string, unknown> | null
+  ip_address: string | null
+  created_at: string
 }
 
 export interface ThailandPostAcceptance {

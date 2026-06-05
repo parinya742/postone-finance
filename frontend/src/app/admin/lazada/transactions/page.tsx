@@ -45,7 +45,7 @@ export default function LazadaTransactionsPage() {
 
   const { data: shopsData } = useQuery<PaginatedResponse<LazadaShop>>({
     queryKey: ['lazada-shops-all'],
-    queryFn: () => api.get('/lazada/shops', { params: { per_page: 100 } }).then((r) => r.data),
+    queryFn: () => api.get('/lazada/shops', { params: { per_page: 100, is_active: true } }).then((r) => r.data),
     enabled: can('lazada-shops.view'),
   })
 

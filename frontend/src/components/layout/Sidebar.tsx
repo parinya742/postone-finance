@@ -42,8 +42,8 @@ const navGroups = [
     items: [
       { href: '/admin/account-types', label: 'จัดการแอคเคาท์ไปรษณีย์', icon: Tag, permission: 'account-types.view', exact: false },
       { href: '/admin/sessions', label: 'เซสชั่น', icon: Activity, permission: 'sessions.view', exact: false },
-      { href: '/admin/export-files', label: 'รายการไฟล์ไปรษณีย์', icon: FileDown, permission: 'shipments.view', exact: false },
-      { href: '/admin/shipments', label: 'รายการพัสดุไปรษณีย์', icon: Package, permission: 'shipments.view', exact: false },
+      { href: '/admin/export-files', label: 'รายการไฟล์ไปรษณีย์ (web)', icon: FileDown, permission: 'shipments.view', exact: false },
+      { href: '/admin/shipments', label: 'รายการพัสดุไปรษณีย์ (web)', icon: Package, permission: 'shipments.view', exact: false },
       { href: '/admin/line-files', label: 'รายการไฟล์บริการ', icon: FileArchive, permission: 'line-files.view', exact: false },
       { href: '/admin/line-extracted', label: 'รายการคัดแยกไฟล์บริการ (zip)', icon: FileText, permission: 'line-files.view', exact: false },
       { href: '/admin/thaipost', label: 'รายการพัสดุไฟล์บริการ', icon: Truck, permission: 'thaipost.view', exact: false },
@@ -53,8 +53,8 @@ const navGroups = [
   {
     label: 'ISCODE',
     items: [
-      { href: '/admin/so-head', label: 'ข้อมูล SO / ISCODE', icon: Database, permission: 'iscode.view', exact: false },
-      { href: '/admin/line-so', label: 'เปรียบเทียบข้อมูลไฟล์บริการ / ISCODE', icon: BarChart2, permission: 'line-so.view', exact: false },
+      { href: '/admin/so-head', label: 'ข้อมูล SO', icon: Database, permission: 'iscode.view', exact: false },
+      { href: '/admin/line-so', label: 'เปรียบเทียบข้อมูลไฟล์บริการ', icon: BarChart2, permission: 'line-so.view', exact: false },
     ],
   },
   {
@@ -70,7 +70,7 @@ const navGroups = [
     items: [
       { href: '/admin/special-postal-zones', label: 'จัดการไปรษณีย์พื้นที่พิเศษ', icon: MapPin, permission: 'special-zones.view', exact: false },
       { href: '/admin/ems-rates', label: 'จัดการอัตราค่าบริการ EMS', icon: PackageCheck, permission: 'ems-rates.view', exact: false },
-      { href: '/admin/domestic-letter-rates', label: 'จัดการอัตราค่าบริการไปรษณีย์ในประเทศ', icon: PackageCheck, permission: 'domestic-letter-rates.view', exact: false },
+      { href: '/admin/domestic-letter-rates', label: 'จัดการอัตราค่าบริการไปรษณีย์', icon: PackageCheck, permission: 'domestic-letter-rates.view', exact: false },
     ],
   },
 ]
@@ -84,7 +84,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-30 w-64 bg-slate-50 border-r border-slate-200 text-slate-800 flex flex-col transition-transform duration-300 ease-in-out flex-shrink-0',
+        'fixed inset-y-0 left-0 z-30 w-80 bg-slate-50 border-r border-slate-200 text-slate-800 flex flex-col transition-transform duration-300 ease-in-out flex-shrink-0',
         'lg:relative lg:translate-x-0 lg:z-auto',
         isOpen ? 'translate-x-0' : '-translate-x-full'
       )}

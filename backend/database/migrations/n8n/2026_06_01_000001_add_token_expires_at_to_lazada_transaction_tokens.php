@@ -1,0 +1,24 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    protected $connection = 'n8n';
+
+    public function up(): void
+    {
+        Schema::connection('n8n')->table('lazada_transaction_tokens', function (Blueprint $table) {
+            $table->timestamp('access_token_expires_at')->nullable()->after('access_token');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::connection('n8n')->table('lazada_transaction_tokens', function (Blueprint $table) {
+            $table->dropColumn('access_token_expires_at');
+        });
+    }
+};
