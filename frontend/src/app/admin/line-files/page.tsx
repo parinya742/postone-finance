@@ -1,7 +1,7 @@
 "use client";
 
 import api from "@/lib/api";
-import { LineGroupFile, PaginatedResponse, ImportResult } from "@/lib/types";
+import { LineGroupFile, LineGroupFileNote, PaginatedResponse, ImportResult } from "@/lib/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import {
@@ -16,6 +16,11 @@ import {
   FileSpreadsheet,
   Info,
   Eye,
+  MessageSquare,
+  Send,
+  Pencil,
+  Trash2,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import clsx from "clsx";
@@ -712,12 +717,148 @@ function ImportModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ---- NotePanel (inline expanded row) ----
+
+function NotePanel({ fileId, canEdit, canDelete }: { fileId: number; canEdit: boolean; canDelete: boolean }) {
+  const qc = useQueryClient();
+  const [newNote, setNewNote] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: notes = [], isLoading } = useQuery<LineGroupFileNote[]>({
+    queryKey: ["line-file-notes", fileId],
+    queryFn: () => api.get(`/line-files/${fileId}/notes`).then((r) => r.data),
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["line-file-notes", fileId] });
+
+  const handleAdd = async () => {
+    if (!newNote.trim()) return;
+    setSaving(true);
+    try {
+      await api.post(`/line-files/${fileId}/notes`, { note: newNote.trim() });
+      setNewNote("");
+      invalidate();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editText.trim()) return;
+    setSaving(true);
+    try {
+      await api.put(`/line-files/notes/${id}`, { note: editText.trim() });
+      setEditingId(null);
+      invalidate();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("ลบ Note นี้?")) return;
+    await api.delete(`/line-files/notes/${id}`);
+    invalidate();
+  };
+
+  return (
+    <div className="px-5 py-4 bg-slate-50/70 space-y-3">
+      {/* Add note */}
+      {canEdit && (
+        <div className="flex gap-2">
+          <textarea
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAdd(); } }}
+            placeholder="เพิ่ม Note... (Enter เพื่อบันทึก, Shift+Enter ขึ้นบรรทัดใหม่)"
+            rows={2}
+            className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={saving || !newNote.trim()}
+            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg self-end transition-colors"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Existing notes */}
+      {isLoading ? (
+        <div className="text-xs text-slate-400">กำลังโหลด...</div>
+      ) : notes.length === 0 ? (
+        <p className="text-xs text-slate-400 italic">ยังไม่มี Note</p>
+      ) : (
+        <div className="space-y-2">
+          {notes.map((n) => (
+            <div key={n.id} className="bg-white border border-slate-200 rounded-lg px-3.5 py-2.5">
+              {editingId === n.id ? (
+                <div className="flex gap-2">
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    rows={2}
+                    className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    autoFocus
+                  />
+                  <div className="flex flex-col gap-1 self-end">
+                    <button
+                      onClick={() => handleUpdate(n.id)}
+                      disabled={saving}
+                      className="px-2 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium"
+                    >บันทึก</button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="px-2 py-1 border border-slate-300 rounded text-xs text-slate-500 hover:bg-slate-50"
+                    >ยกเลิก</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap flex-1">{n.note}</p>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-[10px] text-slate-400">
+                      {n.user_name} · {new Date(n.created_at).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                    {canEdit && (
+                      <button
+                        onClick={() => { setEditingId(n.id); setEditText(n.note); }}
+                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(n.id)}
+                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Page ----
+
 export default function LineFilesPage() {
   const { can } = useAuth();
   const [search, setSearch] = useState("");
   const [extFilter, setExtFilter] = useState("");
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
+  const [expandedNoteFileId, setExpandedNoteFileId] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineGroupFile>>({
     queryKey: ["line-files", search, extFilter, page],
@@ -828,6 +969,9 @@ export default function LineFilesPage() {
               <th className="text-left px-5 py-3 font-medium text-slate-600">
                 วันที่
               </th>
+              <th className="text-center px-5 py-3 font-medium text-slate-600">
+                Note
+              </th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
@@ -853,85 +997,113 @@ export default function LineFilesPage() {
                 </td>
               </tr>
             ) : (
-              items.map((item) => (
-                <tr
-                  key={item.id}
-                  className="hover:bg-slate-50 transition-colors"
-                >
-                  <td className="px-5 py-4 text-slate-400 text-xs font-mono">
-                    {item.id}
-                  </td>
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-slate-800 truncate max-w-[220px]">
-                      {item.original_file_name ?? "—"}
-                    </p>
-                    <p className="text-xs text-slate-400 font-mono truncate max-w-[220px]">
-                      {item.message_id ?? ""}
-                    </p>
-                  </td>
-                  <td className="px-5 py-4">
-                    {item.file_extension ? (
-                      <span
+              items.flatMap((item) => {
+                const isExpanded = expandedNoteFileId === item.id;
+                return [
+                  <tr
+                    key={item.id}
+                    className={clsx("transition-colors", isExpanded ? "bg-blue-50/40" : "hover:bg-slate-50")}
+                  >
+                    <td className="px-5 py-4 text-slate-400 text-xs font-mono">
+                      {item.id}
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-slate-800 truncate max-w-[220px]">
+                        {item.original_file_name ?? "—"}
+                      </p>
+                      <p className="text-xs text-slate-400 font-mono truncate max-w-[220px]">
+                        {item.message_id ?? ""}
+                      </p>
+                    </td>
+                    <td className="px-5 py-4">
+                      {item.file_extension ? (
+                        <span
+                          className={clsx(
+                            "px-2.5 py-1 rounded-full text-xs font-medium uppercase",
+                            EXT_COLORS[item.file_extension.toLowerCase()] ??
+                            "bg-slate-100 text-slate-600",
+                          )}
+                        >
+                          .{item.file_extension}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      {item.source_type ? (
+                        <span
+                          className={clsx(
+                            "px-2 py-0.5 rounded text-[10px] font-medium",
+                            SOURCE_COLORS[item.source_type] ??
+                            "bg-slate-100 text-slate-600",
+                          )}
+                        >
+                          {item.source_type === "excel_upload"
+                            ? "Excel Upload"
+                            : item.source_type === "line_bot"
+                              ? "LINE Bot"
+                              : item.source_type}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-slate-500 font-mono text-xs truncate max-w-[120px]">
+                      {item.group_id ?? "—"}
+                    </td>
+                    <td className="px-5 py-4">
+                      {item.extracted_files_count != null ? (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-medium">
+                          {item.extracted_files_count} ไฟล์
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-slate-400 text-xs">
+                      {fmtDate(item.created_at)}
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <button
+                        onClick={() => setExpandedNoteFileId(isExpanded ? null : item.id)}
                         className={clsx(
-                          "px-2.5 py-1 rounded-full text-xs font-medium uppercase",
-                          EXT_COLORS[item.file_extension.toLowerCase()] ??
-                          "bg-slate-100 text-slate-600",
+                          "p-1.5 rounded transition-colors",
+                          isExpanded
+                            ? "text-blue-600 bg-blue-100 hover:bg-blue-200"
+                            : "text-slate-400 hover:text-blue-600 hover:bg-blue-50",
                         )}
+                        title="Note"
                       >
-                        .{item.file_extension}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    {item.source_type ? (
-                      <span
-                        className={clsx(
-                          "px-2 py-0.5 rounded text-[10px] font-medium",
-                          SOURCE_COLORS[item.source_type] ??
-                          "bg-slate-100 text-slate-600",
-                        )}
-                      >
-                        {item.source_type === "excel_upload"
-                          ? "Excel Upload"
-                          : item.source_type === "line_bot"
-                            ? "LINE Bot"
-                            : item.source_type}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-slate-500 font-mono text-xs truncate max-w-[120px]">
-                    {item.group_id ?? "—"}
-                  </td>
-                  <td className="px-5 py-4">
-                    {item.extracted_files_count != null ? (
-                      <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-medium">
-                        {item.extracted_files_count} ไฟล์
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-slate-400 text-xs">
-                    {fmtDate(item.created_at)}
-                  </td>
-                  <td className="px-5 py-4">
-                    {item.file_url && (
-                      <a
-                        href={item.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors inline-flex"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
-                  </td>
-                </tr>
-              ))
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+                    </td>
+                    <td className="px-5 py-4">
+                      {item.file_url && (
+                        <a
+                          href={item.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors inline-flex"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </td>
+                  </tr>,
+                  isExpanded && (
+                    <tr key={`note-${item.id}`} className="bg-slate-50/70 border-b border-slate-100">
+                      <td colSpan={9} className="p-0">
+                        <NotePanel
+                          fileId={item.id}
+                          canEdit={can("line-files.create")}
+                          canDelete={can("line-files.delete")}
+                        />
+                      </td>
+                    </tr>
+                  ),
+                ].filter(Boolean);
+              })
             )}
           </tbody>
         </table>

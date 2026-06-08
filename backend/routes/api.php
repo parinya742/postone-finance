@@ -103,8 +103,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:line-files.view')->group(function () {
         Route::get('/line-files', [LineGroupFileController::class, 'index']);
         Route::get('/line-extracted', [LineGroupExtractedFileController::class, 'index']);
+        Route::get('/line-files/{fileId}/notes', [\App\Http\Controllers\Api\LineGroupFileNoteController::class, 'index']);
     });
-    Route::middleware('permission:line-files.create')->post('/line-files/import', [ThaipostImportController::class, 'store']);
+    Route::middleware('permission:line-files.create')->group(function () {
+        Route::post('/line-files/import', [ThaipostImportController::class, 'store']);
+        Route::post('/line-files/{fileId}/notes', [\App\Http\Controllers\Api\LineGroupFileNoteController::class, 'store']);
+    });
+    Route::middleware('permission:line-files.edit')->group(function () {
+        Route::put('/line-files/notes/{id}', [\App\Http\Controllers\Api\LineGroupFileNoteController::class, 'update']);
+    });
+    Route::middleware('permission:line-files.delete')->group(function () {
+        Route::delete('/line-files/notes/{id}', [\App\Http\Controllers\Api\LineGroupFileNoteController::class, 'destroy']);
+    });
 
     // === Thailand Post Acceptance ===
     Route::middleware('permission:thaipost.view')->group(function () {
@@ -126,6 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // === ISCODE — Line SO Report ===
     Route::middleware('permission:line-so.view')->group(function () {
         Route::get('/iscode/line-so', [LineSoController::class, 'index']);
+        Route::get('/iscode/line-so/summary', [LineSoController::class, 'summary']);
         Route::get('/iscode/line-so/export', [LineSoController::class, 'export']);
     });
 

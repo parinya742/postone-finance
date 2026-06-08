@@ -3,7 +3,7 @@
 import api from '@/lib/api'
 import { LineSoJoin, PaginatedResponse, PostoneAccountType } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Search, Lock, FileSpreadsheet, AlertTriangle, Download, Copy, Check } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
@@ -15,7 +15,7 @@ function fmtDate(d: string | null) {
   if (!d) return '—'
   const dt = new Date(d)
   if (isNaN(dt.getTime())) return String(d)
-  return dt.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+  return dt.toLocaleDateString('th-TH', { dateStyle: 'short' })
 }
 
 function fmtNum(n: number | null, decimals = 2) {
@@ -117,7 +117,7 @@ function buildExcelRows(items: LineSoJoin[]) {
     const diff = transport != null && before != null ? transport - before : ''
 
     return {
-      'วันฝากส่ง': item.deposit_datetime ?? '',
+      'วันฝากส่ง': fmtDate(item.deposit_datetime),
       'Barcode': item.barcode ?? '',
       'รหัสปลายทาง': item.destination_code ?? '',
       'ชื่อปลายทาง': item.destination_name ?? '',
@@ -154,6 +154,14 @@ export default function LineSoPage() {
   const [serviceType, setServiceType] = useState('')
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
+  const [sumCols, setSumCols] = useState<Set<string>>(new Set())
+  const [sumScope, setSumScope] = useState<'page' | 'all'>('page')
+
+  const toggleSum = (col: string) => setSumCols(prev => {
+    const next = new Set(prev)
+    next.has(col) ? next.delete(col) : next.add(col)
+    return next
+  })
 
   const resetPage = () => setPage(1)
 
@@ -181,11 +189,43 @@ export default function LineSoPage() {
     enabled: can('line-so.view'),
   })
 
+  const { data: summaryData, isFetching: summaryLoading } = useQuery<{
+    weight_grams: number; service_fee: number; special_zone_rate: number
+    transport: number; weight_kg: number; diff: number; total_count: number
+  }>({
+    queryKey: ['line-so-summary', search, dateFrom, dateTo, noPiNumber, area, serviceType],
+    queryFn: () =>
+      api.get('/iscode/line-so/summary', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined } }).then((r) => r.data),
+    enabled: can('line-so.view') && sumCols.size > 0 && sumScope === 'all',
+  })
+
   const { data: accountTypes } = useQuery<PaginatedResponse<PostoneAccountType>>({
     queryKey: ['account-types-all'],
     queryFn: () => api.get('/account-types', { params: { per_page: 100 } }).then((r) => r.data),
     enabled: can('line-so.view'),
   })
+
+  const sums = useMemo(() => {
+    const arr = data?.data ?? []
+    return {
+      weight_grams:      arr.reduce((s, i) => s + Number(i.weight_grams ?? 0), 0),
+      service_fee:       arr.reduce((s, i) => s + Number(i.service_fee ?? 0), 0),
+      weight_kg:         arr.reduce((s, i) => {
+        const g = Number(i.weight_grams ?? 0)
+        if (!g) return s
+        if (i.dl_calculated_cost != null) return s + (calculateLetterKg(g) ?? 0)
+        if (i.ems_calculated_cost != null) return s + (calculateEmsKg(g) ?? 0)
+        return s + (g < 10 ? g : g / 1000)
+      }, 0),
+      transport:         arr.reduce((s, i) => s + Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0), 0),
+      special_zone_rate: arr.reduce((s, i) => s + Number(i.special_zone_rate ?? 0), 0),
+      diff:              arr.reduce((s, i) => {
+        const t = Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
+        const b = Number(i.service_fee ?? 0)
+        return s + (t - b)
+      }, 0),
+    }
+  }, [data])
 
   if (!can('line-so.view')) {
     return (
@@ -296,7 +336,8 @@ export default function LineSoPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+      <div className="bg-white rounded-xl border border-slate-200">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm" style={{ minWidth: '2400px' }}>
           <thead>
             {/* Group headers */}
@@ -315,9 +356,13 @@ export default function LineSoPage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Barcode</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสปลายทาง</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อปลายทาง</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">น้ำหนัก(g) Before</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">น้ำหนัก(g) Before<button onClick={() => toggleSum('weight_grams')} title={sumCols.has('weight_grams') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_grams') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              </th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">บริการ</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าบริการ Before</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">ค่าบริการ Before<button onClick={() => toggleSum('service_fee')} title={sumCols.has('service_fee') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('service_fee') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              </th>
               {/* ISCODE group */}
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">PI No</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">DI No</th>
@@ -338,11 +383,19 @@ export default function LineSoPage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อผู้รับ</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">สินค้า</th>
               {/* LINE group 2 */}
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">น้ำหนัก (กก.)</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าขนส่ง</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">น้ำหนัก (กก.)<button onClick={() => toggleSum('weight_kg')} title={sumCols.has('weight_kg') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_kg') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              </th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">ค่าขนส่ง<button onClick={() => toggleSum('transport')} title={sumCols.has('transport') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('transport') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              </th>
               {/* Special Zone group */}
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">อัตราพื้นที่พิเศษ</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Diff</th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">อัตราพื้นที่พิเศษ<button onClick={() => toggleSum('special_zone_rate')} title={sumCols.has('special_zone_rate') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('special_zone_rate') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              </th>
+              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">Diff<button onClick={() => toggleSum('diff')} title={sumCols.has('diff') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('diff') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -461,16 +514,59 @@ export default function LineSoPage() {
             )}
           </tbody>
         </table>
+      </div>
 
-        {data && data.last_page > 1 && (
-          <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
-            <span>หน้า {data.current_page} จาก {data.last_page} (ทั้งหมด {data.total?.toLocaleString('th-TH')} รายการ)</span>
-            <div className="flex gap-2">
-              <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ก่อนหน้า</button>
-              <button disabled={page === data.last_page} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ถัดไป</button>
+        {data && (data.last_page > 1 || sumCols.size > 0) && (() => {
+          const displaySums = sumScope === 'all' && summaryData ? summaryData : sums
+          const displayCount = sumScope === 'all' ? (summaryData?.total_count ?? data.total ?? 0) : items.length
+          return (
+            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between gap-4 text-sm text-slate-500 flex-wrap">
+              <div className="flex items-center gap-4 flex-wrap min-w-0">
+                <span className="whitespace-nowrap">หน้า {data.current_page} จาก {data.last_page} (ทั้งหมด {data.total?.toLocaleString('th-TH')} รายการ)</span>
+                {sumCols.size > 0 && (
+                  <div className="flex items-center gap-3 flex-wrap text-xs border-l border-slate-200 pl-4">
+                    <div className="flex items-center gap-1 text-slate-400 font-semibold">
+                      <span>Σ</span>
+                      <button
+                        onClick={() => setSumScope('page')}
+                        className={clsx('px-1.5 py-0.5 rounded transition-colors', sumScope === 'page' ? 'bg-blue-100 text-blue-700' : 'hover:text-slate-600')}
+                      >
+                        หน้านี้ ({items.length})
+                      </button>
+                      <span className="text-slate-300">/</span>
+                      <button
+                        onClick={() => setSumScope('all')}
+                        className={clsx('px-1.5 py-0.5 rounded transition-colors', sumScope === 'all' ? 'bg-blue-100 text-blue-700' : 'hover:text-slate-600')}
+                      >
+                        ทั้งหมด ({data.total?.toLocaleString('th-TH')})
+                      </button>
+                    </div>
+                    {summaryLoading && sumScope === 'all'
+                      ? <span className="text-slate-400 animate-pulse">กำลังคำนวณ...</span>
+                      : <>
+                          <span className="text-slate-400">{displayCount.toLocaleString('th-TH')} รายการ</span>
+                          {sumCols.has('weight_grams') && <span className="whitespace-nowrap">น้ำหนัก(g) Before <strong className="text-slate-700">{fmtNum(displaySums.weight_grams, 0)}</strong></span>}
+                          {sumCols.has('service_fee') && <span className="whitespace-nowrap">ค่าบริการ Before <strong className="text-slate-700">{fmtNum(displaySums.service_fee)}</strong></span>}
+                          {sumCols.has('weight_kg') && <span className="whitespace-nowrap">น้ำหนัก(กก.) <strong className="text-slate-700">{fmtNum(displaySums.weight_kg, 2)}</strong></span>}
+                          {sumCols.has('transport') && <span className="whitespace-nowrap">ค่าขนส่ง <strong className="text-slate-700">{fmtNum(displaySums.transport, 0)}</strong></span>}
+                          {sumCols.has('special_zone_rate') && <span className="whitespace-nowrap">พื้นที่พิเศษ <strong className="text-orange-700">{fmtNum(displaySums.special_zone_rate, 0)}</strong></span>}
+                          {sumCols.has('diff') && (
+                            <span className="whitespace-nowrap">Diff <strong className={displaySums.diff > 0 ? 'text-red-600' : displaySums.diff < 0 ? 'text-green-600' : 'text-slate-400'}>{displaySums.diff > 0 ? '+' : ''}{fmtNum(displaySums.diff)}</strong></span>
+                          )}
+                        </>
+                    }
+                  </div>
+                )}
+              </div>
+              {data.last_page > 1 && (
+                <div className="flex gap-2 shrink-0">
+                  <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ก่อนหน้า</button>
+                  <button disabled={page === data.last_page} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ถัดไป</button>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
     </div>
   )

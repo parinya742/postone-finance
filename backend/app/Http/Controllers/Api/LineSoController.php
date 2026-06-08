@@ -40,6 +40,48 @@ class LineSoController extends Controller
         return response()->json($response);
     }
 
+    public function summary(Request $request): JsonResponse
+    {
+        $sub = $this->buildQuery($request);
+
+        $result = DB::connection('n8n')
+            ->table(DB::raw("({$sub->toSql()}) as sub"))
+            ->mergeBindings($sub)
+            ->selectRaw("
+                SUM(weight_grams) as weight_grams,
+                SUM(service_fee) as service_fee,
+                SUM(special_zone_rate) as special_zone_rate,
+                SUM(COALESCE(dl_calculated_cost, ems_calculated_cost, service_fee)) as transport,
+                SUM(
+                    CASE
+                        WHEN dl_calculated_cost IS NOT NULL THEN
+                            CEIL(ROUND(
+                                CASE WHEN weight_grams < 10 THEN weight_grams ELSE weight_grams / 1000.0 END * 10000
+                            ) / 100.0) / 100.0
+                        WHEN ems_calculated_cost IS NOT NULL THEN
+                            CEIL(CASE WHEN weight_grams < 10 THEN weight_grams ELSE weight_grams / 1000.0 END)
+                        ELSE
+                            CASE WHEN weight_grams < 10 THEN weight_grams ELSE weight_grams / 1000.0 END
+                    END
+                ) as weight_kg,
+                COUNT(*) as total_count
+            ")
+            ->first();
+
+        $transport   = (float) ($result->transport ?? 0);
+        $serviceFee  = (float) ($result->service_fee ?? 0);
+
+        return response()->json([
+            'weight_grams'      => (float) ($result->weight_grams ?? 0),
+            'service_fee'       => $serviceFee,
+            'special_zone_rate' => (float) ($result->special_zone_rate ?? 0),
+            'transport'         => $transport,
+            'weight_kg'         => (float) ($result->weight_kg ?? 0),
+            'diff'              => $transport - $serviceFee,
+            'total_count'       => (int) ($result->total_count ?? 0),
+        ]);
+    }
+
     public function export(Request $request): JsonResponse
     {
         $items = $this->buildQuery($request)->limit(50000)->get();
@@ -93,6 +135,7 @@ class LineSoController extends Controller
                 'thpa.service_name',
                 'thpa.service_fee',
                 'ps.pi_number',
+                'ps.so_number',
                 'ps.customer_name',
                 'ps.product_details',
                 'spz.rate as special_zone_rate',
@@ -131,7 +174,8 @@ class LineSoController extends Controller
 
         if ($s) {
             $query->where(function ($q) use ($s, $matchedPiNos) {
-                $q->where('thpa.barcode', 'ilike', "%{$s}%");
+                $q->where('thpa.barcode', 'ilike', "%{$s}%")
+                  ->orWhere('ps.so_number', 'ilike', "%{$s}%");
                 if ($matchedPiNos->isNotEmpty()) {
                     $q->orWhereIn('ps.pi_number', $matchedPiNos);
                 }
@@ -261,27 +305,50 @@ class LineSoController extends Controller
 
     private function mergeSoHeadData($items)
     {
-        // Step 3: Fetch ISCODE SO_Head for the given items' pi_numbers
+        $selectCols = ['sodate', 'sono', 'pino', 'dino', 'pono', 'custid', 'custname', 'numofitem', 'fieldsaleid', 'fieldsalename', 'createby', 'createbyname', 'docremark', 'accremark'];
+
+        // Step 3a: Fetch by pi_number → pino (split comma-separated values)
         $piNos = collect($items)
             ->pluck('pi_number')
+            ->filter()
+            ->flatMap(fn($p) => array_map('trim', explode(',', $p)))
             ->filter()
             ->unique()
             ->values()
             ->all();
 
-        $soHeadMap = collect();
+        $soHeadByPino = collect();
         if (!empty($piNos)) {
-            $soHeadMap = DB::connection('dbctl')
+            $soHeadByPino = DB::connection('dbctl')
                 ->table('ct_so_head')
-                ->select(['sodate', 'sono', 'pino', 'dino', 'pono', 'custid', 'custname', 'numofitem', 'fieldsaleid', 'fieldsalename', 'createby', 'createbyname', 'docremark', 'accremark'])
+                ->select($selectCols)
                 ->whereIn('pino', $piNos)
                 ->get()
                 ->keyBy('pino');
         }
 
+        // Step 3b: Fetch by so_number → sono (fallback for records without pi_number match)
+        $soNos = collect($items)->pluck('so_number')->filter()->unique()->values()->all();
+
+        $soHeadBySono = collect();
+        if (!empty($soNos)) {
+            $soHeadBySono = DB::connection('dbctl')
+                ->table('ct_so_head')
+                ->select($selectCols)
+                ->whereIn('sono', $soNos)
+                ->get()
+                ->keyBy('sono');
+        }
+
         // Step 4: Merge ISCODE data into each row
-        return collect($items)->map(function ($item) use ($soHeadMap) {
-            $so = $soHeadMap->get($item->pi_number);
+        return collect($items)->map(function ($item) use ($soHeadByPino, $soHeadBySono) {
+            // pi_number อาจเป็น comma-separated → ลอง match ทีละตัว
+            $piList = collect(explode(',', $item->pi_number ?? ''))
+                ->map(fn($p) => trim($p))
+                ->filter();
+
+            $so = $piList->map(fn($p) => $soHeadByPino->get($p))->filter()->first()
+               ?? $soHeadBySono->get($item->so_number);
 
             $area = null;
             if (!$so) {

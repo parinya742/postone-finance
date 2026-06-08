@@ -122,6 +122,16 @@ export interface ImportResult {
   errors: string[]
 }
 
+export interface LineGroupFileNote {
+  id: number
+  line_group_file_id: number
+  note: string
+  user_id: number | null
+  user_name: string
+  created_at: string
+  updated_at: string
+}
+
 export interface LineGroupExtractedFile {
   id: number
   parent_file_id: number | null
