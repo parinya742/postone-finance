@@ -99,6 +99,70 @@ function CopyCell({ value, className }: { value: string | null | undefined; clas
   )
 }
 
+function buildSummarySheet(items: LineSoJoin[]) {
+  const total = items.length
+  const found = items.filter((i) => i.PINo !== null).length
+  const notFound = total - found
+
+  let totalWeightG = 0, totalServiceFee = 0, totalWeightKg = 0, totalTransport = 0, totalSpecialZone = 0
+  for (const i of items) {
+    totalWeightG  += Number(i.weight_grams ?? 0)
+    totalServiceFee += Number(i.service_fee ?? 0)
+    const g = Number(i.weight_grams ?? 0)
+    if (g) {
+      if (i.dl_calculated_cost != null)  totalWeightKg += calculateLetterKg(g) ?? 0
+      else if (i.ems_calculated_cost != null) totalWeightKg += calculateEmsKg(g) ?? 0
+      else totalWeightKg += g < 10 ? g : g / 1000
+    }
+    totalTransport   += Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
+    totalSpecialZone += Number(i.special_zone_rate ?? 0)
+  }
+  const totalDiff = totalTransport - totalServiceFee
+
+  // Area breakdown
+  const areaMap = new Map<string, { count: number; found: number; serviceFee: number; transport: number; diff: number }>()
+  for (const i of items) {
+    const area = i.Area ?? '(ไม่ระบุ Area)'
+    if (!areaMap.has(area)) areaMap.set(area, { count: 0, found: 0, serviceFee: 0, transport: 0, diff: 0 })
+    const row = areaMap.get(area)!
+    row.count++
+    if (i.PINo !== null) row.found++
+    row.serviceFee += Number(i.service_fee ?? 0)
+    const t = Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
+    row.transport += t
+    row.diff += t - Number(i.service_fee ?? 0)
+  }
+
+  const exportDate = new Date().toLocaleDateString('th-TH', { dateStyle: 'short' })
+  const aoa: unknown[][] = [
+    ['รายงานสรุป — Line SO Report'],
+    ['วันที่ Export', exportDate],
+    [],
+    ['จำนวนรายการ', ''],
+    ['รายการทั้งหมด', total],
+    ['พบข้อมูล ISCODE (มี PINo)', found],
+    ['ไม่พบข้อมูล ISCODE (ไม่มี PINo)', notFound],
+    [],
+    ['ผลรวมตัวเลข (ทุกรายการ)', ''],
+    ['น้ำหนัก (g) Before', totalWeightG],
+    ['ค่าบริการ Before', totalServiceFee],
+    ['น้ำหนัก (กก.)', Math.round(totalWeightKg * 100) / 100],
+    ['ค่าขนส่ง (คำนวณ)', totalTransport],
+    ['อัตราพื้นที่พิเศษ', totalSpecialZone],
+    ['Diff (ค่าขนส่ง − ค่าบริการ)', totalDiff],
+    [],
+    ['สรุปแยกตาม Area'],
+    ['Area', 'รายการทั้งหมด', 'พบ ISCODE', 'ไม่พบ ISCODE', 'ค่าบริการ Before', 'ค่าขนส่ง (คำนวณ)', 'Diff'],
+    ...[...areaMap.entries()]
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([area, d]) => [area, d.count, d.found, d.count - d.found, d.serviceFee, d.transport, d.diff]),
+  ]
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!cols'] = [{ wch: 32 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 20 }, { wch: 22 }, { wch: 16 }]
+  return ws
+}
+
 function buildExcelRows(items: LineSoJoin[]) {
   return items.map((item) => {
     let excelKg: number | string = ''
@@ -169,10 +233,12 @@ export default function LineSoPage() {
     setExporting(true)
     try {
       const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined } })
-      const rows = buildExcelRows(res.data as LineSoJoin[])
-      const ws = XLSX.utils.json_to_sheet(rows)
+      const allItems = res.data as LineSoJoin[]
+      const ws = XLSX.utils.json_to_sheet(buildExcelRows(allItems))
+      const wsSummary = buildSummarySheet(allItems)
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, 'Line SO Report')
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'สรุป')
       const date = new Date().toISOString().slice(0, 10)
       XLSX.writeFile(wb, `line-so-${date}.xlsx`)
     } catch (err) {

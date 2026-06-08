@@ -191,7 +191,34 @@ class LineSoController extends Controller
         }
 
         if ($request->boolean('no_pi_number')) {
+            // หา so_number ของ record ที่ไม่มี pi_number แล้วเช็คว่ามีใน ISCODE ผ่าน sono หรือเปล่า
+            $noPiSoNos = $query->clone()
+                ->whereNull('ps.pi_number')
+                ->whereNotNull('ps.so_number')
+                ->pluck('ps.so_number')
+                ->unique()
+                ->filter()
+                ->values()
+                ->all();
+
+            $soNosInIscode = [];
+            if (!empty($noPiSoNos)) {
+                $soNosInIscode = DB::connection('dbctl')
+                    ->table('ct_so_head')
+                    ->whereIn('sono', $noPiSoNos)
+                    ->pluck('sono')
+                    ->unique()
+                    ->all();
+            }
+
+            // ไม่พบ = ไม่มี pi_number AND (so_number เป็น null หรือไม่ตรงกับ sono ใน ISCODE)
             $query->whereNull('ps.pi_number');
+            if (!empty($soNosInIscode)) {
+                $query->where(function ($q) use ($soNosInIscode) {
+                    $q->whereNull('ps.so_number')
+                      ->orWhereNotIn('ps.so_number', $soNosInIscode);
+                });
+            }
         }
 
         if ($request->filled('service_type')) {
