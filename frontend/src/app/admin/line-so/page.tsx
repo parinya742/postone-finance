@@ -106,15 +106,15 @@ function buildSummarySheet(items: LineSoJoin[]) {
 
   let totalWeightG = 0, totalServiceFee = 0, totalWeightKg = 0, totalTransport = 0, totalSpecialZone = 0
   for (const i of items) {
-    totalWeightG  += Number(i.weight_grams ?? 0)
+    totalWeightG += Number(i.weight_grams ?? 0)
     totalServiceFee += Number(i.service_fee ?? 0)
     const g = Number(i.weight_grams ?? 0)
     if (g) {
-      if (i.dl_calculated_cost != null)  totalWeightKg += calculateLetterKg(g) ?? 0
+      if (i.dl_calculated_cost != null) totalWeightKg += calculateLetterKg(g) ?? 0
       else if (i.ems_calculated_cost != null) totalWeightKg += calculateEmsKg(g) ?? 0
       else totalWeightKg += g < 10 ? g : g / 1000
     }
-    totalTransport   += Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
+    totalTransport += Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
     totalSpecialZone += Number(i.special_zone_rate ?? 0)
   }
   const totalDiff = totalTransport - totalServiceFee
@@ -232,13 +232,67 @@ export default function LineSoPage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const res = await api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined } })
-      const allItems = res.data as LineSoJoin[]
+      const [resMain, resZones, resEms, resDl] = await Promise.all([
+        api.get('/iscode/line-so/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined } }),
+        api.get('/special-postal-zones', { params: { per_page: 9999 } }),
+        api.get('/ems-rates'),
+        api.get('/domestic-letter-rates'),
+      ])
+
+      const allItems = resMain.data as LineSoJoin[]
+      const zones = (resZones.data?.data ?? []) as { seq: number; area_group: number; province: string; office_name: string; postal_code: string; area_description: string | null; rate: number }[]
+      const emsRates = (resEms.data?.data ?? []) as { weight: number; rate: number }[]
+      const emsOffset = Number(resEms.data?.offset ?? 0)
+      const dlRates = (resDl.data?.data ?? []) as { weight: number; rate: number }[]
+      const dlOffset = Number(resDl.data?.offset ?? 0)
+
+      // Sheet 1: ข้อมูลหลัก
       const ws = XLSX.utils.json_to_sheet(buildExcelRows(allItems))
+
+      // Sheet 2: สรุป
       const wsSummary = buildSummarySheet(allItems)
+
+      // Sheet 3: พื้นที่ไปรษณีย์พิเศษ
+      const wsZones = XLSX.utils.json_to_sheet(zones.map(z => ({
+        'ลำดับ': z.seq,
+        'กลุ่มพื้นที่': z.area_group,
+        'จังหวัด': z.province,
+        'ชื่อที่ทำการ': z.office_name,
+        'รหัสไปรษณีย์': z.postal_code,
+        'พื้นที่': z.area_description ?? '',
+        'อัตรา (บาท)': Number(z.rate),
+      })))
+      wsZones['!cols'] = [{ wch: 8 }, { wch: 10 }, { wch: 16 }, { wch: 24 }, { wch: 14 }, { wch: 28 }, { wch: 14 }]
+
+      // Sheet 4: อัตราค่าบริการ EMS
+      const wsEms = XLSX.utils.json_to_sheet([
+        ...(emsOffset !== 0 ? [{ 'น้ำหนัก (กก.)': 'Input (ส่วนเพิ่ม)', 'อัตราฐาน (บาท)': '', 'อัตรารวม (บาท)': emsOffset }] : []),
+        ...emsRates.map(r => ({
+          'น้ำหนัก (กก.)': Number(r.weight),
+          'อัตราฐาน (บาท)': Number(r.rate),
+          'อัตรารวม (บาท)': Math.ceil(Number(r.rate) + emsOffset),
+        })),
+      ])
+      wsEms['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 18 }]
+
+      // Sheet 5: อัตราค่าบริการไปรษณีย์ (จดหมาย)
+      const wsDl = XLSX.utils.json_to_sheet([
+        ...(dlOffset !== 0 ? [{ 'น้ำหนัก (กก.)': 'Input (ส่วนเพิ่ม)', 'อัตราฐาน (บาท)': '', 'อัตรารวม (บาท)': dlOffset }] : []),
+        ...dlRates.map(r => ({
+          'น้ำหนัก (กก.)': Number(r.weight),
+          'อัตราฐาน (บาท)': Number(r.rate),
+          'อัตรารวม (บาท)': Math.ceil(Number(r.rate) + dlOffset),
+        })),
+      ])
+      wsDl['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 18 }]
+
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, 'Line SO Report')
       XLSX.utils.book_append_sheet(wb, wsSummary, 'สรุป')
+      XLSX.utils.book_append_sheet(wb, wsZones, 'พื้นที่พิเศษ')
+      XLSX.utils.book_append_sheet(wb, wsEms, 'อัตรา EMS')
+      XLSX.utils.book_append_sheet(wb, wsDl, 'อัตราไปรษณีย์')
+
       const date = new Date().toISOString().slice(0, 10)
       XLSX.writeFile(wb, `line-so-${date}.xlsx`)
     } catch (err) {
@@ -274,18 +328,18 @@ export default function LineSoPage() {
   const sums = useMemo(() => {
     const arr = data?.data ?? []
     return {
-      weight_grams:      arr.reduce((s, i) => s + Number(i.weight_grams ?? 0), 0),
-      service_fee:       arr.reduce((s, i) => s + Number(i.service_fee ?? 0), 0),
-      weight_kg:         arr.reduce((s, i) => {
+      weight_grams: arr.reduce((s, i) => s + Number(i.weight_grams ?? 0), 0),
+      service_fee: arr.reduce((s, i) => s + Number(i.service_fee ?? 0), 0),
+      weight_kg: arr.reduce((s, i) => {
         const g = Number(i.weight_grams ?? 0)
         if (!g) return s
         if (i.dl_calculated_cost != null) return s + (calculateLetterKg(g) ?? 0)
         if (i.ems_calculated_cost != null) return s + (calculateEmsKg(g) ?? 0)
         return s + (g < 10 ? g : g / 1000)
       }, 0),
-      transport:         arr.reduce((s, i) => s + Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0), 0),
+      transport: arr.reduce((s, i) => s + Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0), 0),
       special_zone_rate: arr.reduce((s, i) => s + Number(i.special_zone_rate ?? 0), 0),
-      diff:              arr.reduce((s, i) => {
+      diff: arr.reduce((s, i) => {
         const t = Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
         const b = Number(i.service_fee ?? 0)
         return s + (t - b)
@@ -403,181 +457,181 @@ export default function LineSoPage() {
       </div>
 
       <div className="bg-white border border-[#EBEBEB] rounded">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm" style={{ minWidth: '2400px' }}>
-          <thead>
-            {/* Group headers */}
-            <tr className="border-b border-[#EBEBEB]">
-              <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={7} color="bg-[#F5FAF5] text-[#107E3E] border-[#C8E6C9]" />
-              <GH label="ISCODE" span={10} color="bg-[#EBF5FE] text-[#0057B8] border-[#BDD9F7]" />
-              <GH label="ระบบไปรษณีย์" span={2} color="bg-[#EBF5FE] text-[#0070F2] border-[#BDD9F7]" />
-              <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={2} color="bg-[#F5FAF5] text-[#107E3E] border-[#C8E6C9]" />
-              <GH label="พื้นที่พิเศษ" span={1} color="bg-[#FEF7F1] text-[#C44500] border-[#F8C592]" />
-              <GH label="Diff" span={1} color="bg-[#F2F4F7] text-[#6A6D70] border-[#EBEBEB]" />
-            </tr>
-            {/* Column headers */}
-            <tr className="bg-[#F2F4F7] border-b border-[#EBEBEB]">
-              {/* LINE group 1 */}
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">วันฝากส่ง</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Barcode</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสปลายทาง</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อปลายทาง</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">น้ำหนัก(g) Before<button onClick={() => toggleSum('weight_grams')} title={sumCols.has('weight_grams') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_grams') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">บริการ</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">ค่าบริการ Before<button onClick={() => toggleSum('service_fee')} title={sumCols.has('service_fee') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('service_fee') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
-              </th>
-              {/* ISCODE group */}
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">PI No</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">DI No</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">PO No</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสลูกค้า</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อลูกค้า</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสเซลล์</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อเซลล์</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Doc Remark</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Area</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">แผนกที่ส่ง</th>
-
-              {/* <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">CreateBy</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อผู้สร้าง</th> */}
-              {/* <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ACC Remark</th> */}
-
-              {/* Postone group */}
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อผู้รับ</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">สินค้า</th>
-              {/* LINE group 2 */}
-              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">น้ำหนัก (กก.)<button onClick={() => toggleSum('weight_kg')} title={sumCols.has('weight_kg') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_kg') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">ค่าขนส่ง<button onClick={() => toggleSum('transport')} title={sumCols.has('transport') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('transport') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
-              </th>
-              {/* Special Zone group */}
-              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">อัตราพื้นที่พิเศษ<button onClick={() => toggleSum('special_zone_rate')} title={sumCols.has('special_zone_rate') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('special_zone_rate') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">Diff<button onClick={() => toggleSum('diff')} title={sumCols.has('diff') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('diff') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#EBEBEB]">
-            {isLoading ? (
-              [...Array(8)].map((_, i) => (
-                <tr key={i}>
-                  {[...Array(COL_COUNT)].map((_, j) => (
-                    <td key={j} className="px-4 py-3">
-                      <div className="h-4 bg-[#F5F5F5] rounded animate-pulse" />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={COL_COUNT} className="px-5 py-12 text-center text-[#6A6D70]">
-                  <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  ไม่พบข้อมูล
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: '2400px' }}>
+            <thead>
+              {/* Group headers */}
+              <tr className="border-b border-[#EBEBEB]">
+                <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={7} color="bg-[#F5FAF5] text-[#107E3E] border-[#C8E6C9]" />
+                <GH label="ISCODE" span={10} color="bg-[#EBF5FE] text-[#0057B8] border-[#BDD9F7]" />
+                <GH label="ระบบไปรษณีย์" span={2} color="bg-[#EBF5FE] text-[#0070F2] border-[#BDD9F7]" />
+                <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={2} color="bg-[#F5FAF5] text-[#107E3E] border-[#C8E6C9]" />
+                <GH label="พื้นที่พิเศษ" span={1} color="bg-[#FEF7F1] text-[#C44500] border-[#F8C592]" />
+                <GH label="Diff" span={1} color="bg-[#F2F4F7] text-[#6A6D70] border-[#EBEBEB]" />
               </tr>
-            ) : (
-              items.map((item, idx) => {
-                const hasIscode = item.PINo !== null
-                return (
-                  <tr
-                    key={`${item.barcode ?? ''}-${idx}`}
-                    className={clsx(
-                      'hover:bg-[#EBF5FE] transition-colors',
-                      !hasIscode && 'bg-[#FEF7F1]'
-                    )}
-                  >
-                    {/* LINE group 1 */}
-                    <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{fmtDate(item.deposit_datetime)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-[#107E3E] whitespace-nowrap">
-                      <CopyCell value={item.barcode} className="font-mono text-[#107E3E]" />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.destination_code ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.destination_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right text-[#32363A]">{fmtNum(item.weight_grams, 0)}</td>
-                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.service_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right text-[#32363A]">{fmtNum(item.service_fee)}</td>
-                    {/* ISCODE group */}
-                    <td className="px-4 py-3 font-mono text-xs text-[#0070F2] whitespace-nowrap">
-                      {item.PINo
-                        ? <CopyCell value={item.PINo} className="font-mono text-[#0070F2]" />
-                        : <span className="text-[#C44500] flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ไม่พบ</span>
-                      }
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-[#6A6D70] whitespace-nowrap">
-                      <CopyCell value={item.DINo} className="font-mono text-[#6A6D70]" />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-[#6A6D70] whitespace-nowrap">{item.PONo ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.CustID ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-[#32363A] max-w-[160px] truncate">{item.CustName ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.FieldSaleID ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.FieldSaleName ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-[#6A6D70] max-w-[160px] truncate">{item.DocRemark ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.Area ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.account_type_name ?? '—'}</td>
-                    {/* Postone group */}
-                    <td className="px-4 py-3 text-xs text-[#32363A] max-w-[140px] truncate">
-                      {item.customer_name ?? (
-                        <span className="text-[#C0C1C2]">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[#6A6D70] max-w-[160px] truncate">{item.product_details ?? '—'}</td>
-                    {/* LINE group 2 */}
-                    <td className="px-4 py-3 text-xs text-right">
-                      {item.dl_calculated_cost != null ? (
-                        <span className="font-semibold text-[#0070F2]">
-                          {fmtNum(calculateLetterKg(item.weight_grams), 2)}
-                        </span>
-                      ) : item.ems_calculated_cost != null ? (
-                        <span className="font-semibold text-[#C44500]">
-                          {fmtNum(calculateEmsKg(item.weight_grams), 0)}
-                        </span>
-                      ) : (
-                        <span className="text-[#32363A]">{fmtKg(item.weight_grams)}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-right">
-                      {item.dl_calculated_cost != null ? (
-                        <span className="font-semibold text-[#0070F2]">{fmtNum(item.dl_calculated_cost, 0)}</span>
-                      ) : item.ems_calculated_cost != null ? (
-                        <span className="font-semibold text-[#C44500]">{fmtNum(item.ems_calculated_cost, 0)}</span>
-                      ) : (
-                        <span className="text-[#32363A]">{fmtNum(item.service_fee)}</span>
-                      )}
-                    </td>
-                    {/* Special Zone group */}
-                    <td className="px-4 py-3 text-xs text-right font-semibold text-[#C44500]">
-                      {item.special_zone_rate != null ? fmtNum(item.special_zone_rate, 0) : <span className="text-[#C0C1C2]">—</span>}
-                    </td>
+              {/* Column headers */}
+              <tr className="bg-[#F2F4F7] border-b border-[#EBEBEB]">
+                {/* LINE group 1 */}
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">วันฝากส่ง</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Barcode</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสปลายทาง</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อปลายทาง</th>
+                <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                  <span className="inline-flex items-center justify-end gap-1">น้ำหนัก(g) Before<button onClick={() => toggleSum('weight_grams')} title={sumCols.has('weight_grams') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_grams') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">บริการ</th>
+                <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                  <span className="inline-flex items-center justify-end gap-1">ค่าบริการ Before<button onClick={() => toggleSum('service_fee')} title={sumCols.has('service_fee') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('service_fee') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
+                </th>
+                {/* ISCODE group */}
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">PI No</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">DI No</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">PO No</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสลูกค้า</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อลูกค้า</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสเซลล์</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อเซลล์</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Doc Remark</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Area</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">แผนกที่ส่ง</th>
 
-                    {/* Diff */}
-                    <td className="px-4 py-3 text-xs text-right font-semibold whitespace-nowrap">
-                      {(() => {
-                        const transport = item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? null
-                        const before = item.service_fee ?? null
-                        if (transport == null || before == null) return <span className="text-[#C0C1C2]">—</span>
-                        const diff = transport - before
-                        if (diff === 0) return <span className="text-[#6A6D70]">0.00</span>
-                        return (
-                          <span className={diff > 0 ? 'text-[#BB0000]' : 'text-[#107E3E]'}>
-                            {diff > 0 ? '+' : ''}{fmtNum(diff)}
-                          </span>
-                        )
-                      })()}
-                    </td>
+                {/* <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">CreateBy</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อผู้สร้าง</th> */}
+                {/* <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ACC Remark</th> */}
+
+                {/* Postone group */}
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อผู้รับ</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">สินค้า</th>
+                {/* LINE group 2 */}
+                <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                  <span className="inline-flex items-center justify-end gap-1">น้ำหนัก (กก.)<button onClick={() => toggleSum('weight_kg')} title={sumCols.has('weight_kg') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_kg') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
+                </th>
+                <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                  <span className="inline-flex items-center justify-end gap-1">ค่าขนส่ง<button onClick={() => toggleSum('transport')} title={sumCols.has('transport') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('transport') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
+                </th>
+                {/* Special Zone group */}
+                <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                  <span className="inline-flex items-center justify-end gap-1">อัตราพื้นที่พิเศษ<button onClick={() => toggleSum('special_zone_rate')} title={sumCols.has('special_zone_rate') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('special_zone_rate') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
+                </th>
+                <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                  <span className="inline-flex items-center justify-end gap-1">Diff<button onClick={() => toggleSum('diff')} title={sumCols.has('diff') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('diff') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#EBEBEB]">
+              {isLoading ? (
+                [...Array(8)].map((_, i) => (
+                  <tr key={i}>
+                    {[...Array(COL_COUNT)].map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 bg-[#F5F5F5] rounded animate-pulse" />
+                      </td>
+                    ))}
                   </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                ))
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={COL_COUNT} className="px-5 py-12 text-center text-[#6A6D70]">
+                    <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    ไม่พบข้อมูล
+                  </td>
+                </tr>
+              ) : (
+                items.map((item, idx) => {
+                  const hasIscode = item.PINo !== null
+                  return (
+                    <tr
+                      key={`${item.barcode ?? ''}-${idx}`}
+                      className={clsx(
+                        'hover:bg-[#EBF5FE] transition-colors',
+                        !hasIscode && 'bg-[#FEF7F1]'
+                      )}
+                    >
+                      {/* LINE group 1 */}
+                      <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{fmtDate(item.deposit_datetime)}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-[#107E3E] whitespace-nowrap">
+                        <CopyCell value={item.barcode} className="font-mono text-[#107E3E]" />
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.destination_code ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.destination_name ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-right text-[#32363A]">{fmtNum(item.weight_grams, 0)}</td>
+                      <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.service_name ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-right text-[#32363A]">{fmtNum(item.service_fee)}</td>
+                      {/* ISCODE group */}
+                      <td className="px-4 py-3 font-mono text-xs text-[#0070F2] whitespace-nowrap">
+                        {item.PINo
+                          ? <CopyCell value={item.PINo} className="font-mono text-[#0070F2]" />
+                          : <span className="text-[#C44500] flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ไม่พบ</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-[#6A6D70] whitespace-nowrap">
+                        <CopyCell value={item.DINo} className="font-mono text-[#6A6D70]" />
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-[#6A6D70] whitespace-nowrap">{item.PONo ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.CustID ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-[#32363A] max-w-[160px] truncate">{item.CustName ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.FieldSaleID ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.FieldSaleName ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-[#6A6D70] max-w-[160px] truncate">{item.DocRemark ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.Area ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.account_type_name ?? '—'}</td>
+                      {/* Postone group */}
+                      <td className="px-4 py-3 text-xs text-[#32363A] max-w-[140px] truncate">
+                        {item.customer_name ?? (
+                          <span className="text-[#C0C1C2]">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[#6A6D70] max-w-[160px] truncate">{item.product_details ?? '—'}</td>
+                      {/* LINE group 2 */}
+                      <td className="px-4 py-3 text-xs text-right">
+                        {item.dl_calculated_cost != null ? (
+                          <span className="font-semibold text-[#0070F2]">
+                            {fmtNum(calculateLetterKg(item.weight_grams), 2)}
+                          </span>
+                        ) : item.ems_calculated_cost != null ? (
+                          <span className="font-semibold text-[#C44500]">
+                            {fmtNum(calculateEmsKg(item.weight_grams), 0)}
+                          </span>
+                        ) : (
+                          <span className="text-[#32363A]">{fmtKg(item.weight_grams)}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right">
+                        {item.dl_calculated_cost != null ? (
+                          <span className="font-semibold text-[#0070F2]">{fmtNum(item.dl_calculated_cost, 0)}</span>
+                        ) : item.ems_calculated_cost != null ? (
+                          <span className="font-semibold text-[#C44500]">{fmtNum(item.ems_calculated_cost, 0)}</span>
+                        ) : (
+                          <span className="text-[#32363A]">{fmtNum(item.service_fee)}</span>
+                        )}
+                      </td>
+                      {/* Special Zone group */}
+                      <td className="px-4 py-3 text-xs text-right font-semibold text-[#C44500]">
+                        {item.special_zone_rate != null ? fmtNum(item.special_zone_rate, 0) : <span className="text-[#C0C1C2]">—</span>}
+                      </td>
+
+                      {/* Diff */}
+                      <td className="px-4 py-3 text-xs text-right font-semibold whitespace-nowrap">
+                        {(() => {
+                          const transport = item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? null
+                          const before = item.service_fee ?? null
+                          if (transport == null || before == null) return <span className="text-[#C0C1C2]">—</span>
+                          const diff = transport - before
+                          if (diff === 0) return <span className="text-[#6A6D70]">0.00</span>
+                          return (
+                            <span className={diff > 0 ? 'text-[#BB0000]' : 'text-[#107E3E]'}>
+                              {diff > 0 ? '+' : ''}{fmtNum(diff)}
+                            </span>
+                          )
+                        })()}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {data && (data.last_page > 1 || sumCols.size > 0) && (() => {
           const displaySums = sumScope === 'all' && summaryData ? summaryData : sums
@@ -607,16 +661,16 @@ export default function LineSoPage() {
                     {summaryLoading && sumScope === 'all'
                       ? <span className="text-[#6A6D70] animate-pulse">กำลังคำนวณ...</span>
                       : <>
-                          <span className="text-[#6A6D70]">{displayCount.toLocaleString('th-TH')} รายการ</span>
-                          {sumCols.has('weight_grams') && <span className="whitespace-nowrap">น้ำหนัก(g) Before <strong className="text-[#32363A]">{fmtNum(displaySums.weight_grams, 0)}</strong></span>}
-                          {sumCols.has('service_fee') && <span className="whitespace-nowrap">ค่าบริการ Before <strong className="text-[#32363A]">{fmtNum(displaySums.service_fee)}</strong></span>}
-                          {sumCols.has('weight_kg') && <span className="whitespace-nowrap">น้ำหนัก(กก.) <strong className="text-[#32363A]">{fmtNum(displaySums.weight_kg, 2)}</strong></span>}
-                          {sumCols.has('transport') && <span className="whitespace-nowrap">ค่าขนส่ง <strong className="text-[#32363A]">{fmtNum(displaySums.transport, 0)}</strong></span>}
-                          {sumCols.has('special_zone_rate') && <span className="whitespace-nowrap">พื้นที่พิเศษ <strong className="text-[#C44500]">{fmtNum(displaySums.special_zone_rate, 0)}</strong></span>}
-                          {sumCols.has('diff') && (
-                            <span className="whitespace-nowrap">Diff <strong className={displaySums.diff > 0 ? 'text-[#BB0000]' : displaySums.diff < 0 ? 'text-[#107E3E]' : 'text-[#6A6D70]'}>{displaySums.diff > 0 ? '+' : ''}{fmtNum(displaySums.diff)}</strong></span>
-                          )}
-                        </>
+                        <span className="text-[#6A6D70]">{displayCount.toLocaleString('th-TH')} รายการ</span>
+                        {sumCols.has('weight_grams') && <span className="whitespace-nowrap">น้ำหนัก(g) Before <strong className="text-[#32363A]">{fmtNum(displaySums.weight_grams, 0)}</strong></span>}
+                        {sumCols.has('service_fee') && <span className="whitespace-nowrap">ค่าบริการ Before <strong className="text-[#32363A]">{fmtNum(displaySums.service_fee)}</strong></span>}
+                        {sumCols.has('weight_kg') && <span className="whitespace-nowrap">น้ำหนัก(กก.) <strong className="text-[#32363A]">{fmtNum(displaySums.weight_kg, 2)}</strong></span>}
+                        {sumCols.has('transport') && <span className="whitespace-nowrap">ค่าขนส่ง <strong className="text-[#32363A]">{fmtNum(displaySums.transport, 0)}</strong></span>}
+                        {sumCols.has('special_zone_rate') && <span className="whitespace-nowrap">พื้นที่พิเศษ <strong className="text-[#C44500]">{fmtNum(displaySums.special_zone_rate, 0)}</strong></span>}
+                        {sumCols.has('diff') && (
+                          <span className="whitespace-nowrap">Diff <strong className={displaySums.diff > 0 ? 'text-[#BB0000]' : displaySums.diff < 0 ? 'text-[#107E3E]' : 'text-[#6A6D70]'}>{displaySums.diff > 0 ? '+' : ''}{fmtNum(displaySums.diff)}</strong></span>
+                        )}
+                      </>
                     }
                   </div>
                 )}

@@ -21,8 +21,8 @@ class LineSoController extends Controller
     ];
 
     private const PREFIX_AREA_MAP = [
-        '70' => 'TT BKK', 
-        '80' => 'TT UPC', 
+        '70' => 'BKK', 
+        '80' => 'UPC', 
         '20' => 'MT',
         '70010' => 'YP',
         '70370' => 'YP',
@@ -111,16 +111,21 @@ class LineSoController extends Controller
     {
         $s = $request->filled('search') ? $request->search : null;
 
-        // Step 1: If search, pre-fetch matching PINo list from ISCODE
+        // Step 1: If search, pre-fetch matching PINo/DINo list from ISCODE
         $matchedPiNos = collect();
+        $matchedDiNos = collect();
         if ($s) {
-            $matchedPiNos = DB::connection('dbctl')
+            $matchedData = DB::connection('dbctl')
                 ->table('ct_so_head')
                 ->where('pino', 'ilike', "%{$s}%")
                 ->orWhere('custname', 'ilike', "%{$s}%")
                 ->orWhere('sono', 'ilike', "%{$s}%")
                 ->orWhere('pono', 'ilike', "%{$s}%")
-                ->pluck('pino');
+                ->orWhere('dino', 'ilike', "%{$s}%")
+                ->get(['pino', 'dino']);
+
+            $matchedPiNos = $matchedData->pluck('pino')->filter()->unique();
+            $matchedDiNos = $matchedData->pluck('dino')->filter()->unique();
         }
 
         // Step 2: Query from n8n (LINE + Postone + Special Zone rate)
@@ -136,6 +141,8 @@ class LineSoController extends Controller
                 'thpa.service_fee',
                 'ps.pi_number',
                 'ps.so_number',
+                'ps.di_number',
+                'ps.fi_number',
                 'ps.customer_name',
                 'ps.product_details',
                 'spz.rate as special_zone_rate',
@@ -173,11 +180,18 @@ class LineSoController extends Controller
             ->orderByDesc('thpa.deposit_datetime');
 
         if ($s) {
-            $query->where(function ($q) use ($s, $matchedPiNos) {
+            $query->where(function ($q) use ($s, $matchedPiNos, $matchedDiNos) {
                 $q->where('thpa.barcode', 'ilike', "%{$s}%")
-                  ->orWhere('ps.so_number', 'ilike', "%{$s}%");
+                  ->orWhere('ps.so_number', 'ilike', "%{$s}%")
+                  ->orWhere('ps.di_number', 'ilike', "%{$s}%")
+                  ->orWhere('ps.fi_number', 'ilike', "%{$s}%");
                 if ($matchedPiNos->isNotEmpty()) {
-                    $q->orWhereIn('ps.pi_number', $matchedPiNos);
+                    $q->orWhereIn('ps.pi_number', $matchedPiNos)
+                      ->orWhereIn('ps.fi_number', $matchedPiNos);
+                }
+                if ($matchedDiNos->isNotEmpty()) {
+                    $q->orWhereIn('ps.di_number', $matchedDiNos)
+                      ->orWhereIn('ps.fi_number', $matchedDiNos);
                 }
             });
         }
@@ -191,11 +205,22 @@ class LineSoController extends Controller
         }
 
         if ($request->boolean('no_pi_number')) {
-            // หา so_number ของ record ที่ไม่มี pi_number แล้วเช็คว่ามีใน ISCODE ผ่าน sono หรือเปล่า
+            // หา so_number, di_number ของ record ที่ไม่มี pi_number และ fi_number แล้วเช็คว่ามีใน ISCODE หรือเปล่า
             $noPiSoNos = $query->clone()
                 ->whereNull('ps.pi_number')
+                ->whereNull('ps.fi_number')
                 ->whereNotNull('ps.so_number')
                 ->pluck('ps.so_number')
+                ->unique()
+                ->filter()
+                ->values()
+                ->all();
+
+            $noPiDiNos = $query->clone()
+                ->whereNull('ps.pi_number')
+                ->whereNull('ps.fi_number')
+                ->whereNotNull('ps.di_number')
+                ->pluck('ps.di_number')
                 ->unique()
                 ->filter()
                 ->values()
@@ -211,14 +236,33 @@ class LineSoController extends Controller
                     ->all();
             }
 
-            // ไม่พบ = ไม่มี pi_number AND (so_number เป็น null หรือไม่ตรงกับ sono ใน ISCODE)
-            $query->whereNull('ps.pi_number');
-            if (!empty($soNosInIscode)) {
-                $query->where(function ($q) use ($soNosInIscode) {
-                    $q->whereNull('ps.so_number')
-                      ->orWhereNotIn('ps.so_number', $soNosInIscode);
-                });
+            $diNosInIscode = [];
+            if (!empty($noPiDiNos)) {
+                $diNosInIscode = DB::connection('dbctl')
+                    ->table('ct_so_head')
+                    ->whereIn('dino', $noPiDiNos)
+                    ->pluck('dino')
+                    ->unique()
+                    ->all();
             }
+
+            // ไม่พบ = ไม่มี pi/fi number AND (so_number เป็น null หรือไม่ตรงกับ sono ใน ISCODE) AND (di_number เป็น null หรือไม่ตรงกับ dino ใน ISCODE)
+            $query->whereNull('ps.pi_number')
+                  ->whereNull('ps.fi_number');
+            $query->where(function ($q) use ($soNosInIscode, $diNosInIscode) {
+                $q->where(function ($inner) use ($soNosInIscode) {
+                    $inner->whereNull('ps.so_number');
+                    if (!empty($soNosInIscode)) {
+                        $inner->orWhereNotIn('ps.so_number', $soNosInIscode);
+                    }
+                })
+                ->where(function ($inner) use ($diNosInIscode) {
+                    $inner->whereNull('ps.di_number');
+                    if (!empty($diNosInIscode)) {
+                        $inner->orWhereNotIn('ps.di_number', $diNosInIscode);
+                    }
+                });
+            });
         }
 
         if ($request->filled('service_type')) {
@@ -234,46 +278,115 @@ class LineSoController extends Controller
                 ->values()
                 ->all();
 
+            $activeFiNos = $query->clone()
+                ->whereNotNull('ps.fi_number')
+                ->pluck('ps.fi_number')
+                ->unique()
+                ->filter()
+                ->values()
+                ->all();
+
+            $mergedActivePiNos = array_unique(array_merge($activePiNos, $activeFiNos));
+
+            $activeDiNos = $query->clone()
+                ->whereNotNull('ps.di_number')
+                ->pluck('ps.di_number')
+                ->unique()
+                ->filter()
+                ->values()
+                ->all();
+
             $existingIscodePiNos = [];
-            if (!empty($activePiNos)) {
-                $existingIscodePiNos = DB::connection('dbctl')
+            if (!empty($mergedActivePiNos)) {
+                $matchedIscodeForPi = DB::connection('dbctl')
                     ->table('ct_so_head')
-                    ->whereIn('pino', $activePiNos)
-                    ->pluck('pino')
+                    ->whereIn('pino', $mergedActivePiNos)
+                    ->orWhereIn('dino', $mergedActivePiNos)
+                    ->get(['pino', 'dino']);
+
+                $existingIscodePiNos = $matchedIscodeForPi->pluck('pino')
+                    ->concat($matchedIscodeForPi->pluck('dino'))
+                    ->filter()
+                    ->unique()
+                    ->all();
+            }
+
+            $existingIscodeDiNos = [];
+            if (!empty($activeDiNos)) {
+                $existingIscodeDiNos = DB::connection('dbctl')
+                    ->table('ct_so_head')
+                    ->whereIn('dino', $activeDiNos)
+                    ->pluck('dino')
                     ->unique()
                     ->all();
             }
 
             if ($request->boolean('no_iscode')) {
-                $query->where(function ($q) use ($existingIscodePiNos) {
-                    $q->whereNull('ps.pi_number');
-                    if (!empty($existingIscodePiNos)) {
-                        $q->orWhereNotIn('ps.pi_number', $existingIscodePiNos);
-                    }
+                $query->where(function ($q) use ($existingIscodePiNos, $existingIscodeDiNos) {
+                    $q->where(function ($subQ) use ($existingIscodePiNos) {
+                        $subQ->where(function ($inner) {
+                            $inner->whereNull('ps.pi_number')
+                                  ->whereNull('ps.fi_number');
+                        });
+                        if (!empty($existingIscodePiNos)) {
+                            $subQ->orWhere(function ($inner) use ($existingIscodePiNos) {
+                                $inner->whereNotIn('ps.pi_number', $existingIscodePiNos)
+                                      ->whereNotIn('ps.fi_number', $existingIscodePiNos);
+                            });
+                        }
+                    })
+                    ->where(function ($subQ) use ($existingIscodeDiNos) {
+                        $subQ->whereNull('ps.di_number');
+                        if (!empty($existingIscodeDiNos)) {
+                            $subQ->orWhereNotIn('ps.di_number', $existingIscodeDiNos);
+                        }
+                    });
                 });
             }
 
             if ($request->filled('area')) {
-                $this->applyAreaFilterOptimized($query, trim($request->area), $activePiNos, $existingIscodePiNos);
+                $this->applyAreaFilterOptimized($query, trim($request->area), $mergedActivePiNos, $existingIscodePiNos, $activeDiNos, $existingIscodeDiNos);
             }
         }
 
         return $query;
     }
 
-    private function applyAreaFilterOptimized($query, string $area, array $activePiNos, array $existingIscodePiNos): void
+    private function applyAreaFilterOptimized($query, string $area, array $activePiNos, array $existingIscodePiNos, array $activeDiNos, array $existingIscodeDiNos): void
     {
         $custidAreaMap  = array_flip(self::CUSTID_AREA_MAP); // area → custid
         $prefixAreaMap  = array_flip(self::PREFIX_AREA_MAP); // area → prefix
         $specialCustIds = array_map('strtolower', array_keys(self::CUSTID_AREA_MAP));
 
         $filteredPiNos = [];
-        $isIscodeArea = isset($custidAreaMap[$area]) || isset($prefixAreaMap[$area]) || $area === 'Aftersale service';
+        $filteredDiNos = [];
 
-        if ($isIscodeArea && !empty($activePiNos)) {
+        $isBKK = ($area === 'BKK' || $area === 'TT BKK');
+        $isUPC = ($area === 'UPC' || $area === 'TT UPC');
+        $isMT  = ($area === 'MT');
+
+        $isIscodeArea = isset($custidAreaMap[$area]) 
+            || isset($prefixAreaMap[$area]) 
+            || $isBKK 
+            || $isUPC 
+            || $area === 'Aftersale service';
+
+        if ($isIscodeArea && (!empty($activePiNos) || !empty($activeDiNos))) {
             $dbctlQuery = DB::connection('dbctl')
                 ->table('ct_so_head')
-                ->whereIn('pino', $activePiNos);
+                ->where(function ($q) use ($activePiNos, $activeDiNos) {
+                    if (!empty($activePiNos) && !empty($activeDiNos)) {
+                        $q->where(function ($inner) use ($activePiNos) {
+                            $inner->whereIn('pino', $activePiNos)
+                                  ->orWhereIn('dino', $activePiNos);
+                        })->orWhereIn('dino', $activeDiNos);
+                    } elseif (!empty($activePiNos)) {
+                        $q->whereIn('pino', $activePiNos)
+                          ->orWhereIn('dino', $activePiNos);
+                    } elseif (!empty($activeDiNos)) {
+                        $q->whereIn('dino', $activeDiNos);
+                    }
+                });
 
             if ($area === 'Aftersale service') {
                 $dbctlQuery->where(function ($q) {
@@ -285,45 +398,93 @@ class LineSoController extends Controller
                 $custid = strtolower($custidAreaMap[$area]);
                 $dbctlQuery->whereRaw('lower(trim(custid)) = ?', [$custid]);
 
-            } elseif (isset($prefixAreaMap[$area])) {
-                $prefixes = array_keys(array_filter(self::PREFIX_AREA_MAP, fn($a) => $a === $area));
-                $dbctlQuery->where(function ($q) use ($specialCustIds) {
-                        $q->whereNotIn(DB::raw('lower(trim(custid))'), $specialCustIds)
-                          ->orWhereNull('custid');
-                    })
-                    ->where(function ($q) {
-                        $q->whereRaw("trim(fieldsaleid) != '9980-0'")
-                          ->orWhereNull('fieldsaleid');
-                    })
-                    ->where(function ($q) use ($prefixes) {
-                        foreach ($prefixes as $prefix) {
-                            $q->orWhere(function ($inner) use ($prefix) {
-                                $inner->where(function ($p) use ($prefix) {
-                                    $p->whereNotNull('sono')
-                                      ->where('sono', '!=', '')
-                                      ->where('sono', 'ilike', "{$prefix}%");
-                                })->orWhere(function ($p) use ($prefix) {
-                                    $p->where(function ($s) {
-                                        $s->whereNull('sono')->orWhere('sono', '');
-                                    })->where('pino', 'ilike', "{$prefix}%");
-                                });
-                            });
+            } else {
+                $dbctlQuery->where(function ($q) use ($isBKK, $isUPC, $isMT, $specialCustIds, $area) {
+                    $q->where(function ($subQ) use ($isBKK, $isUPC, $isMT) {
+                        if ($isBKK) {
+                            $subQ->where('fieldsaleid', 'like', '7%');
+                        } elseif ($isUPC) {
+                            $subQ->where('fieldsaleid', 'like', '8%');
+                        } elseif ($isMT) {
+                            $subQ->where('fieldsaleid', 'like', '2%');
                         }
                     });
+
+                    $prefixes = [];
+                    if ($isBKK) {
+                        $prefixes = ['70'];
+                    } elseif ($isUPC) {
+                        $prefixes = ['80'];
+                    } elseif ($isMT) {
+                        $prefixes = ['20'];
+                    } else {
+                        $prefixes = array_keys(array_filter(self::PREFIX_AREA_MAP, fn($a) => $a === $area));
+                    }
+
+                    if (!empty($prefixes)) {
+                        $q->orWhere(function ($subQ) use ($prefixes, $specialCustIds) {
+                            $subQ->where(function ($inner) use ($specialCustIds) {
+                                    $inner->whereNotIn(DB::raw('lower(trim(custid))'), $specialCustIds)
+                                          ->orWhereNull('custid');
+                                })
+                                ->where(function ($inner) {
+                                    $inner->whereRaw("trim(fieldsaleid) != '9980-0'")
+                                          ->orWhereNull('fieldsaleid');
+                                })
+                                ->where(function ($inner) {
+                                    $inner->where('fieldsaleid', 'not like', '7%')
+                                          ->where('fieldsaleid', 'not like', '8%')
+                                          ->where('fieldsaleid', 'not like', '2%')
+                                          ->orWhereNull('fieldsaleid');
+                                })
+                                ->where(function ($inner) use ($prefixes) {
+                                    foreach ($prefixes as $prefix) {
+                                        $inner->orWhere(function ($inner2) use ($prefix) {
+                                            $inner2->where(function ($p) use ($prefix) {
+                                                $p->whereNotNull('sono')
+                                                  ->where('sono', '!=', '')
+                                                  ->where('sono', 'ilike', "{$prefix}%");
+                                            })->orWhere(function ($p) use ($prefix) {
+                                                $p->where(function ($s) {
+                                                    $s->whereNull('sono')->orWhere('sono', '');
+                                                })->where('pino', 'ilike', "{$prefix}%");
+                                            });
+                                        });
+                                    }
+                                });
+                        });
+                    }
+                });
             }
 
-            $filteredPiNos = $dbctlQuery->pluck('pino')->filter()->unique()->all();
+            $matchedRows = $dbctlQuery->get(['pino', 'dino']);
+            $filteredPiNos = $matchedRows->pluck('pino')->filter()->unique()->all();
+            $filteredDiNos = $matchedRows->pluck('dino')->filter()->unique()->all();
         }
 
-        $query->where(function ($q) use ($filteredPiNos, $existingIscodePiNos, $area, $isIscodeArea) {
+        $query->where(function ($q) use ($filteredPiNos, $filteredDiNos, $existingIscodePiNos, $existingIscodeDiNos, $area, $isIscodeArea) {
             if ($isIscodeArea) {
-                $q->whereIn('ps.pi_number', $filteredPiNos);
+                $q->whereIn('ps.pi_number', $filteredPiNos)
+                  ->orWhereIn('ps.fi_number', $filteredPiNos)
+                  ->orWhereIn('ps.di_number', $filteredDiNos);
             } else {
                 $q->where('pat.name', $area)
                     ->where(function ($s) use ($existingIscodePiNos) {
-                        $s->whereNull('ps.pi_number');
+                        $s->where(function ($inner) {
+                            $inner->whereNull('ps.pi_number')
+                                  ->whereNull('ps.fi_number');
+                        });
                         if (!empty($existingIscodePiNos)) {
-                            $s->orWhereNotIn('ps.pi_number', $existingIscodePiNos);
+                            $s->orWhere(function ($inner) use ($existingIscodePiNos) {
+                                $inner->whereNotIn('ps.pi_number', $existingIscodePiNos)
+                                      ->whereNotIn('ps.fi_number', $existingIscodePiNos);
+                            });
+                        }
+                    })
+                    ->where(function ($s) use ($existingIscodeDiNos) {
+                        $s->whereNull('ps.di_number');
+                        if (!empty($existingIscodeDiNos)) {
+                            $s->orWhereNotIn('ps.di_number', $existingIscodeDiNos);
                         }
                     });
             }
@@ -334,17 +495,20 @@ class LineSoController extends Controller
     {
         $selectCols = ['sodate', 'sono', 'pino', 'dino', 'pono', 'custid', 'custname', 'numofitem', 'fieldsaleid', 'fieldsalename', 'createby', 'createbyname', 'docremark', 'accremark'];
 
-        // Step 3a: Fetch by pi_number → pino (split comma-separated values)
+        // Step 3a: Fetch by pi_number / fi_number → pino / dino (split comma-separated values)
         $piNos = collect($items)
-            ->pluck('pi_number')
-            ->filter()
-            ->flatMap(fn($p) => array_map('trim', explode(',', $p)))
+            ->flatMap(function ($item) {
+                $piList = array_map('trim', explode(',', $item->pi_number ?? ''));
+                $fiList = array_map('trim', explode(',', $item->fi_number ?? ''));
+                return array_merge($piList, $fiList);
+            })
             ->filter()
             ->unique()
             ->values()
             ->all();
 
         $soHeadByPino = collect();
+        $soHeadByDinoFromPi = collect();
         if (!empty($piNos)) {
             $soHeadByPino = DB::connection('dbctl')
                 ->table('ct_so_head')
@@ -352,6 +516,13 @@ class LineSoController extends Controller
                 ->whereIn('pino', $piNos)
                 ->get()
                 ->keyBy('pino');
+
+            $soHeadByDinoFromPi = DB::connection('dbctl')
+                ->table('ct_so_head')
+                ->select($selectCols)
+                ->whereIn('dino', $piNos)
+                ->get()
+                ->keyBy('dino');
         }
 
         // Step 3b: Fetch by so_number → sono (fallback for records without pi_number match)
@@ -367,15 +538,31 @@ class LineSoController extends Controller
                 ->keyBy('sono');
         }
 
+        // Step 3c: Fetch by di_number → dino
+        $diNos = collect($items)->pluck('di_number')->filter()->unique()->values()->all();
+
+        $soHeadByDino = collect();
+        if (!empty($diNos)) {
+            $soHeadByDino = DB::connection('dbctl')
+                ->table('ct_so_head')
+                ->select($selectCols)
+                ->whereIn('dino', $diNos)
+                ->get()
+                ->keyBy('dino');
+        }
+
         // Step 4: Merge ISCODE data into each row
-        return collect($items)->map(function ($item) use ($soHeadByPino, $soHeadBySono) {
-            // pi_number อาจเป็น comma-separated → ลอง match ทีละตัว
+        return collect($items)->map(function ($item) use ($soHeadByPino, $soHeadByDinoFromPi, $soHeadBySono, $soHeadByDino) {
+            // pi_number หรือ fi_number อาจเป็น comma-separated → ลอง match ทีละตัว
             $piList = collect(explode(',', $item->pi_number ?? ''))
+                ->concat(explode(',', $item->fi_number ?? ''))
                 ->map(fn($p) => trim($p))
                 ->filter();
 
             $so = $piList->map(fn($p) => $soHeadByPino->get($p))->filter()->first()
-               ?? $soHeadBySono->get($item->so_number);
+               ?? $piList->map(fn($p) => $soHeadByDinoFromPi->get($p))->filter()->first()
+               ?? $soHeadBySono->get($item->so_number)
+               ?? $soHeadByDino->get($item->di_number);
 
             $area = null;
             if (!$so) {
@@ -390,6 +577,12 @@ class LineSoController extends Controller
                     $area = self::CUSTID_AREA_MAP[$custidLower];
                 } elseif ($fieldsaleid === '9980-0') {
                     $area = 'Aftersale service';
+                } elseif (str_starts_with($fieldsaleid, '7')) {
+                    $area = 'BKK';
+                } elseif (str_starts_with($fieldsaleid, '8')) {
+                    $area = 'UPC';
+                } elseif (str_starts_with($fieldsaleid, '2')) {
+                    $area = 'MT';
                 } else {
                     $billingCode = $sono ?: $pino;
                     if ($billingCode !== '') {
