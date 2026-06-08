@@ -53,7 +53,8 @@ export default function SoHeadPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+      <div className="bg-white rounded-xl border border-slate-200">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[1400px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -69,8 +70,8 @@ export default function SoHeadPage() {
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">FieldSaleName</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">CreateBy</th>
               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">CreateByName</th>
-               <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">DocRemark</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ACCRemark</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">DocRemark</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ACCRemark</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -113,16 +114,17 @@ export default function SoHeadPage() {
             )}
           </tbody>
         </table>
+      </div>
 
-        {data && data.last_page > 1 && (
-          <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
-            <span>หน้า {data.current_page} จาก {data.last_page} (ทั้งหมด {data.total?.toLocaleString('th-TH')} รายการ)</span>
-            <div className="flex gap-2">
-              <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ก่อนหน้า</button>
-              <button disabled={page === data.last_page} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ถัดไป</button>
-            </div>
+      {data && data.last_page > 1 && (
+        <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
+          <span>หน้า {data.current_page} จาก {data.last_page} (ทั้งหมด {data.total?.toLocaleString('th-TH')} รายการ)</span>
+          <div className="flex gap-2">
+            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ก่อนหน้า</button>
+            <button disabled={page === data.last_page} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ถัดไป</button>
           </div>
-        )}
+        </div>
+      )}
       </div>
     </div>
   )

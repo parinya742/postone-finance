@@ -29,10 +29,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-500">กำลังโหลดระบบ...</p>
+          <div className="w-10 h-10 border-4 border-[#0070F2] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-[#6A6D70]">กำลังโหลดระบบ...</p>
         </div>
       </div>
     )
@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!user) return null
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100">
+    <div className="flex h-screen overflow-hidden bg-[#F5F5F5]">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-20 lg:hidden"

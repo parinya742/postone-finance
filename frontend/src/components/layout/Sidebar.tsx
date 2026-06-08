@@ -92,30 +92,30 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-30 w-80 bg-slate-50 border-r border-slate-200 text-slate-800 flex flex-col transition-transform duration-300 ease-in-out flex-shrink-0',
+        'fixed inset-y-0 left-0 z-30 w-72 bg-white border-r border-[#D9D9D9] flex flex-col transition-transform duration-300 ease-in-out flex-shrink-0',
         'lg:relative lg:translate-x-0 lg:z-auto',
         isOpen ? 'translate-x-0' : '-translate-x-full'
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200 flex-shrink-0">
+      <div className="h-16 flex items-center justify-between px-5 border-b border-[#D9D9D9] flex-shrink-0 bg-[#FAFAFA]">
         <div className="flex items-center gap-3">
           <img src="/pumpkin.png" alt="POSTONE Logo" className="w-8 h-8 object-contain" />
           <div>
-            <p className="font-bold text-sm tracking-wide text-slate-900">POSTONE {isDemo ? '(Demo)' : ''}</p>
-            <p className="text-slate-500 text-[10px] uppercase tracking-widest">Finance</p>
+            <p className="font-bold text-sm tracking-wide text-[#32363A]">POSTONE {isDemo ? '(Demo)' : ''}</p>
+            <p className="text-[#6A6D70] text-[10px] uppercase tracking-widest">Finance</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 transition-colors"
+          className="lg:hidden p-1.5 rounded text-[#6A6D70] hover:text-[#32363A] hover:bg-[#EBEBEB] transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
+      <nav className="flex-1 overflow-y-auto py-3 px-2">
         {navGroups.map((group) => {
           const visibleItems = group.items.filter(
             (item) => !item.permission || can(item.permission)
@@ -123,8 +123,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           if (visibleItems.length === 0) return null
 
           return (
-            <div key={group.label} className="mb-5">
-              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            <div key={group.label} className="mb-4">
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
                 {group.label}
               </p>
               <div className="space-y-0.5">
@@ -138,17 +138,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       href={href}
                       onClick={onClose}
                       className={clsx(
-                        'group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
+                        'group flex items-center justify-between px-3 py-2 rounded text-sm transition-all duration-150 border-l-2',
                         active
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10 font-medium'
-                          : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
+                          ? 'bg-[#EBF5FE] text-[#0070F2] font-medium border-[#0070F2]'
+                          : 'text-[#32363A] hover:bg-[#F5F5F5] hover:text-[#0070F2] border-transparent'
                       )}
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <Icon className={clsx('w-4 h-4 flex-shrink-0', active ? 'text-[#0070F2]' : 'text-[#6A6D70] group-hover:text-[#0070F2]')} />
                         <span>{label}</span>
                       </div>
-                      {active && <ChevronRight className="w-3.5 h-3.5 opacity-70" />}
+                      {active && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
                     </Link>
                   )
                 })}
@@ -159,10 +159,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-slate-200 flex-shrink-0">
+      <div className="p-3 border-t border-[#D9D9D9] bg-[#FAFAFA] flex-shrink-0">
         <div className="px-3 py-2">
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest">Version</p>
-          <p className="text-xs text-slate-500 mt-0.5">v1.0.0 — Development</p>
+          <p className="text-[10px] text-[#6A6D70] uppercase tracking-widest">Version</p>
+          <p className="text-xs text-[#6A6D70] mt-0.5">v1.0.0 — Development</p>
         </div>
       </div>
     </aside>

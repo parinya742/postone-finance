@@ -215,7 +215,8 @@ export default function SpecialPostalZonesPage() {
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+      <div className="bg-white rounded-xl border border-slate-200">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -294,6 +295,7 @@ export default function SpecialPostalZonesPage() {
             )}
           </tbody>
         </table>
+        </div>
 
         {data && data.last_page > 1 && (
           <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">

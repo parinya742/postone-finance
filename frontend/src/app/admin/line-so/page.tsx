@@ -295,7 +295,7 @@ export default function LineSoPage() {
 
   if (!can('line-so.view')) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+      <div className="flex flex-col items-center justify-center h-64 text-[#6A6D70]">
         <Lock className="w-12 h-12 mb-3" />
         <p className="font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
       </div>
@@ -305,44 +305,46 @@ export default function LineSoPage() {
   const items = data?.data ?? []
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">ตรวจสอบข้อมูลไปรษณีย์ (Report)</h1>
-        <p className="text-slate-500 text-sm mt-1">
+    <div className="space-y-4">
+      {/* Page header */}
+      <div className="pb-1 border-b border-[#EBEBEB]">
+        <h1 className="text-xl font-semibold text-[#32363A]">ตรวจสอบข้อมูลไปรษณีย์ (Report)</h1>
+        <p className="text-[#6A6D70] text-sm mt-0.5">
           ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ · ตรวจสอบข้อมูลไปรษณีย์ ผ่าน PINo SoNo
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
+      {/* Filter toolbar */}
+      <div className="bg-white border border-[#EBEBEB] rounded px-4 py-3 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6A6D70]" />
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); resetPage() }}
             placeholder="Barcode, PI No, SO No, PO No, ชื่อลูกค้า..."
-            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-3 py-2 border border-[#89919A] rounded text-sm text-[#32363A] placeholder:text-[#6A6D70] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2]"
           />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-500 whitespace-nowrap">วันฝากส่ง</label>
+          <label className="text-xs text-[#6A6D70] whitespace-nowrap">วันฝากส่ง</label>
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-[#89919A] rounded px-3 py-2 text-sm text-[#32363A] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2]"
           />
-          <span className="text-slate-400 text-sm">—</span>
+          <span className="text-[#6A6D70] text-sm">—</span>
           <input
             type="date"
             value={dateTo}
             onChange={(e) => { setDateTo(e.target.value); resetPage() }}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-[#89919A] rounded px-3 py-2 text-sm text-[#32363A] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2]"
           />
         </div>
         <select
           value={area}
           onChange={(e) => { setArea(e.target.value); resetPage() }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          className="border border-[#89919A] rounded px-3 py-2 text-sm text-[#32363A] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2] bg-white"
         >
           <option value="">ทุก Area</option>
           <optgroup label="ข้อมูล ISCODE">
@@ -372,21 +374,19 @@ export default function LineSoPage() {
         <select
           value={serviceType}
           onChange={(e) => { setServiceType(e.target.value); resetPage() }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          className="border border-[#89919A] rounded px-3 py-2 text-sm text-[#32363A] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2] bg-white"
         >
           <option value="">ทุกประเภทบริการ</option>
           <option value="EMS">EMS</option>
           <option value="จดหมาย">จดหมาย</option>
-          {/* <option value="พัสดุ">พัสดุ</option>
-          <option value="ลงทะเบียน">ลงทะเบียน</option> */}
         </select>
         <button
           onClick={() => { setNoPiNumber((v) => !v); resetPage() }}
           className={clsx(
-            'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors',
+            'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded border transition-colors',
             noPiNumber
-              ? 'bg-red-50 border-red-400 text-red-700 hover:bg-red-100'
-              : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+              ? 'bg-[#FEF7F1] border-[#E9730C] text-[#C44500] hover:bg-[#FDEBD7]'
+              : 'bg-white border-[#EBEBEB] text-[#32363A] hover:bg-[#F5F5F5]'
           )}
         >
           <AlertTriangle className="w-4 h-4" />
@@ -395,89 +395,89 @@ export default function LineSoPage() {
         <button
           onClick={handleExport}
           disabled={exporting}
-          className="ml-auto flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+          className="ml-auto flex items-center gap-2 px-4 py-2 bg-[#0070F2] hover:bg-[#0057C2] disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
         >
           <Download className="w-4 h-4" />
           {exporting ? 'กำลัง Export...' : 'Export Excel'}
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200">
+      <div className="bg-white border border-[#EBEBEB] rounded">
       <div className="overflow-x-auto">
         <table className="w-full text-sm" style={{ minWidth: '2400px' }}>
           <thead>
             {/* Group headers */}
-            <tr className="border-b border-slate-200">
-              <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={7} color="bg-green-50 text-green-500 border-green-100" />
-              <GH label="ISCODE" span={10} color="bg-violet-50 text-violet-500 border-violet-100" />
-              <GH label="ระบบไปรษณีย์" span={2} color="bg-blue-50 text-blue-400 border-blue-100" />
-              <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={2} color="bg-green-50 text-green-500 border-green-100" />
-              <GH label="พื้นที่พิเศษ" span={1} color="bg-orange-50 text-orange-500 border-orange-100" />
-              <GH label="Diff" span={1} color="bg-slate-50 text-slate-500 border-slate-200" />
+            <tr className="border-b border-[#EBEBEB]">
+              <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={7} color="bg-[#F5FAF5] text-[#107E3E] border-[#C8E6C9]" />
+              <GH label="ISCODE" span={10} color="bg-[#EBF5FE] text-[#0057B8] border-[#BDD9F7]" />
+              <GH label="ระบบไปรษณีย์" span={2} color="bg-[#EBF5FE] text-[#0070F2] border-[#BDD9F7]" />
+              <GH label="ข้อมูลไปรษณีย์จากไฟล์บริการ" span={2} color="bg-[#F5FAF5] text-[#107E3E] border-[#C8E6C9]" />
+              <GH label="พื้นที่พิเศษ" span={1} color="bg-[#FEF7F1] text-[#C44500] border-[#F8C592]" />
+              <GH label="Diff" span={1} color="bg-[#F2F4F7] text-[#6A6D70] border-[#EBEBEB]" />
             </tr>
             {/* Column headers */}
-            <tr className="bg-slate-50 border-b border-slate-200">
+            <tr className="bg-[#F2F4F7] border-b border-[#EBEBEB]">
               {/* LINE group 1 */}
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">วันฝากส่ง</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Barcode</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสปลายทาง</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อปลายทาง</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">น้ำหนัก(g) Before<button onClick={() => toggleSum('weight_grams')} title={sumCols.has('weight_grams') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_grams') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">วันฝากส่ง</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Barcode</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสปลายทาง</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อปลายทาง</th>
+              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">น้ำหนัก(g) Before<button onClick={() => toggleSum('weight_grams')} title={sumCols.has('weight_grams') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_grams') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
               </th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">บริการ</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">ค่าบริการ Before<button onClick={() => toggleSum('service_fee')} title={sumCols.has('service_fee') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('service_fee') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">บริการ</th>
+              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">ค่าบริการ Before<button onClick={() => toggleSum('service_fee')} title={sumCols.has('service_fee') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('service_fee') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
               </th>
               {/* ISCODE group */}
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">PI No</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">DI No</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">PO No</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสลูกค้า</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อลูกค้า</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รหัสเซลล์</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อเซลล์</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Doc Remark</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Area</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">แผนกที่ส่ง</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">PI No</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">DI No</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">PO No</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสลูกค้า</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อลูกค้า</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">รหัสเซลล์</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อเซลล์</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Doc Remark</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">Area</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">แผนกที่ส่ง</th>
 
-              {/* <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">CreateBy</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อผู้สร้าง</th> */}
-              {/* <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ACC Remark</th> */}
+              {/* <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">CreateBy</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อผู้สร้าง</th> */}
+              {/* <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ACC Remark</th> */}
 
               {/* Postone group */}
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ชื่อผู้รับ</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">สินค้า</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">ชื่อผู้รับ</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">สินค้า</th>
               {/* LINE group 2 */}
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">น้ำหนัก (กก.)<button onClick={() => toggleSum('weight_kg')} title={sumCols.has('weight_kg') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_kg') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">น้ำหนัก (กก.)<button onClick={() => toggleSum('weight_kg')} title={sumCols.has('weight_kg') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('weight_kg') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
               </th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">ค่าขนส่ง<button onClick={() => toggleSum('transport')} title={sumCols.has('transport') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('transport') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">ค่าขนส่ง<button onClick={() => toggleSum('transport')} title={sumCols.has('transport') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('transport') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
               </th>
               {/* Special Zone group */}
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">อัตราพื้นที่พิเศษ<button onClick={() => toggleSum('special_zone_rate')} title={sumCols.has('special_zone_rate') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('special_zone_rate') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">อัตราพื้นที่พิเศษ<button onClick={() => toggleSum('special_zone_rate')} title={sumCols.has('special_zone_rate') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('special_zone_rate') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
               </th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">
-                <span className="inline-flex items-center justify-end gap-1">Diff<button onClick={() => toggleSum('diff')} title={sumCols.has('diff') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('diff') ? 'text-blue-500' : 'text-slate-300 hover:text-slate-500')}>Σ</button></span>
+              <th className="text-right px-4 py-3 font-semibold text-[#32363A] whitespace-nowrap">
+                <span className="inline-flex items-center justify-end gap-1">Diff<button onClick={() => toggleSum('diff')} title={sumCols.has('diff') ? 'ซ่อนผลรวม' : 'แสดงผลรวม'} className={clsx('font-bold transition-colors', sumCols.has('diff') ? 'text-[#0070F2]' : 'text-[#C0C1C2] hover:text-[#6A6D70]')}>Σ</button></span>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-[#EBEBEB]">
             {isLoading ? (
               [...Array(8)].map((_, i) => (
                 <tr key={i}>
                   {[...Array(COL_COUNT)].map((_, j) => (
                     <td key={j} className="px-4 py-3">
-                      <div className="h-4 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-4 bg-[#F5F5F5] rounded animate-pulse" />
                     </td>
                   ))}
                 </tr>
               ))
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={COL_COUNT} className="px-5 py-12 text-center text-slate-400">
+                <td colSpan={COL_COUNT} className="px-5 py-12 text-center text-[#6A6D70]">
                   <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   ไม่พบข้อมูล
                 </td>
@@ -489,74 +489,71 @@ export default function LineSoPage() {
                   <tr
                     key={`${item.barcode ?? ''}-${idx}`}
                     className={clsx(
-                      'hover:bg-slate-50 transition-colors',
-                      !hasIscode && 'bg-amber-50/40'
+                      'hover:bg-[#EBF5FE] transition-colors',
+                      !hasIscode && 'bg-[#FEF7F1]'
                     )}
                   >
                     {/* LINE group 1 */}
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(item.deposit_datetime)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-green-700 whitespace-nowrap">
-                      <CopyCell value={item.barcode} className="font-mono text-green-700" />
+                    <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{fmtDate(item.deposit_datetime)}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[#107E3E] whitespace-nowrap">
+                      <CopyCell value={item.barcode} className="font-mono text-[#107E3E]" />
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.destination_code ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.destination_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right text-slate-600">{fmtNum(item.weight_grams, 0)}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.service_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right text-slate-700">{fmtNum(item.service_fee)}</td>
+                    <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.destination_code ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.destination_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[#32363A]">{fmtNum(item.weight_grams, 0)}</td>
+                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.service_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[#32363A]">{fmtNum(item.service_fee)}</td>
                     {/* ISCODE group */}
-                    <td className="px-4 py-3 font-mono text-xs text-violet-700 whitespace-nowrap">
+                    <td className="px-4 py-3 font-mono text-xs text-[#0070F2] whitespace-nowrap">
                       {item.PINo
-                        ? <CopyCell value={item.PINo} className="font-mono text-violet-700" />
-                        : <span className="text-amber-500 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ไม่พบ</span>
+                        ? <CopyCell value={item.PINo} className="font-mono text-[#0070F2]" />
+                        : <span className="text-[#C44500] flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> ไม่พบ</span>
                       }
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
-                      <CopyCell value={item.DINo} className="font-mono text-slate-600" />
+                    <td className="px-4 py-3 font-mono text-xs text-[#6A6D70] whitespace-nowrap">
+                      <CopyCell value={item.DINo} className="font-mono text-[#6A6D70]" />
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{item.PONo ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.CustID ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-800 max-w-[160px] truncate">{item.CustName ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.FieldSaleID ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.FieldSaleName ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 max-w-[160px] truncate">{item.DocRemark ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-700 whitespace-nowrap">{item.Area ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-700 whitespace-nowrap">{item.account_type_name ?? '—'}</td>
-                    {/* <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{item.CreateBy ?? '—'}</td> */}
-                    {/* <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{item.CreateByName ?? '—'}</td> */}
-                    {/* <td className="px-4 py-3 text-xs text-slate-500 max-w-[160px] truncate">{item.ACCRemark ?? '—'}</td> */}
+                    <td className="px-4 py-3 font-mono text-xs text-[#6A6D70] whitespace-nowrap">{item.PONo ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.CustID ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#32363A] max-w-[160px] truncate">{item.CustName ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#6A6D70] whitespace-nowrap">{item.FieldSaleID ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.FieldSaleName ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#6A6D70] max-w-[160px] truncate">{item.DocRemark ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.Area ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#32363A] whitespace-nowrap">{item.account_type_name ?? '—'}</td>
                     {/* Postone group */}
-                    <td className="px-4 py-3 text-xs text-slate-700 max-w-[140px] truncate">
+                    <td className="px-4 py-3 text-xs text-[#32363A] max-w-[140px] truncate">
                       {item.customer_name ?? (
-                        <span className="text-slate-300">—</span>
+                        <span className="text-[#C0C1C2]">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-600 max-w-[160px] truncate">{item.product_details ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[#6A6D70] max-w-[160px] truncate">{item.product_details ?? '—'}</td>
                     {/* LINE group 2 */}
                     <td className="px-4 py-3 text-xs text-right">
                       {item.dl_calculated_cost != null ? (
-                        <span className="font-semibold text-blue-600">
+                        <span className="font-semibold text-[#0070F2]">
                           {fmtNum(calculateLetterKg(item.weight_grams), 2)}
                         </span>
                       ) : item.ems_calculated_cost != null ? (
-                        <span className="font-semibold text-orange-600">
+                        <span className="font-semibold text-[#C44500]">
                           {fmtNum(calculateEmsKg(item.weight_grams), 0)}
                         </span>
                       ) : (
-                        <span className="text-slate-600">{fmtKg(item.weight_grams)}</span>
+                        <span className="text-[#32363A]">{fmtKg(item.weight_grams)}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-right">
                       {item.dl_calculated_cost != null ? (
-                        <span className="font-semibold text-blue-600">{fmtNum(item.dl_calculated_cost, 0)}</span>
+                        <span className="font-semibold text-[#0070F2]">{fmtNum(item.dl_calculated_cost, 0)}</span>
                       ) : item.ems_calculated_cost != null ? (
-                        <span className="font-semibold text-orange-600">{fmtNum(item.ems_calculated_cost, 0)}</span>
+                        <span className="font-semibold text-[#C44500]">{fmtNum(item.ems_calculated_cost, 0)}</span>
                       ) : (
-                        <span className="text-slate-700">{fmtNum(item.service_fee)}</span>
+                        <span className="text-[#32363A]">{fmtNum(item.service_fee)}</span>
                       )}
                     </td>
                     {/* Special Zone group */}
-                    <td className="px-4 py-3 text-xs text-right font-semibold text-orange-700">
-                      {item.special_zone_rate != null ? fmtNum(item.special_zone_rate, 0) : <span className="text-slate-300">—</span>}
+                    <td className="px-4 py-3 text-xs text-right font-semibold text-[#C44500]">
+                      {item.special_zone_rate != null ? fmtNum(item.special_zone_rate, 0) : <span className="text-[#C0C1C2]">—</span>}
                     </td>
 
                     {/* Diff */}
@@ -564,11 +561,11 @@ export default function LineSoPage() {
                       {(() => {
                         const transport = item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? null
                         const before = item.service_fee ?? null
-                        if (transport == null || before == null) return <span className="text-slate-300">—</span>
+                        if (transport == null || before == null) return <span className="text-[#C0C1C2]">—</span>
                         const diff = transport - before
-                        if (diff === 0) return <span className="text-slate-400">0.00</span>
+                        if (diff === 0) return <span className="text-[#6A6D70]">0.00</span>
                         return (
-                          <span className={diff > 0 ? 'text-red-600' : 'text-green-600'}>
+                          <span className={diff > 0 ? 'text-[#BB0000]' : 'text-[#107E3E]'}>
                             {diff > 0 ? '+' : ''}{fmtNum(diff)}
                           </span>
                         )
@@ -586,38 +583,38 @@ export default function LineSoPage() {
           const displaySums = sumScope === 'all' && summaryData ? summaryData : sums
           const displayCount = sumScope === 'all' ? (summaryData?.total_count ?? data.total ?? 0) : items.length
           return (
-            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between gap-4 text-sm text-slate-500 flex-wrap">
+            <div className="px-5 py-3 border-t border-[#EBEBEB] flex items-center justify-between gap-4 text-sm text-[#6A6D70] flex-wrap">
               <div className="flex items-center gap-4 flex-wrap min-w-0">
                 <span className="whitespace-nowrap">หน้า {data.current_page} จาก {data.last_page} (ทั้งหมด {data.total?.toLocaleString('th-TH')} รายการ)</span>
                 {sumCols.size > 0 && (
-                  <div className="flex items-center gap-3 flex-wrap text-xs border-l border-slate-200 pl-4">
-                    <div className="flex items-center gap-1 text-slate-400 font-semibold">
+                  <div className="flex items-center gap-3 flex-wrap text-xs border-l border-[#EBEBEB] pl-4">
+                    <div className="flex items-center gap-1 text-[#6A6D70] font-semibold">
                       <span>Σ</span>
                       <button
                         onClick={() => setSumScope('page')}
-                        className={clsx('px-1.5 py-0.5 rounded transition-colors', sumScope === 'page' ? 'bg-blue-100 text-blue-700' : 'hover:text-slate-600')}
+                        className={clsx('px-1.5 py-0.5 rounded transition-colors', sumScope === 'page' ? 'bg-[#EBF5FE] text-[#0070F2]' : 'hover:text-[#32363A]')}
                       >
                         หน้านี้ ({items.length})
                       </button>
-                      <span className="text-slate-300">/</span>
+                      <span className="text-[#C0C1C2]">/</span>
                       <button
                         onClick={() => setSumScope('all')}
-                        className={clsx('px-1.5 py-0.5 rounded transition-colors', sumScope === 'all' ? 'bg-blue-100 text-blue-700' : 'hover:text-slate-600')}
+                        className={clsx('px-1.5 py-0.5 rounded transition-colors', sumScope === 'all' ? 'bg-[#EBF5FE] text-[#0070F2]' : 'hover:text-[#32363A]')}
                       >
                         ทั้งหมด ({data.total?.toLocaleString('th-TH')})
                       </button>
                     </div>
                     {summaryLoading && sumScope === 'all'
-                      ? <span className="text-slate-400 animate-pulse">กำลังคำนวณ...</span>
+                      ? <span className="text-[#6A6D70] animate-pulse">กำลังคำนวณ...</span>
                       : <>
-                          <span className="text-slate-400">{displayCount.toLocaleString('th-TH')} รายการ</span>
-                          {sumCols.has('weight_grams') && <span className="whitespace-nowrap">น้ำหนัก(g) Before <strong className="text-slate-700">{fmtNum(displaySums.weight_grams, 0)}</strong></span>}
-                          {sumCols.has('service_fee') && <span className="whitespace-nowrap">ค่าบริการ Before <strong className="text-slate-700">{fmtNum(displaySums.service_fee)}</strong></span>}
-                          {sumCols.has('weight_kg') && <span className="whitespace-nowrap">น้ำหนัก(กก.) <strong className="text-slate-700">{fmtNum(displaySums.weight_kg, 2)}</strong></span>}
-                          {sumCols.has('transport') && <span className="whitespace-nowrap">ค่าขนส่ง <strong className="text-slate-700">{fmtNum(displaySums.transport, 0)}</strong></span>}
-                          {sumCols.has('special_zone_rate') && <span className="whitespace-nowrap">พื้นที่พิเศษ <strong className="text-orange-700">{fmtNum(displaySums.special_zone_rate, 0)}</strong></span>}
+                          <span className="text-[#6A6D70]">{displayCount.toLocaleString('th-TH')} รายการ</span>
+                          {sumCols.has('weight_grams') && <span className="whitespace-nowrap">น้ำหนัก(g) Before <strong className="text-[#32363A]">{fmtNum(displaySums.weight_grams, 0)}</strong></span>}
+                          {sumCols.has('service_fee') && <span className="whitespace-nowrap">ค่าบริการ Before <strong className="text-[#32363A]">{fmtNum(displaySums.service_fee)}</strong></span>}
+                          {sumCols.has('weight_kg') && <span className="whitespace-nowrap">น้ำหนัก(กก.) <strong className="text-[#32363A]">{fmtNum(displaySums.weight_kg, 2)}</strong></span>}
+                          {sumCols.has('transport') && <span className="whitespace-nowrap">ค่าขนส่ง <strong className="text-[#32363A]">{fmtNum(displaySums.transport, 0)}</strong></span>}
+                          {sumCols.has('special_zone_rate') && <span className="whitespace-nowrap">พื้นที่พิเศษ <strong className="text-[#C44500]">{fmtNum(displaySums.special_zone_rate, 0)}</strong></span>}
                           {sumCols.has('diff') && (
-                            <span className="whitespace-nowrap">Diff <strong className={displaySums.diff > 0 ? 'text-red-600' : displaySums.diff < 0 ? 'text-green-600' : 'text-slate-400'}>{displaySums.diff > 0 ? '+' : ''}{fmtNum(displaySums.diff)}</strong></span>
+                            <span className="whitespace-nowrap">Diff <strong className={displaySums.diff > 0 ? 'text-[#BB0000]' : displaySums.diff < 0 ? 'text-[#107E3E]' : 'text-[#6A6D70]'}>{displaySums.diff > 0 ? '+' : ''}{fmtNum(displaySums.diff)}</strong></span>
                           )}
                         </>
                     }
@@ -626,8 +623,8 @@ export default function LineSoPage() {
               </div>
               {data.last_page > 1 && (
                 <div className="flex gap-2 shrink-0">
-                  <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ก่อนหน้า</button>
-                  <button disabled={page === data.last_page} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border border-slate-300 rounded-lg disabled:opacity-50 hover:bg-slate-50">ถัดไป</button>
+                  <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 border border-[#EBEBEB] rounded text-[#0070F2] disabled:opacity-40 hover:bg-[#EBF5FE] transition-colors">ก่อนหน้า</button>
+                  <button disabled={page === data.last_page} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border border-[#EBEBEB] rounded text-[#0070F2] disabled:opacity-40 hover:bg-[#EBF5FE] transition-colors">ถัดไป</button>
                 </div>
               )}
             </div>
