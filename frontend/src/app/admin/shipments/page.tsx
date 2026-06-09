@@ -105,7 +105,7 @@ export default function ShipmentsPage() {
             <tr>
               <th className="text-left px-5 py-3 font-medium text-slate-600">Label ID</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">Product Details</th>
-              <th className="text-left px-5 py-3 font-medium text-slate-600">PI NO</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600 min-w-[120px]">PI NO</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">SO NO</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">ลูกค้า</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">Tracking</th>
