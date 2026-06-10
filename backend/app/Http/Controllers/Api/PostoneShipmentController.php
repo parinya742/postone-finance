@@ -32,6 +32,14 @@ class PostoneShipmentController extends Controller
             $query->where('account_type_id', $request->account_type_id);
         }
 
+        if ($request->filled('date_from')) {
+            $query->whereRaw("TO_DATE(NULLIF(due_date, ''), 'DD-MM-YY') >= ?::date", [$request->date_from]);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereRaw("TO_DATE(NULLIF(due_date, ''), 'DD-MM-YY') <= ?::date", [$request->date_to]);
+        }
+
         $items = $query->orderByDesc('updated_at')->paginate($request->integer('per_page', 20));
 
         return response()->json($items);

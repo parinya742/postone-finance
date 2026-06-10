@@ -138,6 +138,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/iscode/line-so', [LineSoController::class, 'index']);
         Route::get('/iscode/line-so/summary', [LineSoController::class, 'summary']);
         Route::get('/iscode/line-so/export', [LineSoController::class, 'export']);
+        Route::get('/iscode/line-so/field-sale-areas', [LineSoController::class, 'fieldSaleAreas']);
     });
 
     // === Master Data — Special Postal Zones ===

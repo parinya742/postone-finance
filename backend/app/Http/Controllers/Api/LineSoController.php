@@ -82,6 +82,27 @@ class LineSoController extends Controller
         ]);
     }
 
+    public function fieldSaleAreas(): JsonResponse
+    {
+        $specialCustIds = array_map('strtolower', array_keys(self::CUSTID_AREA_MAP));
+        $placeholders   = implode(',', array_fill(0, count($specialCustIds), '?'));
+
+        $areas = DB::connection('dbctl')
+            ->table('ct_so_head')
+            ->whereNotNull('fieldsalename')
+            ->where('fieldsalename', '!=', '')
+            ->whereRaw("lower(trim(custid)) NOT IN ({$placeholders})", $specialCustIds)
+            ->whereRaw("trim(fieldsaleid) != '9980-0'")
+            ->where('fieldsaleid', 'not like', '7%')
+            ->where('fieldsaleid', 'not like', '8%')
+            ->where('fieldsaleid', 'not like', '2%')
+            ->distinct()
+            ->orderBy('fieldsalename')
+            ->pluck('fieldsalename');
+
+        return response()->json($areas);
+    }
+
     public function export(Request $request): JsonResponse
     {
         $items = $this->buildQuery($request)->limit(50000)->get();
@@ -365,11 +386,34 @@ class LineSoController extends Controller
         $isUPC = ($area === 'UPC' || $area === 'TT UPC');
         $isMT  = ($area === 'MT');
 
-        $isIscodeArea = isset($custidAreaMap[$area]) 
-            || isset($prefixAreaMap[$area]) 
-            || $isBKK 
-            || $isUPC 
+        $isIscodeArea = isset($custidAreaMap[$area])
+            || isset($prefixAreaMap[$area])
+            || $isBKK
+            || $isUPC
             || $area === 'Aftersale service';
+
+        // For non-ISCODE areas, pre-fetch pinos/dinos where fieldsalename matches (fallback area)
+        $fieldSalePiNos = [];
+        $fieldSaleDiNos = [];
+        if (!$isIscodeArea && (!empty($activePiNos) || !empty($activeDiNos))) {
+            $fsQuery = DB::connection('dbctl')
+                ->table('ct_so_head')
+                ->where('fieldsalename', $area)
+                ->where(function ($q) use ($activePiNos, $activeDiNos) {
+                    if (!empty($activePiNos) && !empty($activeDiNos)) {
+                        $q->where(function ($inner) use ($activePiNos) {
+                            $inner->whereIn('pino', $activePiNos)->orWhereIn('dino', $activePiNos);
+                        })->orWhereIn('dino', $activeDiNos);
+                    } elseif (!empty($activePiNos)) {
+                        $q->whereIn('pino', $activePiNos)->orWhereIn('dino', $activePiNos);
+                    } else {
+                        $q->whereIn('dino', $activeDiNos);
+                    }
+                });
+            $fsRows = $fsQuery->get(['pino', 'dino']);
+            $fieldSalePiNos = $fsRows->pluck('pino')->filter()->unique()->all();
+            $fieldSaleDiNos = $fsRows->pluck('dino')->filter()->unique()->all();
+        }
 
         if ($isIscodeArea && (!empty($activePiNos) || !empty($activeDiNos))) {
             $dbctlQuery = DB::connection('dbctl')
@@ -462,31 +506,42 @@ class LineSoController extends Controller
             $filteredDiNos = $matchedRows->pluck('dino')->filter()->unique()->all();
         }
 
-        $query->where(function ($q) use ($filteredPiNos, $filteredDiNos, $existingIscodePiNos, $existingIscodeDiNos, $area, $isIscodeArea) {
+        $query->where(function ($q) use ($filteredPiNos, $filteredDiNos, $existingIscodePiNos, $existingIscodeDiNos, $area, $isIscodeArea, $fieldSalePiNos, $fieldSaleDiNos) {
             if ($isIscodeArea) {
                 $q->whereIn('ps.pi_number', $filteredPiNos)
                   ->orWhereIn('ps.fi_number', $filteredPiNos)
                   ->orWhereIn('ps.di_number', $filteredDiNos);
             } else {
-                $q->where('pat.name', $area)
-                    ->where(function ($s) use ($existingIscodePiNos) {
-                        $s->where(function ($inner) {
-                            $inner->whereNull('ps.pi_number')
-                                  ->whereNull('ps.fi_number');
-                        });
-                        if (!empty($existingIscodePiNos)) {
-                            $s->orWhere(function ($inner) use ($existingIscodePiNos) {
-                                $inner->whereNotIn('ps.pi_number', $existingIscodePiNos)
-                                      ->whereNotIn('ps.fi_number', $existingIscodePiNos);
+                // Arm 1: ไม่มีข้อมูล ISCODE → filter ด้วย account type
+                $q->where(function ($s) use ($area, $existingIscodePiNos, $existingIscodeDiNos) {
+                    $s->where('pat.name', $area)
+                        ->where(function ($sub) use ($existingIscodePiNos) {
+                            $sub->where(function ($inner) {
+                                $inner->whereNull('ps.pi_number')
+                                      ->whereNull('ps.fi_number');
                             });
-                        }
-                    })
-                    ->where(function ($s) use ($existingIscodeDiNos) {
-                        $s->whereNull('ps.di_number');
-                        if (!empty($existingIscodeDiNos)) {
-                            $s->orWhereNotIn('ps.di_number', $existingIscodeDiNos);
-                        }
-                    });
+                            if (!empty($existingIscodePiNos)) {
+                                $sub->orWhere(function ($inner) use ($existingIscodePiNos) {
+                                    $inner->whereNotIn('ps.pi_number', $existingIscodePiNos)
+                                          ->whereNotIn('ps.fi_number', $existingIscodePiNos);
+                                });
+                            }
+                        })
+                        ->where(function ($sub) use ($existingIscodeDiNos) {
+                            $sub->whereNull('ps.di_number');
+                            if (!empty($existingIscodeDiNos)) {
+                                $sub->orWhereNotIn('ps.di_number', $existingIscodeDiNos);
+                            }
+                        });
+                });
+                // Arm 2: มีข้อมูล ISCODE แต่ไม่ตรง map → filter ด้วย fieldsalename (fallback area)
+                if (!empty($fieldSalePiNos)) {
+                    $q->orWhereIn('ps.pi_number', $fieldSalePiNos)
+                      ->orWhereIn('ps.fi_number', $fieldSalePiNos);
+                }
+                if (!empty($fieldSaleDiNos)) {
+                    $q->orWhereIn('ps.di_number', $fieldSaleDiNos);
+                }
             }
         });
     }
@@ -594,6 +649,9 @@ class LineSoController extends Controller
                                 break;
                             }
                         }
+                    }
+                    if ($area === null) {
+                        $area = trim($so->fieldsalename ?? '') ?: null;
                     }
                 }
             }

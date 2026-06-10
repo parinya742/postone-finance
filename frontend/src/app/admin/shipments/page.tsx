@@ -23,13 +23,15 @@ export default function ShipmentsPage() {
   const [search, setSearch] = useState('')
   const [channelFilter, setChannelFilter] = useState('')
   const [accountTypeFilter, setAccountTypeFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery<PaginatedResponse<PostoneShipment>>({
-    queryKey: ['shipments', search, channelFilter, accountTypeFilter, page],
+    queryKey: ['shipments', search, channelFilter, accountTypeFilter, dateFrom, dateTo, page],
     queryFn: () =>
       api.get('/shipments', {
-        params: { search, channel: channelFilter, account_type_id: accountTypeFilter, page, per_page: 20 },
+        params: { search, channel: channelFilter, account_type_id: accountTypeFilter, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 },
       }).then((r) => r.data),
     enabled: can('shipments.view'),
   })
@@ -96,6 +98,22 @@ export default function ShipmentsPage() {
             <option key={at.id} value={at.id}>{at.name}</option>
           ))}
         </select>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-500 whitespace-nowrap">Due Date</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-slate-400 text-sm">—</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200">
@@ -109,11 +127,12 @@ export default function ShipmentsPage() {
               <th className="text-left px-5 py-3 font-medium text-slate-600">SO NO</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">ลูกค้า</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">Tracking</th>
-              <th className="text-left px-5 py-3 font-medium text-slate-600">Channel</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600 min-w-[180px]">Channel</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">Account Type</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">COD</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">Export File Ref</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">สถานะล่าสุด</th>
+              <th className="text-left px-5 py-3 font-medium text-slate-600">เวลากำหนดส่ง</th>
               <th className="text-left px-5 py-3 font-medium text-slate-600">อัปเดต</th>
             </tr>
           </thead>
@@ -166,6 +185,7 @@ export default function ShipmentsPage() {
                     ) : '—'}
                   </td>
                   <td className="px-5 py-4 text-slate-500 text-xs max-w-[160px] truncate">{item.latest_status ?? '—'}</td>
+                  <td className="px-5 py-4 text-slate-500 text-xs max-w-[160px] truncate">{item.due_date ?? '—'}</td>
                   <td className="px-5 py-4 text-slate-400 text-xs">{fmtDate(item.updated_at)}</td>
                 </tr>
               ))

@@ -3,13 +3,120 @@
 import api from '@/lib/api'
 import { LineSoJoin, PaginatedResponse, PostoneAccountType } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { Search, Lock, FileSpreadsheet, AlertTriangle, Download, Copy, Check } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 import * as XLSX from 'xlsx'
 
 const COL_COUNT = 28
+
+const ISCODE_AREAS = [
+  'TT BKK', 'TT UPC', 'MT', 'YP',
+  'Claim & Customer Service', 'Product Special list',
+  'ONL เบิกสินค้าตัวอย่าง', 'ONL เคลมสินค้า',
+  'MKT', 'MKT เบิกสินค้าตัวอย่าง', 'CEO เบิกสินค้าตัวอย่าง',
+  'Aftersale service',
+]
+
+function AreaCombobox({
+  value,
+  onChange,
+  fieldSaleAreas,
+  accountTypeNames,
+}: {
+  value: string
+  onChange: (v: string) => void
+  fieldSaleAreas?: string[]
+  accountTypeNames?: string[]
+}) {
+  const [inputVal, setInputVal] = useState(value)
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { setInputVal(value) }, [value])
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setInputVal(value)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [value])
+
+  const q = inputVal.toLowerCase()
+  const filtered = {
+    iscode:      ISCODE_AREAS.filter(a => a.toLowerCase().includes(q)),
+    fieldSale:   (fieldSaleAreas ?? []).filter(a => a.toLowerCase().includes(q)),
+    accountType: (accountTypeNames ?? []).filter(a => a.toLowerCase().includes(q)),
+  }
+  const hasResults = filtered.iscode.length > 0 || filtered.fieldSale.length > 0 || filtered.accountType.length > 0
+
+  function select(v: string) {
+    onChange(v)
+    setInputVal(v)
+    setOpen(false)
+  }
+
+  const itemCls = (v: string) =>
+    clsx('block w-full text-left px-4 py-1.5 text-sm hover:bg-[#EBF5FE] transition-colors',
+      value === v && 'bg-[#EBF5FE] text-[#0070F2] font-medium')
+
+  const groupCls = 'sticky top-0 px-3 py-1 text-[10px] font-semibold text-[#6A6D70] uppercase tracking-wider bg-[#F5F5F5] border-b border-[#EBEBEB]'
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="flex items-center border border-[#89919A] rounded bg-white focus-within:border-[#0070F2] focus-within:ring-1 focus-within:ring-[#0070F2]">
+        <input
+          value={inputVal}
+          onChange={(e) => { setInputVal(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          placeholder="ทุก Area"
+          className="flex-1 px-3 py-2 text-sm text-[#32363A] placeholder:text-[#6A6D70] bg-transparent outline-none min-w-[120px]"
+        />
+        {value && (
+          <button
+            onMouseDown={(e) => { e.preventDefault(); select('') }}
+            className="px-2 text-[#89919A] hover:text-[#32363A] text-lg leading-none"
+          >
+            ×
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 w-56 bg-white border border-[#EBEBEB] rounded shadow-lg max-h-72 overflow-y-auto">
+          {!q && (
+            <button onClick={() => select('')} className={itemCls('')}>ทุก Area</button>
+          )}
+          {filtered.iscode.length > 0 && (
+            <>
+              <div className={groupCls}>ข้อมูล ISCODE</div>
+              {filtered.iscode.map(a => <button key={a} onClick={() => select(a)} className={itemCls(a)}>{a}</button>)}
+            </>
+          )}
+          {filtered.fieldSale.length > 0 && (
+            <>
+              <div className={groupCls}>ชื่อเซลล์ (กรณีอื่นๆ)</div>
+              {filtered.fieldSale.map(a => <button key={a} onClick={() => select(a)} className={itemCls(a)}>{a}</button>)}
+            </>
+          )}
+          {filtered.accountType.length > 0 && (
+            <>
+              <div className={groupCls}>Account Type</div>
+              {filtered.accountType.map(a => <button key={a} onClick={() => select(a)} className={itemCls(a)}>{a}</button>)}
+            </>
+          )}
+          {!hasResults && (
+            <div className="px-4 py-3 text-sm text-[#6A6D70]">ไม่พบ Area</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function fmtDate(d: string | null) {
   if (!d) return '—'
@@ -325,6 +432,12 @@ export default function LineSoPage() {
     enabled: can('line-so.view'),
   })
 
+  const { data: fieldSaleAreas } = useQuery<string[]>({
+    queryKey: ['line-so-field-sale-areas'],
+    queryFn: () => api.get('/iscode/line-so/field-sale-areas').then((r) => r.data),
+    enabled: can('line-so.view'),
+  })
+
   const sums = useMemo(() => {
     const arr = data?.data ?? []
     return {
@@ -395,36 +508,12 @@ export default function LineSoPage() {
             className="border border-[#89919A] rounded px-3 py-2 text-sm text-[#32363A] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2]"
           />
         </div>
-        <select
+        <AreaCombobox
           value={area}
-          onChange={(e) => { setArea(e.target.value); resetPage() }}
-          className="border border-[#89919A] rounded px-3 py-2 text-sm text-[#32363A] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2] bg-white"
-        >
-          <option value="">ทุก Area</option>
-          <optgroup label="ข้อมูล ISCODE">
-            <option value="TT BKK">TT BKK</option>
-            <option value="TT UPC">TT UPC</option>
-            <option value="MT">MT</option>
-            <option value="YP">YP</option>
-            <option value="Claim & Customer Service">Claim & Customer Service</option>
-            <option value="Product Special list">Product Special list</option>
-            <option value="ONL เบิกสินค้าตัวอย่าง">ONL เบิกสินค้าตัวอย่าง</option>
-            <option value="ONL เคลมสินค้า">ONL เคลมสินค้า</option>
-            <option value="MKT">MKT</option>
-            <option value="MKT เบิกสินค้าตัวอย่าง">MKT เบิกสินค้าตัวอย่าง</option>
-            <option value="CEO เบิกสินค้าตัวอย่าง">CEO เบิกสินค้าตัวอย่าง</option>
-            <option value="Aftersale service">Aftersale service</option>
-          </optgroup>
-          {accountTypes?.data && accountTypes.data.length > 0 && (
-            <optgroup label="Account Type (ไม่มีข้อมูล ISCODE)">
-              {accountTypes.data.map((at) => (
-                <option key={at.id} value={at.name}>
-                  {at.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+          onChange={(v) => { setArea(v); resetPage() }}
+          fieldSaleAreas={fieldSaleAreas}
+          accountTypeNames={(accountTypes?.data ?? []).map(at => at.name)}
+        />
         <select
           value={serviceType}
           onChange={(e) => { setServiceType(e.target.value); resetPage() }}
