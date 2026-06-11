@@ -9,6 +9,9 @@ use App\Http\Controllers\Api\LazadaTransactionFileController;
 use App\Http\Controllers\Api\TikTokShopController;
 use App\Http\Controllers\Api\TikTokTransactionController;
 use App\Http\Controllers\Api\TikTokTransactionFileController;
+use App\Http\Controllers\Api\ShopeeShopController;
+use App\Http\Controllers\Api\ShopeeTransactionController;
+use App\Http\Controllers\Api\ShopeeTransactionFileController;
 use App\Http\Controllers\Api\PostoneExportFileController;
 use App\Http\Controllers\Api\DomesticLetterRateController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
@@ -194,6 +197,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/tiktok/shops/auto-refresh', [TikTokShopController::class, 'autoRefresh']);
     });
     Route::middleware('permission:tiktok-shops.delete')->delete('/tiktok/shops/{id}', [TikTokShopController::class, 'destroy']);
+
+    // === Shopee ===
+    Route::middleware('permission:shopee-shops.view')->group(function () {
+        Route::get('/shopee/shops', [ShopeeShopController::class, 'index']);
+        Route::get('/shopee/auth-config', [ShopeeShopController::class, 'authConfig']);
+        Route::get('/shopee/shops/{shopId}/auth-url', [ShopeeShopController::class, 'getAuthUrl']);
+        Route::get('/shopee/transactions', [ShopeeTransactionController::class, 'index']);
+        Route::get('/shopee/files', [ShopeeTransactionFileController::class, 'index']);
+    });
+    Route::middleware('permission:shopee-shops.create')->post('/shopee/shops', [ShopeeShopController::class, 'store']);
+    Route::middleware('permission:shopee-shops.edit')->group(function () {
+        Route::put('/shopee/shops/{shopId}', [ShopeeShopController::class, 'update']);
+        Route::post('/shopee/shops/{shopId}/exchange-token', [ShopeeShopController::class, 'exchangeToken']);
+        Route::post('/shopee/shops/{shopId}/refresh-token', [ShopeeShopController::class, 'refreshToken']);
+    });
+    Route::middleware('permission:shopee-shops.delete')->delete('/shopee/shops/{shopId}', [ShopeeShopController::class, 'destroy']);
 
     // === Master Data — Domestic Letter Rates ===
     Route::middleware('permission:domestic-letter-rates.view')->group(function () {

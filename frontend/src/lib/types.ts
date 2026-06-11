@@ -419,6 +419,55 @@ export interface TikTokTransactionFile {
   created_at: string | null
 }
 
+export interface ShopeeShop {
+  shop_id: string
+  shop_name: string | null
+  partner_id: string
+  access_token: string | null
+  refresh_token: string | null
+  updated_at: string | null
+  partner_key: string | null
+}
+
+export interface ShopeeTransaction {
+  order_sn: string
+  return_sn: string | null
+  buyer_username: string | null
+  order_date: string | null
+  payment_method: string | null
+  payment_detail: string | null
+  payout_date: string | null
+  original_price: number | null
+  seller_discount: number | null
+  refund_to_buyer: number | null
+  shopee_discount: number | null
+  seller_voucher: number | null
+  ams_commission: number | null
+  commission_fee: number | null
+  service_fee: number | null
+  transaction_fee: number | null
+  tax: number | null
+  total_payout: number | null
+  shipping_provider: string | null
+  carrier_name: string | null
+  shop_id: string | null
+  shop_name: string | null
+  file_id: number | null
+  updated_at: string | null
+}
+
+export interface ShopeeTransactionFile {
+  id: number
+  shop_id: string
+  shop_name: string | null
+  payout_date: string | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  row_count: number | null
+  created_at: string | null
+}
+
 export interface ThailandPostAcceptance {
   id: number
   source_file: string | null
