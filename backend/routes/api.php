@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\TikTokShopController;
 use App\Http\Controllers\Api\TikTokTransactionController;
 use App\Http\Controllers\Api\TikTokTransactionFileController;
 use App\Http\Controllers\Api\ShopeeShopController;
+use App\Http\Controllers\Api\ShopeeOrderFileController;
+use App\Http\Controllers\Api\ShopeeOrderItemController;
 use App\Http\Controllers\Api\ShopeeTransactionController;
 use App\Http\Controllers\Api\ShopeeTransactionFileController;
 use App\Http\Controllers\Api\PostoneExportFileController;
@@ -205,6 +207,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/shopee/shops/{shopId}/auth-url', [ShopeeShopController::class, 'getAuthUrl']);
         Route::get('/shopee/transactions', [ShopeeTransactionController::class, 'index']);
         Route::get('/shopee/files', [ShopeeTransactionFileController::class, 'index']);
+        Route::get('/shopee/orders', [ShopeeOrderItemController::class, 'index']);
+        Route::get('/shopee/order-files', [ShopeeOrderFileController::class, 'index']);
     });
     Route::middleware('permission:shopee-shops.create')->post('/shopee/shops', [ShopeeShopController::class, 'store']);
     Route::middleware('permission:shopee-shops.edit')->group(function () {

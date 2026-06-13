@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X,
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown,
-  Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid,
+  Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
@@ -94,6 +94,8 @@ const ecommercePlatforms = {
       { href: '/admin/shopee/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'shopee-shops.view', exact: false },
+      { href: '/admin/shopee/orders', label: 'รายการออเดอร์', icon: ShoppingBag, permission: 'shopee-shops.view', exact: false },
+      { href: '/admin/shopee/order-files', label: 'ไฟล์ออเดอร์', icon: FileText, permission: 'shopee-shops.view', exact: false },
     ],
   },
 }
