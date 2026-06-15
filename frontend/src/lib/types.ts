@@ -524,6 +524,63 @@ export interface ShopeeOrderFile {
   created_at: string | null
 }
 
+export interface ShopeeWalletTransaction {
+  id: number
+  shop_id: string | null
+  shop_name: string | null
+  range_from: string | null
+  range_to: string | null
+  transaction_id: string
+  status: string | null
+  wallet_type: string | null
+  transaction_type: string | null
+  transaction_tab_type: string | null
+  money_flow: string | null
+  amount: number | null
+  current_balance: number | null
+  transaction_fee: number | null
+  create_time: string | null
+  order_sn: string | null
+  refund_sn: string | null
+  withdrawal_id: string | null
+  withdrawal_type: string | null
+  description: string | null
+  reason: string | null
+  buyer_name: string | null
+  buyer_username: string | null
+  order_status: string | null
+  pay_time: string | null
+  complete_time: string | null
+  shipping_method: string | null
+  tracking_no: string | null
+  net_price: number | null
+  commission_fee: number | null
+  order_transaction_fee: number | null
+  buyer_paid_price: number | null
+  actual_shipping_fee: number | null
+  escrow_amount: number | null
+  shopee_shipping_subsidy: number | null
+  service_fee: number | null
+  return_shipping_fee: number | null
+  seller_voucher: number | null
+  shopee_voucher: number | null
+  shopee_discount: number | null
+  created_at: string | null
+}
+
+export interface ShopeeWalletFile {
+  id: number
+  shop_id: string | null
+  shop_name: string | null
+  range_from: string | null
+  range_to: string | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  row_count: number | null
+  created_at: string | null
+}
+
 export interface ThailandPostAcceptance {
   id: number
   source_file: string | null

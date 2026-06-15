@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X,
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown,
-  Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag,
+  Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
@@ -71,11 +71,34 @@ const navGroups = [
   },
 ]
 
-const ecommercePlatforms = {
+type NavItem = {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  permission: string | null
+  exact: boolean
+  sectionLabel?: never
+}
+
+type SectionDivider = {
+  sectionLabel: string
+  href?: never
+  label?: never
+  icon?: never
+  permission?: never
+  exact?: never
+}
+
+type PlatformItem = NavItem | SectionDivider
+
+const ecommercePlatforms: Record<EcommercePlatform, { label: string; items: PlatformItem[] }> = {
   lazada: {
     label: 'Lazada',
     items: [
+      { sectionLabel: 'การจัดการ' },
       { href: '/admin/lazada/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'lazada-shops.view', exact: false },
+
+      { sectionLabel: 'รายการรายรับ' },
       { href: '/admin/lazada/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: false },
       { href: '/admin/lazada/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'lazada-shops.view', exact: false },
     ],
@@ -83,7 +106,10 @@ const ecommercePlatforms = {
   tiktok: {
     label: 'TikTok',
     items: [
+      { sectionLabel: 'การจัดการ' },
       { href: '/admin/tiktok/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'tiktok-shops.view', exact: false },
+
+      { sectionLabel: 'รายการรายรับ' },
       { href: '/admin/tiktok/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'tiktok-shops.view', exact: false },
       { href: '/admin/tiktok/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'tiktok-shops.view', exact: false },
     ],
@@ -91,11 +117,20 @@ const ecommercePlatforms = {
   shopee: {
     label: 'Shopee',
     items: [
+      { sectionLabel: 'การจัดการ' },
       { href: '/admin/shopee/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'shopee-shops.view', exact: false },
+
+      { sectionLabel: 'รายการรายรับ' },
       { href: '/admin/shopee/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'shopee-shops.view', exact: false },
+
+      { sectionLabel: 'รายการออเดอร์' },
       { href: '/admin/shopee/orders', label: 'รายการออเดอร์', icon: ShoppingBag, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/order-files', label: 'ไฟล์ออเดอร์', icon: FileText, permission: 'shopee-shops.view', exact: false },
+
+      { sectionLabel: 'Seller Wallet' },
+      { href: '/admin/shopee/wallet-transactions', label: 'ธุรกรรม Wallet', icon: Wallet, permission: 'shopee-shops.view', exact: false },
+      { href: '/admin/shopee/wallet-files', label: 'ไฟล์ Wallet', icon: FolderOpen, permission: 'shopee-shops.view', exact: false },
     ],
   },
 }
@@ -114,8 +149,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [mode, setMode] = useState<SidebarMode>(isEcommercePath ? 'ecommerce' : 'main')
   const [activePlatform, setActivePlatform] = useState<EcommercePlatform>(
     pathname.startsWith('/admin/tiktok') ? 'tiktok'
-    : pathname.startsWith('/admin/shopee') ? 'shopee'
-    : 'lazada'
+      : pathname.startsWith('/admin/shopee') ? 'shopee'
+        : 'lazada'
   )
 
   useEffect(() => {
@@ -261,10 +296,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
             {/* Sub-items */}
             <div className="space-y-0.5">
-              {platformItems.length === 0 ? (
+              {platformItems.filter(item => !item.sectionLabel).length === 0 ? (
                 <p className="px-3 py-2 text-xs text-[#6A6D70]">ไม่มีสิทธิ์เข้าถึง</p>
               ) : (
-                platformItems.map(({ href, label, icon: Icon, exact }) => {
+                platformItems.map((item, idx) => {
+                  if (item.sectionLabel) {
+                    return (
+                      <p key={`section-${idx}`} className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
+                        {item.sectionLabel}
+                      </p>
+                    )
+                  }
+                  const { href, label, icon: Icon, exact } = item as NavItem
                   const active = exact
                     ? pathname === href
                     : pathname === href || pathname.startsWith(href + '/')
