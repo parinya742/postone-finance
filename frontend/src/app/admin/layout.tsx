@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#0070F2] border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-[3px] border-[#354A5E] border-t-[#0070F2] rounded-full animate-spin" />
           <p className="text-sm text-[#6A6D70]">กำลังโหลดระบบ...</p>
         </div>
       </div>

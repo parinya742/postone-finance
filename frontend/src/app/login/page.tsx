@@ -52,9 +52,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-100">
+    <div className="min-h-screen flex bg-[#F5F5F5]">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex-col justify-between p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-[#354A5E] flex-col justify-between p-12">
         <div className="flex items-center gap-3">
           <img
             src="/pumpkin.png"
@@ -65,7 +65,7 @@ export default function LoginPage() {
             <p className="font-bold text-white text-sm tracking-wide">
               POSTONE
             </p>
-            <p className="text-blue-400 text-[10px] uppercase tracking-widest">
+            <p className="text-[#ACC7D9] text-[10px] uppercase tracking-widest">
               Finance
             </p>
           </div>
@@ -75,9 +75,9 @@ export default function LoginPage() {
           <h2 className="text-4xl font-bold text-white leading-tight">
             ระบบจัดการ
             <br />
-            <span className="text-blue-400">Report</span>
+            <span className="text-[#ACC7D9]">Report</span>
           </h2>
-          <p className="text-slate-400 mt-4 text-sm leading-relaxed max-w-sm">
+          <p className="text-white/50 mt-4 text-sm leading-relaxed max-w-sm">
             ระบบสำหรับจัดการรายงานไปรษณีย์ 
           </p>
 
@@ -89,13 +89,13 @@ export default function LoginPage() {
             ].map(({ label, value }) => (
               <div key={label}>
                 <p className="text-2xl font-bold text-white">{value}</p>
-                <p className="text-slate-400 text-xs mt-0.5">{label}</p>
+                <p className="text-white/50 text-xs mt-0.5">{label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-slate-600 text-xs">
+        <p className="text-white/30 text-xs">
           © 2026 Postone Finance. All rights reserved.
         </p>
       </div>
@@ -117,10 +117,10 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
+          <div className="bg-white rounded shadow-lg border border-[#D9D9D9] p-8">
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-800">เข้าสู่ระบบ</h1>
-              <p className="text-slate-500 text-sm mt-1">
+              <h1 className="text-2xl font-bold text-[#32363A]">เข้าสู่ระบบ</h1>
+              <p className="text-[#6A6D70] text-sm mt-1">
                 กรอกข้อมูลเพื่อเข้าใช้งานระบบ
               </p>
             </div>
@@ -141,7 +141,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label className="block text-sm font-medium text-[#32363A] mb-1.5">
                   อีเมล
                 </label>
                 <input
@@ -149,14 +149,14 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="off"
-                  className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-400"
+                  className="w-full border border-[#D9D9D9] rounded px-3.5 py-2.5 text-sm text-[#32363A] focus:outline-none focus:ring-2 focus:ring-[#0070F2] focus:border-transparent transition-all placeholder:text-[#6A6D70]"
                   placeholder="email@example.com"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label className="block text-sm font-medium text-[#32363A] mb-1.5">
                   รหัสผ่าน
                 </label>
                 <div className="relative">
@@ -165,7 +165,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
-                    className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 pr-10 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full border border-[#D9D9D9] rounded px-3.5 py-2.5 pr-10 text-sm text-[#32363A] focus:outline-none focus:ring-2 focus:ring-[#0070F2] focus:border-transparent transition-all"
                     required
                   />
                   <button
@@ -190,14 +190,14 @@ export default function LoginPage() {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                   />
-                  <span className="text-xs font-medium text-slate-600">จดจำอีเมล</span>
+                  <span className="text-xs font-medium text-[#32363A]">จดจำอีเมล</span>
                 </label>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg py-2.5 text-sm transition-colors flex items-center justify-center gap-2 mt-2"
+                className="w-full bg-[#0070F2] hover:bg-[#0064D9] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded py-2.5 text-sm transition-colors flex items-center justify-center gap-2 mt-2"
               >
                 {loading ? (
                   <>
@@ -214,7 +214,7 @@ export default function LoginPage() {
             </form>
           </div>
 
-          <p className="text-center text-xs text-slate-400 mt-6">
+          <p className="text-center text-xs text-[#6A6D70] mt-6">
             Postone Finance v1.0 — Secure Access
           </p>
         </div>

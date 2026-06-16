@@ -16,6 +16,9 @@ use App\Http\Controllers\Api\ShopeeTransactionController;
 use App\Http\Controllers\Api\ShopeeTransactionFileController;
 use App\Http\Controllers\Api\ShopeeWalletTransactionController;
 use App\Http\Controllers\Api\ShopeeWalletFileController;
+use App\Http\Controllers\Api\ShopeeWalletSyncLogController;
+use App\Http\Controllers\Api\ShopeeOrderSyncLogController;
+use App\Http\Controllers\Api\ShopeeIncomeSyncLogController;
 use App\Http\Controllers\Api\PostoneExportFileController;
 use App\Http\Controllers\Api\DomesticLetterRateController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
@@ -213,6 +216,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/shopee/order-files', [ShopeeOrderFileController::class, 'index']);
         Route::get('/shopee/wallet-transactions', [ShopeeWalletTransactionController::class, 'index']);
         Route::get('/shopee/wallet-files', [ShopeeWalletFileController::class, 'index']);
+        Route::get('/shopee/wallet-sync-logs', [ShopeeWalletSyncLogController::class, 'index']);
+        Route::get('/shopee/order-sync-logs', [ShopeeOrderSyncLogController::class, 'index']);
+        Route::get('/shopee/income-sync-logs', [ShopeeIncomeSyncLogController::class, 'index']);
     });
     Route::middleware('permission:shopee-shops.create')->post('/shopee/shops', [ShopeeShopController::class, 'store']);
     Route::middleware('permission:shopee-shops.edit')->group(function () {

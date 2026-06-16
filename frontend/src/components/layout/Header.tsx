@@ -36,7 +36,9 @@ const pageTitles: Record<string, string> = {
 
   '/admin/lazada/shops': 'ร้านค้า lazada',
   '/admin/lazada/transactions': 'ธุรกรรม lazada',
-  '/admin/lazada/files': 'ไฟล์ lazada'
+  '/admin/lazada/files': 'ไฟล์ lazada',
+
+  '/admin/shopee/sync-logs': 'Shopee Sync Logs'
 }
 
 const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
@@ -49,18 +51,18 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   const title = pageTitles[pathname] ?? 'Admin'
 
   return (
-    <header className={`h-16 border-b flex items-center justify-between px-4 lg:px-6 flex-shrink-0 z-10 ${isDemo ? 'bg-amber-50 border-amber-200' : 'bg-white border-[#D9D9D9]'}`}>
+    <header className={`h-16 border-b flex items-center justify-between px-4 lg:px-6 flex-shrink-0 z-10 bg-[#354A5E] ${isDemo ? 'border-amber-400' : 'border-[#2D3F51]'}`}>
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuToggle}
-          className="lg:hidden p-2 rounded text-[#6A6D70] hover:bg-[#F5F5F5] hover:text-[#32363A] transition-colors"
+          className="lg:hidden p-2 rounded text-white/70 hover:bg-[#2D3F51] hover:text-white transition-colors"
         >
           <Menu className="w-5 h-5" />
         </button>
         <img src="/pumpkin.png" alt="Logo" className="w-7 h-7 object-contain lg:hidden" />
         <div>
-          <h1 className="text-base font-semibold text-[#32363A] leading-tight">{title}</h1>
-          <p className="text-xs text-[#6A6D70] hidden sm:block">Postone Finance</p>
+          <h1 className="text-base font-semibold text-white leading-tight">{title}</h1>
+          <p className="text-xs text-[#ACC7D9] hidden sm:block">Postone Finance</p>
         </div>
         {isDemo && (
           <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-bold bg-amber-400 text-amber-900 tracking-wide">
@@ -70,7 +72,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-1">
-        <button className="relative p-2 rounded text-[#6A6D70] hover:bg-[#F5F5F5] hover:text-[#32363A] transition-colors">
+        <button className="relative p-2 rounded text-white/70 hover:bg-[#2D3F51] hover:text-white transition-colors">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#BB0000] rounded-full" />
         </button>
@@ -78,16 +80,16 @@ export default function Header({ onMenuToggle }: HeaderProps) {
         <div className="relative ml-1">
           <button
             onClick={() => setOpen(!open)}
-            className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded text-sm text-[#32363A] hover:bg-[#F5F5F5] transition-colors"
+            className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded text-sm hover:bg-[#2D3F51] transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-[#0070F2] flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
               {user?.name?.charAt(0).toUpperCase() ?? 'U'}
             </div>
             <div className="text-left hidden sm:block">
-              <p className="font-semibold leading-tight text-[#32363A] text-sm">{user?.name}</p>
-              <p className="text-xs text-[#6A6D70] leading-tight">{roles[0]?.name ?? '—'}</p>
+              <p className="font-semibold leading-tight text-white text-sm">{user?.name}</p>
+              <p className="text-xs text-[#ACC7D9] leading-tight">{roles[0]?.name ?? '—'}</p>
             </div>
-            <ChevronDown className="w-4 h-4 text-[#6A6D70] hidden sm:block" />
+            <ChevronDown className="w-4 h-4 text-[#ACC7D9] hidden sm:block" />
           </button>
 
           {open && (

@@ -131,6 +131,9 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; items: Plat
       { sectionLabel: 'Seller Wallet' },
       { href: '/admin/shopee/wallet-transactions', label: 'ธุรกรรม Wallet', icon: Wallet, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/wallet-files', label: 'ไฟล์ Wallet', icon: FolderOpen, permission: 'shopee-shops.view', exact: false },
+
+      { sectionLabel: 'Sync Logs' },
+      { href: '/admin/shopee/sync-logs', label: 'ประวัติการซิงค์', icon: Activity, permission: 'shopee-shops.view', exact: false },
     ],
   },
 }
@@ -179,24 +182,24 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-[#D9D9D9] flex-shrink-0 bg-[#FAFAFA]">
+      <div className="h-16 flex items-center justify-between px-5 border-b border-[#2D3F51] flex-shrink-0 bg-[#354A5E]">
         <div className="flex items-center gap-3">
           <img src="/pumpkin.png" alt="POSTONE Logo" className="w-8 h-8 object-contain" />
           <div>
-            <p className="font-bold text-sm tracking-wide text-[#32363A]">POSTONE {isDemo ? '(Demo)' : ''}</p>
-            <p className="text-[#6A6D70] text-[10px] uppercase tracking-widest">Finance</p>
+            <p className="font-bold text-sm tracking-wide text-white">POSTONE {isDemo ? '(Demo)' : ''}</p>
+            <p className="text-[#ACC7D9] text-[10px] uppercase tracking-widest">Finance</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="lg:hidden p-1.5 rounded text-[#6A6D70] hover:text-[#32363A] hover:bg-[#EBEBEB] transition-colors"
+          className="lg:hidden p-1.5 rounded text-white/70 hover:text-white hover:bg-[#2D3F51] transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Mode switcher */}
-      <div className="flex border-b border-[#D9D9D9] bg-[#FAFAFA] flex-shrink-0">
+      <div className="flex border-b border-[#D9D9D9] bg-white flex-shrink-0">
         <button
           onClick={() => setMode('main')}
           className={clsx(
@@ -338,7 +341,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-[#D9D9D9] bg-[#FAFAFA] flex-shrink-0">
+      <div className="p-3 border-t border-[#D9D9D9] bg-white flex-shrink-0">
         <div className="px-3 py-2">
           <p className="text-[10px] text-[#6A6D70] uppercase tracking-widest">Version</p>
           <p className="text-xs text-[#6A6D70] mt-0.5">v1.0.0 — Development</p>

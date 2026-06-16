@@ -581,6 +581,47 @@ export interface ShopeeWalletFile {
   created_at: string | null
 }
 
+export interface ShopeeWalletSyncLog {
+  id: number
+  shop_id: string | null
+  shop_name: string | null
+  range_from: string | null
+  range_to: string | null
+  file_id: number | null
+  tx_count: number | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  status: string | null
+  message: string | null
+  created_at: string | null
+}
+
+export interface ShopeeOrderSyncLog {
+  id: number
+  shop_id: string | null
+  shop_name: string | null
+  range_from: string | null
+  range_to: string | null
+  file_id: number | null
+  order_count: number | null
+  status: string | null
+  message: string | null
+  created_at: string | null
+}
+
+export interface ShopeeIncomeSyncLog {
+  id: number
+  shop_id: string | null
+  shop_name: string | null
+  payout_date: string | null
+  file_id: number | null
+  order_count: number | null
+  status: string | null
+  message: string | null
+  created_at: string | null
+}
+
 export interface ThailandPostAcceptance {
   id: number
   source_file: string | null
