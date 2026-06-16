@@ -21,17 +21,16 @@ function fmtDate(d: string | null) {
 export default function ShipmentsPage() {
   const { can } = useAuth()
   const [search, setSearch] = useState('')
-  const [channelFilter, setChannelFilter] = useState('')
   const [accountTypeFilter, setAccountTypeFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery<PaginatedResponse<PostoneShipment>>({
-    queryKey: ['shipments', search, channelFilter, accountTypeFilter, dateFrom, dateTo, page],
+    queryKey: ['shipments', search, accountTypeFilter, dateFrom, dateTo, page],
     queryFn: () =>
       api.get('/shipments', {
-        params: { search, channel: channelFilter, account_type_id: accountTypeFilter, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 },
+        params: { search, account_type_id: accountTypeFilter, date_from: dateFrom || undefined, date_to: dateTo || undefined, page, per_page: 20 },
       }).then((r) => r.data),
     enabled: can('shipments.view'),
   })
@@ -99,7 +98,7 @@ export default function ShipmentsPage() {
           ))}
         </select>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-500 whitespace-nowrap">Due Date</label>
+          <label className="text-xs text-slate-500 whitespace-nowrap">วันที่</label>
           <input
             type="date"
             value={dateFrom}

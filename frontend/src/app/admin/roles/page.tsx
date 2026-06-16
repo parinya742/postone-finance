@@ -6,13 +6,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, ShieldCheck, Users, Lock } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import RoleFormModal from '@/components/rbac/RoleFormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function RolesPage() {
   const { can, hasRole } = useAuth()
+  const { addToast } = useToast()
   const qc = useQueryClient()
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [deletingRole, setDeletingRole] = useState<Role | null>(null)
 
   const { data: roles = [], isLoading } = useQuery<Role[]>({
     queryKey: ['roles'],
@@ -29,7 +33,11 @@ export default function RolesPage() {
 
   const deleteRole = useMutation({
     mutationFn: (id: number) => api.delete(`/roles/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['roles'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['roles'] })
+      addToast('ลบ Role สำเร็จ', 'success')
+    },
+    onError: () => addToast('ลบ Role ไม่สำเร็จ', 'error'),
   })
 
   if (!can('roles.view')) {
@@ -99,7 +107,7 @@ export default function RolesPage() {
                   )}
                   {can('roles.delete') && !role.is_system && (
                     <button
-                      onClick={() => { if (confirm(`ลบ Role "${role.name}"?`)) deleteRole.mutate(role.id) }}
+                      onClick={() => setDeletingRole(role)}
                       className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -134,7 +142,22 @@ export default function RolesPage() {
           role={editingRole}
           allPermissions={allPermissions}
           onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ['roles'] }) }}
+          onSuccess={() => {
+            setShowForm(false)
+            qc.invalidateQueries({ queryKey: ['roles'] })
+            addToast(editingRole ? 'แก้ไข Role สำเร็จ' : 'เพิ่ม Role สำเร็จ', 'success')
+          }}
+        />
+      )}
+
+      {deletingRole && (
+        <ConfirmModal
+          title="ลบ Role"
+          message={`คุณต้องการลบ Role "${deletingRole.name}" ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+          confirmLabel="ลบ"
+          danger
+          onConfirm={() => { deleteRole.mutate(deletingRole.id); setDeletingRole(null) }}
+          onCancel={() => setDeletingRole(null)}
         />
       )}
     </div>

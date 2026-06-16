@@ -6,7 +6,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, Search, Lock, UserCheck, UserX } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import UserFormModal from '@/components/rbac/UserFormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import clsx from 'clsx'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,14 +18,23 @@ const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  active: 'ใช้งาน',
+  inactive: 'ปิดใช้งาน',
+  suspended: 'ระงับ',
+  pending: 'รอดำเนินการ',
+}
+
 export default function UsersPage() {
   const { can } = useAuth()
+  const { addToast } = useToast()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [deletingUser, setDeletingUser] = useState<User | null>(null)
 
   const { data, isLoading } = useQuery<PaginatedResponse<User>>({
     queryKey: ['users', search, statusFilter, page],
@@ -40,7 +51,11 @@ export default function UsersPage() {
 
   const deleteUser = useMutation({
     mutationFn: (id: number) => api.delete(`/users/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      addToast('ลบผู้ใช้สำเร็จ', 'success')
+    },
+    onError: () => addToast('ลบผู้ใช้ไม่สำเร็จ', 'error'),
   })
 
   if (!can('users.view')) {
@@ -88,10 +103,10 @@ export default function UsersPage() {
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
         >
           <option value="">ทุกสถานะ</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="suspended">Suspended</option>
-          <option value="pending">Pending</option>
+          <option value="active">ใช้งาน</option>
+          <option value="inactive">ปิดใช้งาน</option>
+          <option value="suspended">ระงับ</option>
+          <option value="pending">รอดำเนินการ</option>
         </select>
       </div>
 
@@ -148,7 +163,7 @@ export default function UsersPage() {
                   </td>
                   <td className="px-5 py-4">
                     <span className={clsx('px-2.5 py-1 rounded-full text-xs font-medium', STATUS_COLORS[user.status])}>
-                      {user.status}
+                      {STATUS_LABELS[user.status] ?? user.status}
                     </span>
                   </td>
                   <td className="px-5 py-4 text-gray-400 text-xs">
@@ -166,7 +181,7 @@ export default function UsersPage() {
                       )}
                       {can('users.delete') && (
                         <button
-                          onClick={() => { if (confirm(`ลบผู้ใช้ "${user.name}"?`)) deleteUser.mutate(user.id) }}
+                          onClick={() => setDeletingUser(user)}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -208,7 +223,22 @@ export default function UsersPage() {
           user={editingUser}
           allRoles={rolesData ?? []}
           onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ['users'] }) }}
+          onSuccess={() => {
+            setShowForm(false)
+            qc.invalidateQueries({ queryKey: ['users'] })
+            addToast(editingUser ? 'แก้ไขผู้ใช้สำเร็จ' : 'เพิ่มผู้ใช้สำเร็จ', 'success')
+          }}
+        />
+      )}
+
+      {deletingUser && (
+        <ConfirmModal
+          title="ลบผู้ใช้"
+          message={`คุณต้องการลบผู้ใช้ "${deletingUser.name}" ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+          confirmLabel="ลบ"
+          danger
+          onConfirm={() => { deleteUser.mutate(deletingUser.id); setDeletingUser(null) }}
+          onCancel={() => setDeletingUser(null)}
         />
       )}
     </div>

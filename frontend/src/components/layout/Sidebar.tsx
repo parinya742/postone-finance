@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
-  Settings, ChevronRight, X,
+  Settings, ChevronRight, X, PanelLeftClose, PanelLeftOpen,
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown,
   Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie,
 } from 'lucide-react'
@@ -91,9 +91,10 @@ type SectionDivider = {
 
 type PlatformItem = NavItem | SectionDivider
 
-const ecommercePlatforms: Record<EcommercePlatform, { label: string; items: PlatformItem[] }> = {
+const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: string; items: PlatformItem[] }> = {
   lazada: {
     label: 'Lazada',
+    short: 'L',
     items: [
       { sectionLabel: 'การจัดการ' },
       { href: '/admin/lazada/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'lazada-shops.view', exact: false },
@@ -109,6 +110,7 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; items: Plat
   },
   tiktok: {
     label: 'TikTok',
+    short: 'T',
     items: [
       { sectionLabel: 'การจัดการ' },
       { href: '/admin/tiktok/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'tiktok-shops.view', exact: false },
@@ -120,6 +122,7 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; items: Plat
   },
   shopee: {
     label: 'Shopee',
+    short: 'S',
     items: [
       { sectionLabel: 'การจัดการ' },
       { href: '/admin/shopee/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'shopee-shops.view', exact: false },
@@ -147,6 +150,10 @@ const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { can } = useAuth()
   const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('sidebar_collapsed') === 'true'
+  })
 
   const isEcommercePath =
     pathname.startsWith('/admin/lazada') ||
@@ -180,58 +187,117 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-30 w-72 bg-white border-r border-[#D9D9D9] flex flex-col transition-transform duration-300 ease-in-out flex-shrink-0',
+        'fixed inset-y-0 left-0 z-30 bg-white border-r border-[#D9D9D9] flex flex-col transition-all duration-300 ease-in-out flex-shrink-0',
         'lg:relative lg:translate-x-0 lg:z-auto',
+        collapsed ? 'w-16' : 'w-72',
         isOpen ? 'translate-x-0' : '-translate-x-full'
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-[#2D3F51] flex-shrink-0 bg-[#354A5E]">
-        <div className="flex items-center gap-3">
-          <img src="/pumpkin.png" alt="POSTONE Logo" className="w-8 h-8 object-contain" />
-          <div>
-            <p className="font-bold text-sm tracking-wide text-white">Report {isDemo ? '(Demo)' : ''}</p>
-            <p className="text-[#ACC7D9] text-[10px] uppercase tracking-widest">Finance</p>
-          </div>
+      <div className="h-16 flex items-center justify-between px-3 border-b border-[#2D3F51] flex-shrink-0 bg-[#354A5E]">
+        <div className={clsx('flex items-center gap-3 overflow-hidden', collapsed && 'justify-center w-full')}>
+          <img src="/pumpkin.png" alt="POSTONE Logo" className="w-8 h-8 object-contain flex-shrink-0" />
+          {!collapsed && (
+            <div className="overflow-hidden">
+              <p className="font-bold text-sm tracking-wide text-white whitespace-nowrap">Report {isDemo ? '(Demo)' : ''}</p>
+              <p className="text-[#ACC7D9] text-[10px] uppercase tracking-widest">Finance</p>
+            </div>
+          )}
         </div>
+        {/* Mobile close */}
         <button
           onClick={onClose}
-          className="lg:hidden p-1.5 rounded text-white/70 hover:text-white hover:bg-[#2D3F51] transition-colors"
+          className="lg:hidden p-1.5 rounded text-white/70 hover:text-white hover:bg-[#2D3F51] transition-colors flex-shrink-0"
         >
           <X className="w-4 h-4" />
         </button>
+        {/* Desktop collapse toggle */}
+        {!collapsed && (
+          <button
+            onClick={() => { setCollapsed(true); localStorage.setItem('sidebar_collapsed', 'true') }}
+            className="hidden lg:flex p-1.5 rounded text-white/70 hover:text-white hover:bg-[#2D3F51] transition-colors flex-shrink-0"
+            title="ย่อ Sidebar"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        )}
       </div>
+
+      {/* Expand button when collapsed */}
+      {collapsed && (
+        <div className="hidden lg:flex justify-center py-2 border-b border-[#D9D9D9] flex-shrink-0">
+          <button
+            onClick={() => { setCollapsed(false); localStorage.setItem('sidebar_collapsed', 'false') }}
+            className="p-1.5 rounded text-[#6A6D70] hover:text-[#0070F2] hover:bg-[#EBF5FE] transition-colors"
+            title="ขยาย Sidebar"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Mode switcher */}
-      <div className="flex border-b border-[#D9D9D9] bg-white flex-shrink-0">
-        <button
-          onClick={() => setMode('main')}
-          className={clsx(
-            'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 border-b-2',
-            mode === 'main'
-              ? 'text-[#0070F2] border-[#0070F2] bg-white'
-              : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
-          )}
-        >
-          <LayoutGrid className="w-4 h-4" />
-          <span>หลัก</span>
-        </button>
-        <button
-          onClick={() => setMode('ecommerce')}
-          className={clsx(
-            'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 border-b-2',
-            mode === 'ecommerce'
-              ? 'text-[#0070F2] border-[#0070F2] bg-white'
-              : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
-          )}
-        >
-          <ShoppingCart className="w-4 h-4" />
-          <span>E-Commerce</span>
-        </button>
-      </div>
+      {!collapsed && (
+        <div className="flex border-b border-[#D9D9D9] bg-white flex-shrink-0">
+          <button
+            onClick={() => setMode('main')}
+            className={clsx(
+              'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 border-b-2',
+              mode === 'main'
+                ? 'text-[#0070F2] border-[#0070F2] bg-white'
+                : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
+            )}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>หลัก</span>
+          </button>
+          <button
+            onClick={() => setMode('ecommerce')}
+            className={clsx(
+              'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 border-b-2',
+              mode === 'ecommerce'
+                ? 'text-[#0070F2] border-[#0070F2] bg-white'
+                : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
+            )}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>E-Commerce</span>
+          </button>
+        </div>
+      )}
+
+      {/* Collapsed mode switcher — icon only */}
+      {collapsed && (
+        <div className="hidden lg:flex flex-col border-b border-[#D9D9D9] bg-white flex-shrink-0">
+          <button
+            onClick={() => setMode('main')}
+            title="หลัก"
+            className={clsx(
+              'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
+              mode === 'main'
+                ? 'text-[#0070F2] border-[#0070F2]'
+                : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
+            )}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setMode('ecommerce')}
+            title="E-Commerce"
+            className={clsx(
+              'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
+              mode === 'ecommerce'
+                ? 'text-[#0070F2] border-[#0070F2]'
+                : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
+            )}
+          >
+            <ShoppingCart className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
+      <nav className={clsx('flex-1 overflow-y-auto py-3', collapsed ? 'px-1' : 'px-2')}>
 
         {/* ── Main mode ── */}
         {mode === 'main' && navGroups.map((group) => {
@@ -241,10 +307,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           if (visibleItems.length === 0) return null
 
           return (
-            <div key={group.label} className="mb-4">
-              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
-                {group.label}
-              </p>
+            <div key={group.label} className={clsx('mb-4', collapsed && 'mb-2')}>
+              {!collapsed && (
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
+                  {group.label}
+                </p>
+              )}
+              {collapsed && <div className="mx-1 mb-1 border-t border-[#E8E8E8]" />}
               <div className="space-y-0.5">
                 {visibleItems.map(({ href, label, icon: Icon, exact }) => {
                   const active = exact
@@ -255,18 +324,22 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       key={href}
                       href={href}
                       onClick={onClose}
+                      title={collapsed ? label : undefined}
                       className={clsx(
-                        'group flex items-center justify-between px-3 py-2 rounded text-sm transition-all duration-150 border-l-2',
+                        'group flex items-center rounded text-sm transition-all duration-150 border-l-2',
+                        collapsed
+                          ? 'justify-center px-0 py-2.5'
+                          : 'justify-between px-3 py-2',
                         active
                           ? 'bg-[#EBF5FE] text-[#0070F2] font-medium border-[#0070F2]'
                           : 'text-[#32363A] hover:bg-[#F5F5F5] hover:text-[#0070F2] border-transparent'
                       )}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className={clsx('flex items-center', !collapsed && 'gap-3')}>
                         <Icon className={clsx('w-4 h-4 flex-shrink-0', active ? 'text-[#0070F2]' : 'text-[#6A6D70] group-hover:text-[#0070F2]')} />
-                        <span>{label}</span>
+                        {!collapsed && <span>{label}</span>}
                       </div>
-                      {active && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
+                      {!collapsed && active && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
                     </Link>
                   )
                 })}
@@ -278,36 +351,58 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* ── Ecommerce mode ── */}
         {mode === 'ecommerce' && (
           <div>
-            {/* Section label */}
-            <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
-              Report Ecommerce
-            </p>
+            {!collapsed && (
+              <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
+                Report Ecommerce
+              </p>
+            )}
 
             {/* Platform tabs */}
-            <div className="flex mb-3 rounded-lg overflow-hidden border border-[#E8E8E8] mx-1">
-              {(Object.keys(ecommercePlatforms) as EcommercePlatform[]).map((platform) => (
-                <button
-                  key={platform}
-                  onClick={() => setActivePlatform(platform)}
-                  className={clsx(
-                    'flex-1 py-2 text-xs font-semibold transition-colors duration-150',
-                    activePlatform === platform
-                      ? 'bg-[#0070F2] text-white'
-                      : 'bg-white text-[#6A6D70] hover:bg-[#F5F5F5] hover:text-[#32363A]'
-                  )}
-                >
-                  {ecommercePlatforms[platform].label}
-                </button>
-              ))}
-            </div>
+            {!collapsed ? (
+              <div className="flex mb-3 rounded-lg overflow-hidden border border-[#E8E8E8] mx-1">
+                {(Object.keys(ecommercePlatforms) as EcommercePlatform[]).map((platform) => (
+                  <button
+                    key={platform}
+                    onClick={() => setActivePlatform(platform)}
+                    className={clsx(
+                      'flex-1 py-2 text-xs font-semibold transition-colors duration-150',
+                      activePlatform === platform
+                        ? 'bg-[#0070F2] text-white'
+                        : 'bg-white text-[#6A6D70] hover:bg-[#F5F5F5] hover:text-[#32363A]'
+                    )}
+                  >
+                    {ecommercePlatforms[platform].label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-0.5 mb-2">
+                {(Object.keys(ecommercePlatforms) as EcommercePlatform[]).map((platform) => (
+                  <button
+                    key={platform}
+                    onClick={() => setActivePlatform(platform)}
+                    title={ecommercePlatforms[platform].label}
+                    className={clsx(
+                      'w-full flex justify-center py-2 text-xs font-bold rounded transition-colors duration-150 border-l-2',
+                      activePlatform === platform
+                        ? 'bg-[#EBF5FE] text-[#0070F2] border-[#0070F2]'
+                        : 'text-[#6A6D70] border-transparent hover:bg-[#F5F5F5] hover:text-[#32363A]'
+                    )}
+                  >
+                    {ecommercePlatforms[platform].short}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Sub-items */}
             <div className="space-y-0.5">
               {platformItems.filter(item => !item.sectionLabel).length === 0 ? (
-                <p className="px-3 py-2 text-xs text-[#6A6D70]">ไม่มีสิทธิ์เข้าถึง</p>
+                !collapsed && <p className="px-3 py-2 text-xs text-[#6A6D70]">ไม่มีสิทธิ์เข้าถึง</p>
               ) : (
                 platformItems.map((item, idx) => {
                   if (item.sectionLabel) {
+                    if (collapsed) return null
                     return (
                       <p key={`section-${idx}`} className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
                         {item.sectionLabel}
@@ -323,18 +418,22 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       key={href}
                       href={href}
                       onClick={onClose}
+                      title={collapsed ? label : undefined}
                       className={clsx(
-                        'group flex items-center justify-between px-3 py-2 rounded text-sm transition-all duration-150 border-l-2',
+                        'group flex items-center rounded text-sm transition-all duration-150 border-l-2',
+                        collapsed
+                          ? 'justify-center px-0 py-2.5'
+                          : 'justify-between px-3 py-2',
                         active
                           ? 'bg-[#EBF5FE] text-[#0070F2] font-medium border-[#0070F2]'
                           : 'text-[#32363A] hover:bg-[#F5F5F5] hover:text-[#0070F2] border-transparent'
                       )}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className={clsx('flex items-center', !collapsed && 'gap-3')}>
                         <Icon className={clsx('w-4 h-4 flex-shrink-0', active ? 'text-[#0070F2]' : 'text-[#6A6D70] group-hover:text-[#0070F2]')} />
-                        <span>{label}</span>
+                        {!collapsed && <span>{label}</span>}
                       </div>
-                      {active && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
+                      {!collapsed && active && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
                     </Link>
                   )
                 })
@@ -345,12 +444,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-[#D9D9D9] bg-white flex-shrink-0">
-        <div className="px-3 py-2">
-          <p className="text-[10px] text-[#6A6D70] uppercase tracking-widest">Version</p>
-          <p className="text-xs text-[#6A6D70] mt-0.5">v1.0.0 — Development</p>
+      {!collapsed && (
+        <div className="p-3 border-t border-[#D9D9D9] bg-white flex-shrink-0">
+          <div className="px-3 py-2">
+            <p className="text-[10px] text-[#6A6D70] uppercase tracking-widest">Version</p>
+            <p className="text-xs text-[#6A6D70] mt-0.5">v1.0.0 — Development</p>
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   )
 }

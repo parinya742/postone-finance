@@ -6,8 +6,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Lock, Pencil, Trash2, Plus, Search } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import clsx from 'clsx'
 import PermissionFormModal from '@/components/rbac/PermissionFormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 const ACTION_COLORS: Record<string, string> = {
   view: 'bg-blue-100 text-blue-700',
@@ -20,11 +22,13 @@ const ACTION_COLORS: Record<string, string> = {
 
 export default function PermissionsPage() {
   const { can } = useAuth()
+  const { addToast } = useToast()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [moduleFilter, setModuleFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [selectedPermission, setSelectedPermission] = useState<Permission | null>(null)
+  const [deletingPermission, setDeletingPermission] = useState<Permission | null>(null)
 
   const { data, isLoading } = useQuery<{ data: Permission[]; grouped: { module: string; permissions: Permission[] }[]; modules: string[] }>({
     queryKey: ['permissions', search, moduleFilter],
@@ -34,7 +38,11 @@ export default function PermissionsPage() {
 
   const deletePermission = useMutation({
     mutationFn: (id: number) => api.delete(`/permissions/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['permissions'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['permissions'] })
+      addToast('ลบ Permission สำเร็จ', 'success')
+    },
+    onError: () => addToast('ลบ Permission ไม่สำเร็จ', 'error'),
   })
 
   if (!can('permissions.view')) {
@@ -58,8 +66,10 @@ export default function PermissionsPage() {
 
   const handleSuccess = () => {
     setShowModal(false)
+    const isEdit = !!selectedPermission
     setSelectedPermission(null)
     qc.invalidateQueries({ queryKey: ['permissions'] })
+    addToast(isEdit ? 'แก้ไข Permission สำเร็จ' : 'เพิ่ม Permission สำเร็จ', 'success')
   }
 
   return (
@@ -140,7 +150,7 @@ export default function PermissionsPage() {
                       )}
                       {can('permissions.delete') && (
                         <button
-                          onClick={() => { if (confirm(`ลบ Permission "${perm.name}"?`)) deletePermission.mutate(perm.id) }}
+                          onClick={() => setDeletingPermission(perm)}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -160,6 +170,17 @@ export default function PermissionsPage() {
           permission={selectedPermission}
           onClose={() => { setShowModal(false); setSelectedPermission(null) }}
           onSuccess={handleSuccess}
+        />
+      )}
+
+      {deletingPermission && (
+        <ConfirmModal
+          title="ลบ Permission"
+          message={`คุณต้องการลบ Permission "${deletingPermission.name}" ใช่หรือไม่?`}
+          confirmLabel="ลบ"
+          danger
+          onConfirm={() => { deletePermission.mutate(deletingPermission.id); setDeletingPermission(null) }}
+          onCancel={() => setDeletingPermission(null)}
         />
       )}
     </div>

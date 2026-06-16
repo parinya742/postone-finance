@@ -18,27 +18,40 @@ const pageTitles: Record<string, string> = {
 
   '/admin/settings': 'ตั้งค่าระบบ',
 
-  '/admin/account-types': 'จัดการแอคเคาท์ไปรษณีย์ (Account Types)',
-  '/admin/sessions': 'เซสชั่น (Postone Sessions)',
-  '/admin/export-files': 'รายการไฟล์ไปรษณีย์ (Header Export Files Shipments)',
-  '/admin/shipments': 'รายการพัสดุไปรษณีย์ (Postone Shipments Sync)',
-  '/admin/line-files': 'รายการไฟล์บริการ (Header Files Services Fee)',
-  '/admin/line-extracted': 'รายการคัดแยกไฟล์บริการ (zip) (Header Files Extracted)',
-  '/admin/thaipost': 'รายการพัสดุไฟล์บริการ (Files Data Server Fee)',
-  '/admin/shipment-acceptance': 'เปรียบเทียบข้อมูลไปรษณีย์ (Data Reconciliation)',
+  '/admin/account-types': 'จัดการแอคเคาท์ไปรษณีย์',
+  '/admin/sessions': 'เซสชั่น',
+  '/admin/export-files': 'รายการไฟล์ไปรษณีย์',
+  '/admin/shipments': 'รายการพัสดุไปรษณีย์',
+  '/admin/line-files': 'รายการไฟล์บริการ',
+  '/admin/line-extracted': 'รายการคัดแยกไฟล์บริการ',
+  '/admin/thaipost': 'รายการพัสดุไฟล์บริการ',
+  '/admin/shipment-acceptance': 'เปรียบเทียบข้อมูลไปรษณีย์',
 
-  '/admin/so-head': 'SO Head Data',
-  '/admin/line-so': 'ตรวจสอบข้อมูลไปรษณีย์ (Report)',
+  '/admin/so-head': 'ข้อมูล SO',
+  '/admin/line-so': 'ตรวจสอบข้อมูลไปรษณีย์',
 
-  '/admin/special-postal-zones': 'พื้นที่พิเศษ',
-  '/admin/ems-rates': 'อัตราค่าขนส่ง EMS',
-  '/admin/domestic-letter-rates': 'อัตราค่าขนส่งจดหมายในประเทศ - ซอง',
+  '/admin/special-postal-zones': 'จัดการไปรษณีย์พื้นที่พิเศษ',
+  '/admin/ems-rates': 'อัตราค่าบริการ EMS',
+  '/admin/domestic-letter-rates': 'อัตราค่าบริการไปรษณีย์',
 
-  '/admin/lazada/shops': 'ร้านค้า lazada',
-  '/admin/lazada/transactions': 'ธุรกรรม lazada',
-  '/admin/lazada/files': 'ไฟล์ lazada',
+  '/admin/lazada/shops': 'Lazada — จัดการร้านค้า',
+  '/admin/lazada/sessions': 'Lazada — Cookie Sessions',
+  '/admin/lazada/transactions': 'Lazada — รายการธุรกรรม',
+  '/admin/lazada/files': 'Lazada — ไฟล์ส่งออก',
+  '/admin/lazada/invoices': 'Lazada — ใบแจ้งหนี้',
 
-  '/admin/shopee/sync-logs': 'Shopee Sync Logs'
+  '/admin/tiktok/shops': 'TikTok — จัดการร้านค้า',
+  '/admin/tiktok/transactions': 'TikTok — รายการธุรกรรม',
+  '/admin/tiktok/files': 'TikTok — ไฟล์ส่งออก',
+
+  '/admin/shopee/shops': 'Shopee — จัดการร้านค้า',
+  '/admin/shopee/transactions': 'Shopee — รายการธุรกรรม',
+  '/admin/shopee/files': 'Shopee — ไฟล์ส่งออก',
+  '/admin/shopee/orders': 'Shopee — รายการออเดอร์',
+  '/admin/shopee/order-files': 'Shopee — ไฟล์ออเดอร์',
+  '/admin/shopee/wallet-transactions': 'Shopee — ธุรกรรม Wallet',
+  '/admin/shopee/wallet-files': 'Shopee — ไฟล์ Wallet',
+  '/admin/shopee/sync-logs': 'Shopee — ประวัติการซิงค์',
 }
 
 const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
@@ -46,6 +59,7 @@ const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
 export default function Header({ onMenuToggle }: HeaderProps) {
   const { user, roles, logout } = useAuth()
   const [open, setOpen] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
   const pathname = usePathname()
 
   const title = pageTitles[pathname] ?? 'Admin'
@@ -72,10 +86,28 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-1">
-        <button className="relative p-2 rounded text-white/70 hover:bg-[#2D3F51] hover:text-white transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#BB0000] rounded-full" />
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => { setBellOpen(!bellOpen); setOpen(false) }}
+            className="p-2 rounded text-white/70 hover:bg-[#2D3F51] hover:text-white transition-colors"
+          >
+            <Bell className="w-5 h-5" />
+          </button>
+          {bellOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setBellOpen(false)} />
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-[#EBEBEB] rounded shadow-xl py-1 z-20">
+                <div className="px-4 py-3 border-b border-[#EBEBEB]">
+                  <p className="text-sm font-semibold text-[#32363A]">การแจ้งเตือน</p>
+                </div>
+                <div className="px-4 py-6 text-center">
+                  <Bell className="w-8 h-8 text-[#D9D9D9] mx-auto mb-2" />
+                  <p className="text-sm text-[#6A6D70]">ไม่มีการแจ้งเตือน</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="relative ml-1">
           <button

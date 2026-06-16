@@ -33,7 +33,7 @@ export default function AdminDashboard() {
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
       border: 'border-emerald-100',
-      href: '#',
+      href: '/admin/permissions',
     },
     {
       label: 'ระบบ',
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
       color: 'text-orange-600',
       bg: 'bg-orange-50',
       border: 'border-orange-100',
-      href: '#',
+      href: '/admin/settings',
     },
   ]
 

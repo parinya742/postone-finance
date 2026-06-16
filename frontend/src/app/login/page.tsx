@@ -73,12 +73,12 @@ export default function LoginPage() {
 
         <div>
           <h2 className="text-4xl font-bold text-white leading-tight">
-            ระบบจัดการ
+            ระบบการจัดการ
             <br />
             <span className="text-[#ACC7D9]">Report</span>
           </h2>
           <p className="text-white/50 mt-4 text-sm leading-relaxed max-w-sm">
-            ระบบสำหรับจัดการรายงานไปรษณีย์ 
+            ระบบสำหรับจัดการรายงานการเงิน 
           </p>
 
           <div className="flex gap-6 mt-10">
@@ -139,7 +139,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-[#32363A] mb-1.5">
                   อีเมล
@@ -148,7 +148,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="off"
+                  autoComplete="email"
                   className="w-full border border-[#D9D9D9] rounded px-3.5 py-2.5 text-sm text-[#32363A] focus:outline-none focus:ring-2 focus:ring-[#0070F2] focus:border-transparent transition-all placeholder:text-[#6A6D70]"
                   placeholder="email@example.com"
                   required
@@ -164,7 +164,7 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="new-password"
+                    autoComplete="current-password"
                     className="w-full border border-[#D9D9D9] rounded px-3.5 py-2.5 pr-10 text-sm text-[#32363A] focus:outline-none focus:ring-2 focus:ring-[#0070F2] focus:border-transparent transition-all"
                     required
                   />
