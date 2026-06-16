@@ -2,38 +2,40 @@
 
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DomesticLetterRateController;
 use App\Http\Controllers\Api\EmsRateController;
+use App\Http\Controllers\Api\LazadaInvoiceController;
+use App\Http\Controllers\Api\LazadaSessionController;
 use App\Http\Controllers\Api\LazadaShopController;
 use App\Http\Controllers\Api\LazadaTransactionController;
 use App\Http\Controllers\Api\LazadaTransactionFileController;
-use App\Http\Controllers\Api\TikTokShopController;
-use App\Http\Controllers\Api\TikTokTransactionController;
-use App\Http\Controllers\Api\TikTokTransactionFileController;
-use App\Http\Controllers\Api\ShopeeShopController;
-use App\Http\Controllers\Api\ShopeeOrderFileController;
-use App\Http\Controllers\Api\ShopeeOrderItemController;
-use App\Http\Controllers\Api\ShopeeTransactionController;
-use App\Http\Controllers\Api\ShopeeTransactionFileController;
-use App\Http\Controllers\Api\ShopeeWalletTransactionController;
-use App\Http\Controllers\Api\ShopeeWalletFileController;
-use App\Http\Controllers\Api\ShopeeWalletSyncLogController;
-use App\Http\Controllers\Api\ShopeeOrderSyncLogController;
-use App\Http\Controllers\Api\ShopeeIncomeSyncLogController;
-use App\Http\Controllers\Api\PostoneExportFileController;
-use App\Http\Controllers\Api\DomesticLetterRateController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
 use App\Http\Controllers\Api\LineGroupFileController;
-use App\Http\Controllers\Api\ThaipostImportController;
+use App\Http\Controllers\Api\LineSoController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PostoneAccountTypeController;
+use App\Http\Controllers\Api\PostoneExportFileController;
 use App\Http\Controllers\Api\PostoneSessionController;
 use App\Http\Controllers\Api\PostoneShipmentController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\ShipmentAcceptanceController;
-use App\Http\Controllers\Api\LineSoController;
+use App\Http\Controllers\Api\ShopeeIncomeSyncLogController;
+use App\Http\Controllers\Api\ShopeeOrderFileController;
+use App\Http\Controllers\Api\ShopeeOrderItemController;
+use App\Http\Controllers\Api\ShopeeOrderSyncLogController;
+use App\Http\Controllers\Api\ShopeeShopController;
+use App\Http\Controllers\Api\ShopeeTransactionController;
+use App\Http\Controllers\Api\ShopeeTransactionFileController;
+use App\Http\Controllers\Api\ShopeeWalletFileController;
+use App\Http\Controllers\Api\ShopeeWalletSyncLogController;
+use App\Http\Controllers\Api\ShopeeWalletTransactionController;
 use App\Http\Controllers\Api\SoHeadController;
 use App\Http\Controllers\Api\SpecialPostalZoneController;
 use App\Http\Controllers\Api\ThailandPostAcceptanceController;
+use App\Http\Controllers\Api\ThaipostImportController;
+use App\Http\Controllers\Api\TikTokShopController;
+use App\Http\Controllers\Api\TikTokTransactionController;
+use App\Http\Controllers\Api\TikTokTransactionFileController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,7 +46,6 @@ Route::prefix('auth')->group(function () {
 
 // Protected
 Route::middleware('auth:sanctum')->group(function () {
-
     Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -187,6 +188,19 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::middleware('permission:lazada-shops.delete')->delete('/lazada/shops/{id}', [LazadaShopController::class, 'destroy']);
     Route::middleware('permission:lazada-shops.view')->get('/audit-logs', [AuditLogController::class, 'index']);
+
+    // === Lazada Sessions (cookie-based) ===
+    Route::middleware('permission:lazada-sessions.view')->group(function () {
+        Route::get('/lazada/sessions', [LazadaSessionController::class, 'index']);
+        Route::get('/lazada/sessions/shop-keys', [LazadaSessionController::class, 'shopKeys']);
+    });
+    Route::middleware('permission:lazada-sessions.create')->post('/lazada/sessions', [LazadaSessionController::class, 'store']);
+    Route::middleware('permission:lazada-sessions.edit')->put('/lazada/sessions/{id}', [LazadaSessionController::class, 'update']);
+    Route::middleware('permission:lazada-sessions.delete')->delete('/lazada/sessions/{id}', [LazadaSessionController::class, 'destroy']);
+
+    Route::middleware('permission:lazada-invoices.view')->group(function () {
+        Route::get('/lazada/invoices', [LazadaInvoiceController::class, 'index']);
+    });
 
     // === TikTok ===
     Route::middleware('permission:tiktok-shops.view')->group(function () {

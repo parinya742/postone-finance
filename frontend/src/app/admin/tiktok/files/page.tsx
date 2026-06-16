@@ -65,7 +65,7 @@ export default function TikTokFilesPage() {
           <h1 className="text-2xl font-bold text-slate-800">ไฟล์ส่งออก TikTok</h1>
         </div>
         <p className="text-slate-500 text-sm mt-1">
-          ทั้งหมด {data?.total ?? 0} ไฟล์ · สร้างอัตโนมัติโดย n8n และอัปโหลดขึ้น S3
+          ทั้งหมด {data?.total ?? 0} ไฟล์
         </p>
       </div>
 

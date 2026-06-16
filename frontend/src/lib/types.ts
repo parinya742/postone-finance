@@ -135,7 +135,7 @@ export interface LineGroupFileNote {
 export interface LineGroupExtractedFile {
   id: number
   parent_file_id: number | null
-  extracted_file_id : number| null
+  extracted_file_id: number | null
   message_id: string | null
   file_name: string | null
   file_extension: string | null
@@ -279,6 +279,29 @@ export interface SpecialPostalZone {
   rate: number
   created_at: string | null
   updated_at: string | null
+}
+
+export interface LazadaSession {
+  id: number
+  seller_key: string
+  shop_name: string | null
+  cookie_length: number
+  cookie_preview: string | null
+  updated_at: string | null
+  days_ago: number | null
+  status: 'active' | 'warning' | 'expired' | 'unknown'
+}
+
+export interface LazadaInvoices {
+  id: number
+  seller_key: string
+  shop_name: string | null
+  invoice_no: string
+  invoice_type: string
+  provider: string
+  invoice_date: string
+  invoice_period: string
+  s3_url: string
 }
 
 export interface LazadaShop {

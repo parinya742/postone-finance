@@ -63,7 +63,7 @@ export default function LoginPage() {
           />
           <div>
             <p className="font-bold text-white text-sm tracking-wide">
-              POSTONE
+              Report
             </p>
             <p className="text-[#ACC7D9] text-[10px] uppercase tracking-widest">
               Finance
@@ -112,7 +112,7 @@ export default function LoginPage() {
             />
             <div>
               <p className="font-bold text-slate-800 text-sm">
-                POSTONE Finance
+                Report Finance
               </p>
             </div>
           </div>

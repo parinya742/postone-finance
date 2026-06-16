@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X,
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown,
-  Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen,
+  Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
@@ -97,10 +97,14 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; items: Plat
     items: [
       { sectionLabel: 'การจัดการ' },
       { href: '/admin/lazada/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'lazada-shops.view', exact: false },
+      { href: '/admin/lazada/sessions', label: 'Cookie Sessions', icon: Cookie, permission: 'lazada-sessions.view', exact: false },
 
       { sectionLabel: 'รายการรายรับ' },
       { href: '/admin/lazada/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: false },
       { href: '/admin/lazada/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'lazada-shops.view', exact: false },
+
+      { sectionLabel: 'รายการใบแจ้งหนี้' },
+      { href: '/admin/lazada/invoices', label: 'ใบแจ้งหนี้', icon: FileText, permission: 'lazada-invoices.view', exact: false },
     ],
   },
   tiktok: {
@@ -186,7 +190,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex items-center gap-3">
           <img src="/pumpkin.png" alt="POSTONE Logo" className="w-8 h-8 object-contain" />
           <div>
-            <p className="font-bold text-sm tracking-wide text-white">POSTONE {isDemo ? '(Demo)' : ''}</p>
+            <p className="font-bold text-sm tracking-wide text-white">Report {isDemo ? '(Demo)' : ''}</p>
             <p className="text-[#ACC7D9] text-[10px] uppercase tracking-widest">Finance</p>
           </div>
         </div>

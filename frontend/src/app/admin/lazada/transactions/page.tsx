@@ -87,7 +87,7 @@ export default function LazadaTransactionsPage() {
           <h1 className="text-2xl font-bold text-slate-800">รายการธุรกรรม Lazada</h1>
         </div>
         <p className="text-slate-500 text-sm mt-1">
-          ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ · ซิงค์อัตโนมัติทุกวัน 02:00
+          ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ
         </p>
       </div>
 
