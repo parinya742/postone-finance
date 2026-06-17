@@ -112,6 +112,7 @@ export interface LineGroupMedia {
   duration_ms: number | null
   created_at: string | null
   deleted_at: string | null
+  imported_by: string | null
 }
 
 export interface LineGroupFile {

@@ -134,6 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/line-media', [LineGroupMediaController::class, 'index']);
         Route::get('/line-media/{id}', [LineGroupMediaController::class, 'show']);
     });
+    Route::middleware('permission:line-media.import')->post('/line-media', [LineGroupMediaController::class, 'store']);
     Route::middleware('permission:line-media.delete')->group(function () {
         Route::delete('/line-media/{id}', [LineGroupMediaController::class, 'destroy']);
         Route::patch('/line-media/{id}/restore', [LineGroupMediaController::class, 'restore']);

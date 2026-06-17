@@ -3,8 +3,11 @@
 import api from "@/lib/api";
 import { LineGroupMedia, PaginatedResponse } from "@/lib/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Search, Lock, Image, Film, ExternalLink, Trash2, X, RotateCcw } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  Search, Lock, Image, Film, ExternalLink, Trash2,
+  X, RotateCcw, Upload, User,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import clsx from "clsx";
 
@@ -13,6 +16,8 @@ const CONTENT_COLORS: Record<string, string> = {
   video: "bg-blue-100 text-blue-700",
   audio: "bg-green-100 text-green-700",
 };
+
+const ACCEPT = "image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,audio/mpeg,audio/mp4,audio/aac";
 
 function fmtDate(d: string | null) {
   if (!d) return "—";
@@ -41,6 +46,14 @@ export default function LineMediaPage() {
   const [page, setPage] = useState(1);
   const [preview, setPreview] = useState<PreviewItem>(null);
 
+  // Import state
+  const [showImport, setShowImport] = useState(false);
+  const [importFiles, setImportFiles] = useState<File[]>([]);
+  const [importGroupId, setImportGroupId] = useState("");
+  const [importDragOver, setImportDragOver] = useState(false);
+  const [importError, setImportError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const resetPage = () => setPage(1);
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineGroupMedia>>({
@@ -64,6 +77,56 @@ export default function LineMediaPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["line-media"] }),
   });
 
+  const importMutation = useMutation({
+    mutationFn: (fd: FormData) => api.post("/line-media", fd, { headers: { "Content-Type": undefined } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["line-media"] });
+      setShowImport(false);
+      setImportFiles([]);
+      setImportGroupId("");
+      setImportError("");
+    },
+    onError: (err: any) => {
+      setImportError(err?.response?.data?.message ?? "เกิดข้อผิดพลาดขณะอัปโหลด");
+    },
+  });
+
+  function addFiles(incoming: FileList | File[]) {
+    const arr = Array.from(incoming);
+    setImportFiles((prev) => {
+      const names = new Set(prev.map((f) => f.name + f.size));
+      const deduped = arr.filter((f) => !names.has(f.name + f.size));
+      return [...prev, ...deduped].slice(0, 30);
+    });
+  }
+
+  function removeFile(index: number) {
+    setImportFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleImportSubmit() {
+    if (importFiles.length === 0) { setImportError("กรุณาเลือกไฟล์อย่างน้อย 1 ไฟล์"); return; }
+    setImportError("");
+    const fd = new FormData();
+    importFiles.forEach((f) => fd.append("files[]", f));
+    if (importGroupId.trim()) fd.append("group_id", importGroupId.trim());
+    importMutation.mutate(fd);
+  }
+
+  function handleFileDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setImportDragOver(false);
+    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
+  }
+
+  function closeImport() {
+    if (importMutation.isPending) return;
+    setShowImport(false);
+    setImportFiles([]);
+    setImportGroupId("");
+    setImportError("");
+  }
+
   if (!can("line-media.view")) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
@@ -77,9 +140,20 @@ export default function LineMediaPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">รายการสื่อ LINE (Media)</h1>
-        <p className="text-slate-500 text-sm mt-1">ทั้งหมด {data?.total ?? 0} รายการ</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">รายการสื่อ LINE (Media)</h1>
+          <p className="text-slate-500 text-sm mt-1">ทั้งหมด {data?.total ?? 0} รายการ</p>
+        </div>
+        {can("line-media.import") && (
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            นำเข้าไฟล์
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -174,8 +248,14 @@ export default function LineMediaPage() {
                     )}
                   </td>
                   {/* Message ID */}
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600 max-w-[160px] truncate">
-                    {item.message_id}
+                  <td className="px-4 py-3 max-w-[160px]">
+                    <p className="font-mono text-xs text-slate-600 truncate">{item.message_id}</p>
+                    {item.imported_by && (
+                      <p className="flex items-center gap-1 text-[10px] text-indigo-500 mt-0.5">
+                        <User className="w-2.5 h-2.5" />
+                        {item.imported_by}
+                      </p>
+                    )}
                   </td>
                   {/* Group ID */}
                   <td className="px-4 py-3 font-mono text-xs text-slate-500 max-w-[160px] truncate">
@@ -183,17 +263,24 @@ export default function LineMediaPage() {
                   </td>
                   {/* Type */}
                   <td className="px-4 py-3">
-                    <span
-                      className={clsx(
-                        "px-2.5 py-1 rounded-full text-xs font-medium",
-                        CONTENT_COLORS[item.content_type] ?? "bg-slate-100 text-slate-600"
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={clsx(
+                          "inline-flex px-2.5 py-1 rounded-full text-xs font-medium w-fit",
+                          CONTENT_COLORS[item.content_type] ?? "bg-slate-100 text-slate-600"
+                        )}
+                      >
+                        {item.content_type}
+                        {item.file_extension && (
+                          <span className="ml-1 opacity-70">.{item.file_extension}</span>
+                        )}
+                      </span>
+                      {item.imported_by && (
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-600 w-fit">
+                          Manual
+                        </span>
                       )}
-                    >
-                      {item.content_type}
-                      {item.file_extension && (
-                        <span className="ml-1 opacity-70">.{item.file_extension}</span>
-                      )}
-                    </span>
+                    </div>
                   </td>
                   {/* Size / Duration */}
                   <td className="px-4 py-3 text-slate-500 text-xs">
@@ -298,6 +385,128 @@ export default function LineMediaPage() {
               className="w-full max-h-[80vh] object-contain rounded-lg"
             />
             <p className="mt-2 text-center text-white/60 text-xs font-mono">{preview.message_id}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImport && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={closeImport}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Upload className="w-5 h-5 text-blue-600" />
+                <h2 className="text-base font-semibold text-slate-800">นำเข้าไฟล์สื่อแบบ Manual</h2>
+              </div>
+              <button onClick={closeImport} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-5 space-y-4">
+              {/* Drop zone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setImportDragOver(true); }}
+                onDragLeave={() => setImportDragOver(false)}
+                onDrop={handleFileDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={clsx(
+                  "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors",
+                  importDragOver
+                    ? "border-blue-400 bg-blue-50"
+                    : importFiles.length > 0
+                    ? "border-green-400 bg-green-50"
+                    : "border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                )}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPT}
+                  multiple
+                  className="hidden"
+                  onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+                />
+                <Upload className={clsx("w-7 h-7 mx-auto mb-2", importFiles.length > 0 ? "text-green-500" : "text-slate-300")} />
+                <p className="text-sm text-slate-500">
+                  วางไฟล์ที่นี่ หรือ <span className="text-blue-600 font-medium">คลิกเลือกไฟล์</span>
+                </p>
+                <p className="text-xs text-slate-400 mt-1">JPG, PNG, GIF, WebP, MP4, MOV, MP3, M4A, AAC — ไม่เกิน 100 MB/ไฟล์ · สูงสุด 30 ไฟล์</p>
+              </div>
+
+              {/* File list */}
+              {importFiles.length > 0 && (
+                <ul className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                  {importFiles.map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                      <span className="flex-1 text-xs text-slate-700 font-mono truncate">{f.name}</span>
+                      <span className="text-xs text-slate-400 shrink-0">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                        className="text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Group ID */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Group ID <span className="text-slate-400 font-normal">(ไม่บังคับ — ใช้ "manual" ถ้าไม่ระบุ)</span>
+                </label>
+                <input
+                  value={importGroupId}
+                  onChange={(e) => setImportGroupId(e.target.value)}
+                  placeholder="C1234567890abcdef... (ไม่บังคับ)"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {importError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {importError}
+                </p>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={closeImport}
+                disabled={importMutation.isPending}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleImportSubmit}
+                disabled={importMutation.isPending}
+                className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {importMutation.isPending ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    กำลังอัปโหลด...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    นำเข้า{importFiles.length > 0 ? ` ${importFiles.length} ไฟล์` : "ไฟล์"}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
