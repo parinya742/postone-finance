@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X, PanelLeftClose, PanelLeftOpen,
-  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown,
+  Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown, Image,
   Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -50,6 +50,7 @@ const navGroups = [
       { href: '/admin/shipments', label: 'รายการพัสดุไปรษณีย์ (web)', icon: Package, permission: 'shipments.view', exact: false },
       { href: '/admin/line-files', label: 'รายการไฟล์บริการ', icon: FileArchive, permission: 'line-files.view', exact: false },
       { href: '/admin/line-extracted', label: 'รายการคัดแยกไฟล์บริการ (zip)', icon: FileText, permission: 'line-files.view', exact: false },
+      { href: '/admin/line-media', label: 'รายการสื่อ LINE (Media)', icon: Image, permission: 'line-media.view', exact: false },
       { href: '/admin/thaipost', label: 'รายการพัสดุไฟล์บริการ', icon: Truck, permission: 'thaipost.view', exact: false },
       { href: '/admin/shipment-acceptance', label: 'เปรียบเทียบข้อมูลไปรษณีย์', icon: GitMerge, permission: 'shipments.view', exact: false },
     ],

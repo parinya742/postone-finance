@@ -198,6 +198,11 @@ class LineSoController extends Controller
             ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
             ->leftJoin('special_postal_zones as spz', 'spz.office_name', '=', 'thpa.destination_name')
             ->leftJoin('postone_account_types as pat', 'pat.id', '=', 'ps.account_type_id')
+            ->leftJoin('line_group_files as lgf', 'lgf.id', '=', 'thpa.parent_file_id')
+            ->where(function ($q) {
+                $q->whereNull('thpa.parent_file_id')
+                  ->orWhere('lgf.is_active', true);
+            })
             ->orderByDesc('thpa.deposit_datetime');
 
         if ($s) {

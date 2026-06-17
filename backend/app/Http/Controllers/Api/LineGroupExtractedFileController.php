@@ -11,7 +11,11 @@ class LineGroupExtractedFileController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = LineGroupExtractedFile::with('parentFile:id,original_file_name,group_id');
+        $query = LineGroupExtractedFile::with('parentFile:id,original_file_name,group_id')
+            ->where(function ($q) {
+                $q->whereNull('parent_file_id')
+                  ->orWhereHas('parentFile', fn ($q2) => $q2->where('is_active', true));
+            });
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {

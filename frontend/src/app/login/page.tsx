@@ -75,7 +75,7 @@ export default function LoginPage() {
           <h2 className="text-4xl font-bold text-white leading-tight">
             ระบบการจัดการ
             <br />
-            <span className="text-[#ACC7D9]">Report</span>
+            <span className="text-[#ACC7D9]">Financial Report</span>
           </h2>
           <p className="text-white/50 mt-4 text-sm leading-relaxed max-w-sm">
             ระบบสำหรับจัดการรายงานการเงิน 

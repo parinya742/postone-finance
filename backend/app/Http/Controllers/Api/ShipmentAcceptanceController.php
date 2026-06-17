@@ -72,6 +72,11 @@ class ShipmentAcceptanceController extends Controller
             ])
             ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
             ->leftJoin('postone_account_types as pat', 'pat.id', '=', 'ps.account_type_id')
+            ->leftJoin('line_group_files as lgf', 'lgf.id', '=', 'thpa.parent_file_id')
+            ->where(function ($q) {
+                $q->whereNull('thpa.parent_file_id')
+                  ->orWhere('lgf.is_active', true);
+            })
             ->orderByDesc('thpa.deposit_datetime');
 
         if ($request->filled('search')) {
@@ -118,6 +123,11 @@ class ShipmentAcceptanceController extends Controller
         $baseStats = DB::connection('n8n')
             ->table('thailand_post_acceptance as thpa')
             ->leftJoin('postone_shipments as ps', 'ps.tracking_no', '=', 'thpa.barcode')
+            ->leftJoin('line_group_files as lgf', 'lgf.id', '=', 'thpa.parent_file_id')
+            ->where(function ($q) {
+                $q->whereNull('thpa.parent_file_id')
+                  ->orWhere('lgf.is_active', true);
+            })
             ->selectRaw('COUNT(*) as total_all, COUNT(ps.tracking_no) as matched_all, SUM(CASE WHEN ps.tracking_no IS NULL THEN 1 ELSE 0 END) as unmatched_all')
             ->first();
 

@@ -21,6 +21,8 @@ import {
   Pencil,
   Trash2,
   ChevronDown,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import clsx from "clsx";
@@ -854,21 +856,31 @@ function NotePanel({ fileId, canEdit, canDelete }: { fileId: number; canEdit: bo
 
 export default function LineFilesPage() {
   const { can } = useAuth();
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [extFilter, setExtFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState("");
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
   const [expandedNoteFileId, setExpandedNoteFileId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineGroupFile>>({
-    queryKey: ["line-files", search, extFilter, page],
+    queryKey: ["line-files", search, extFilter, activeFilter, page],
     queryFn: () =>
       api
         .get("/line-files", {
-          params: { search, extension: extFilter, page, per_page: 20 },
+          params: { search, extension: extFilter, is_active: activeFilter || undefined, page, per_page: 20 },
         })
         .then((r) => r.data),
     enabled: can("line-files.view"),
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: (id: number) => api.patch(`/line-files/${id}/toggle-active`).then((r) => r.data),
+    onMutate: (id) => setTogglingId(id),
+    onSettled: () => setTogglingId(null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["line-files"] }),
   });
 
   if (!can("line-files.view")) {
@@ -942,6 +954,18 @@ export default function LineFilesPage() {
             </option>
           ))}
         </select>
+        <select
+          value={activeFilter}
+          onChange={(e) => {
+            setActiveFilter(e.target.value);
+            setPage(1);
+          }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">ทุกสถานะ</option>
+          <option value="true">ใช้งาน</option>
+          <option value="false">ไม่ใช้งาน</option>
+        </select>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -970,6 +994,9 @@ export default function LineFilesPage() {
                 วันที่
               </th>
               <th className="text-center px-5 py-3 font-medium text-slate-600">
+                สถานะ
+              </th>
+              <th className="text-center px-5 py-3 font-medium text-slate-600">
                 Note
               </th>
               <th className="px-5 py-3" />
@@ -979,7 +1006,7 @@ export default function LineFilesPage() {
             {isLoading ? (
               [...Array(6)].map((_, i) => (
                 <tr key={i}>
-                  {[...Array(8)].map((_, j) => (
+                  {[...Array(10)].map((_, j) => (
                     <td key={j} className="px-5 py-4">
                       <div className="h-4 bg-slate-100 rounded animate-pulse" />
                     </td>
@@ -989,7 +1016,7 @@ export default function LineFilesPage() {
             ) : items.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={10}
                   className="px-5 py-12 text-center text-slate-400"
                 >
                   <FileArchive className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -1063,6 +1090,38 @@ export default function LineFilesPage() {
                     </td>
                     <td className="px-5 py-4 text-slate-400 text-xs">
                       {fmtDate(item.created_at)}
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      {can("line-files.edit") ? (
+                        <button
+                          onClick={() => toggleActiveMutation.mutate(item.id)}
+                          disabled={togglingId === item.id}
+                          title={item.is_active ? "ใช้งานอยู่ — คลิกเพื่อปิด" : "ไม่ใช้งาน — คลิกเพื่อเปิด"}
+                          className={clsx(
+                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors disabled:opacity-50",
+                            item.is_active
+                              ? "bg-green-100 text-green-700 hover:bg-green-200"
+                              : "bg-slate-100 text-slate-500 hover:bg-slate-200",
+                          )}
+                        >
+                          {item.is_active
+                            ? <><ToggleRight className="w-3.5 h-3.5" />ใช้งาน</>
+                            : <><ToggleLeft className="w-3.5 h-3.5" />ไม่ใช้งาน</>}
+                        </button>
+                      ) : (
+                        <span
+                          className={clsx(
+                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                            item.is_active
+                              ? "bg-green-100 text-green-700"
+                              : "bg-slate-100 text-slate-500",
+                          )}
+                        >
+                          {item.is_active
+                            ? <><ToggleRight className="w-3.5 h-3.5" />ใช้งาน</>
+                            : <><ToggleLeft className="w-3.5 h-3.5" />ไม่ใช้งาน</>}
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-center">
                       <button

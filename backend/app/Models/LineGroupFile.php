@@ -13,6 +13,7 @@ class LineGroupFile extends Model
 
     protected $casts = [
         'created_at' => 'datetime',
+        'is_active'  => 'boolean',
     ];
 
     public function extractedFiles()

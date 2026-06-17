@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\LazadaTransactionController;
 use App\Http\Controllers\Api\LazadaTransactionFileController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
 use App\Http\Controllers\Api\LineGroupFileController;
+use App\Http\Controllers\Api\LineGroupMediaController;
 use App\Http\Controllers\Api\LineSoController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PostoneAccountTypeController;
@@ -122,9 +123,20 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::middleware('permission:line-files.edit')->group(function () {
         Route::put('/line-files/notes/{id}', [\App\Http\Controllers\Api\LineGroupFileNoteController::class, 'update']);
+        Route::patch('/line-files/{id}/toggle-active', [LineGroupFileController::class, 'toggleActive']);
     });
     Route::middleware('permission:line-files.delete')->group(function () {
         Route::delete('/line-files/notes/{id}', [\App\Http\Controllers\Api\LineGroupFileNoteController::class, 'destroy']);
+    });
+
+    // === LINE Group Media ===
+    Route::middleware('permission:line-media.view')->group(function () {
+        Route::get('/line-media', [LineGroupMediaController::class, 'index']);
+        Route::get('/line-media/{id}', [LineGroupMediaController::class, 'show']);
+    });
+    Route::middleware('permission:line-media.delete')->group(function () {
+        Route::delete('/line-media/{id}', [LineGroupMediaController::class, 'destroy']);
+        Route::patch('/line-media/{id}/restore', [LineGroupMediaController::class, 'restore']);
     });
 
     // === Thailand Post Acceptance ===
@@ -187,7 +199,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/lazada/shops/auto-refresh', [LazadaShopController::class, 'autoRefresh']);
     });
     Route::middleware('permission:lazada-shops.delete')->delete('/lazada/shops/{id}', [LazadaShopController::class, 'destroy']);
-    Route::middleware('permission:lazada-shops.view')->get('/audit-logs', [AuditLogController::class, 'index']);
+    Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
     // === Lazada Sessions (cookie-based) ===
     Route::middleware('permission:lazada-sessions.view')->group(function () {

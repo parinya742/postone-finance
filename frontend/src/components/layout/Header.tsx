@@ -24,6 +24,7 @@ const pageTitles: Record<string, string> = {
   '/admin/shipments': 'รายการพัสดุไปรษณีย์',
   '/admin/line-files': 'รายการไฟล์บริการ',
   '/admin/line-extracted': 'รายการคัดแยกไฟล์บริการ',
+  '/admin/line-media': 'รายการสื่อ LINE (Media)',
   '/admin/thaipost': 'รายการพัสดุไฟล์บริการ',
   '/admin/shipment-acceptance': 'เปรียบเทียบข้อมูลไปรษณีย์',
 

@@ -100,6 +100,20 @@ export interface PostoneShipment {
   export_file?: PostoneExportFile
 }
 
+export interface LineGroupMedia {
+  id: number
+  group_id: string
+  message_id: string
+  file_url: string
+  file_extension: string | null
+  content_type: string
+  width: number | null
+  height: number | null
+  duration_ms: number | null
+  created_at: string | null
+  deleted_at: string | null
+}
+
 export interface LineGroupFile {
   id: number
   group_id: string | null
@@ -110,6 +124,7 @@ export interface LineGroupFile {
   file_extension: string | null
   content_type: string | null
   source_type: string | null
+  is_active: boolean
   extracted_files_count?: number
 }
 
