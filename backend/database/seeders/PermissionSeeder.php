@@ -26,6 +26,7 @@ class PermissionSeeder extends Seeder
             'special-zones' => ['view', 'create', 'edit', 'delete'],
             'ems-rates'     => ['view', 'create', 'edit', 'delete'],
             'domestic-letter-rates' => ['view', 'create', 'edit', 'delete'],
+            'shopee-sessions'        => ['view', 'create', 'edit', 'delete'],
         ];
 
         $labelMap = [

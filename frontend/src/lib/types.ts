@@ -297,7 +297,46 @@ export interface SpecialPostalZone {
   updated_at: string | null
 }
 
+export interface LazadaSessionLog {
+  id: number
+  run_id: string
+  platform: string
+  seller_key: string
+  shop_name: string | null
+  status: string
+  live: string | null
+  asc_uid: string | null
+  reason: string | null
+  triggered_by: string
+  duration_ms: number | null
+  created_at: string
+}
+
 export interface LazadaSession {
+  id: number
+  seller_key: string
+  shop_name: string | null
+  cookie_length: number
+  cookie_preview: string | null
+  updated_at: string | null
+  days_ago: number | null
+  status: 'active' | 'warning' | 'expired' | 'unknown'
+}
+
+export interface ShopeeSessionLog {
+  id: number
+  run_id: string
+  seller_key: string
+  shop_name: string | null
+  status: string
+  missing: string | null
+  reason: string | null
+  triggered_by: string
+  duration_ms: number | null
+  created_at: string
+}
+
+export interface ShopeeSession {
   id: number
   seller_key: string
   shop_name: string | null

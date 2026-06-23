@@ -8,6 +8,7 @@ import {
   Settings, ChevronRight, X, PanelLeftClose, PanelLeftOpen,
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown, Image,
   Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie,
+  History as HistoryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
@@ -100,6 +101,7 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { sectionLabel: 'การจัดการ' },
       { href: '/admin/lazada/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'lazada-shops.view', exact: false },
       { href: '/admin/lazada/sessions', label: 'Cookie Sessions', icon: Cookie, permission: 'lazada-sessions.view', exact: false },
+      { href: '/admin/lazada/session-logs', label: 'Capture Logs', icon: HistoryIcon, permission: 'lazada-sessions.view', exact: false },
 
       { sectionLabel: 'รายการรายรับ' },
       { href: '/admin/lazada/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: false },
@@ -127,6 +129,8 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
     items: [
       { sectionLabel: 'การจัดการ' },
       { href: '/admin/shopee/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'shopee-shops.view', exact: false },
+      { href: '/admin/shopee/sessions', label: 'Cookie Sessions', icon: Cookie, permission: 'shopee-sessions.view', exact: false },
+      { href: '/admin/shopee/session-logs', label: 'Capture Logs', icon: HistoryIcon, permission: 'shopee-sessions.view', exact: false },
 
       { sectionLabel: 'รายการรายรับ' },
       { href: '/admin/shopee/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'shopee-shops.view', exact: false },

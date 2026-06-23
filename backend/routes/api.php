@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DomesticLetterRateController;
 use App\Http\Controllers\Api\EmsRateController;
 use App\Http\Controllers\Api\LazadaInvoiceController;
 use App\Http\Controllers\Api\LazadaSessionController;
+use App\Http\Controllers\Api\LazadaSessionLogController;
 use App\Http\Controllers\Api\LazadaShopController;
 use App\Http\Controllers\Api\LazadaTransactionController;
 use App\Http\Controllers\Api\LazadaTransactionFileController;
@@ -24,6 +25,8 @@ use App\Http\Controllers\Api\ShopeeIncomeSyncLogController;
 use App\Http\Controllers\Api\ShopeeOrderFileController;
 use App\Http\Controllers\Api\ShopeeOrderItemController;
 use App\Http\Controllers\Api\ShopeeOrderSyncLogController;
+use App\Http\Controllers\Api\ShopeeSessionController;
+use App\Http\Controllers\Api\ShopeeSessionLogController;
 use App\Http\Controllers\Api\ShopeeShopController;
 use App\Http\Controllers\Api\ShopeeTransactionController;
 use App\Http\Controllers\Api\ShopeeTransactionFileController;
@@ -206,6 +209,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:lazada-sessions.view')->group(function () {
         Route::get('/lazada/sessions', [LazadaSessionController::class, 'index']);
         Route::get('/lazada/sessions/shop-keys', [LazadaSessionController::class, 'shopKeys']);
+        Route::get('/lazada/session-logs', [LazadaSessionLogController::class, 'index']);
     });
     Route::middleware('permission:lazada-sessions.create')->post('/lazada/sessions', [LazadaSessionController::class, 'store']);
     Route::middleware('permission:lazada-sessions.edit')->put('/lazada/sessions/{id}', [LazadaSessionController::class, 'update']);
@@ -254,6 +258,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/shopee/shops/{shopId}/refresh-token', [ShopeeShopController::class, 'refreshToken']);
     });
     Route::middleware('permission:shopee-shops.delete')->delete('/shopee/shops/{shopId}', [ShopeeShopController::class, 'destroy']);
+
+    // === Shopee Sessions (cookie-based) ===
+    Route::middleware('permission:shopee-sessions.view')->group(function () {
+        Route::get('/shopee/sessions', [ShopeeSessionController::class, 'index']);
+        Route::get('/shopee/sessions/shop-keys', [ShopeeSessionController::class, 'shopKeys']);
+        Route::get('/shopee/session-logs', [ShopeeSessionLogController::class, 'index']);
+    });
+    Route::middleware('permission:shopee-sessions.create')->post('/shopee/sessions', [ShopeeSessionController::class, 'store']);
+    Route::middleware('permission:shopee-sessions.edit')->group(function () {
+        Route::put('/shopee/sessions/{id}', [ShopeeSessionController::class, 'update']);
+        Route::post('/shopee/sessions/{id}/trigger-capture', [ShopeeSessionController::class, 'triggerCapture']);
+    });
+    Route::middleware('permission:shopee-sessions.delete')->delete('/shopee/sessions/{id}', [ShopeeSessionController::class, 'destroy']);
 
     // === Master Data — Domestic Letter Rates ===
     Route::middleware('permission:domestic-letter-rates.view')->group(function () {
