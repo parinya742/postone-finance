@@ -14,13 +14,44 @@ class TikTokTransactionController extends Controller
         $q = DB::connection('n8n')
             ->table('tiktok_transactions')
             ->select([
-                'id', 'shop_name', 'seller_id', 'shops_code', 'order_id',
-                'transaction_type', 'order_create_time', 'order_paid_time',
-                'currency', 'total_payment_amount', 'revenue_amount',
-                'settlement_amount', 'net_sales_amount', 'fee_amount',
-                'shipping_cost_amount', 'total_fee', 'tiktok_commission',
-                'seller_discount', 'payment_status', 'payment_id',
-                'statement_id', 'payment_time', 'statement_time', 'file_id',
+                'id', 'shop_name', 'seller_id', 'shops_code',
+                // A-E
+                'order_id', 'transaction_type', 'order_create_time', 'order_paid_time', 'currency',
+                // F-M
+                'total_payment_amount', 'revenue_amount',
+                'product_amount_after_seller_discount', 'product_amount_before_discount',
+                'seller_discount', 'refund_after_seller_discount', 'refund_before_seller_discount',
+                'refund_seller_discount',
+                // N-P
+                'total_fee', 'order_fee', 'tiktok_commission',
+                // Q-Z
+                'credit_card_installment', 'seller_shipping_cost', 'actual_shipping_fee',
+                'platform_shipping_discount', 'customer_shipping_fee', 'return_shipping_fee',
+                'shipping_refund', 'shipping_subsidy', 'exchange_shipping_fee', 'replacement_shipping_fee',
+                // AA-AJ
+                'affiliate_commission', 'non_affiliate_commission_before_pit', 'affiliate_commission_pit',
+                'affiliate_partner_commission', 'affiliate_shop_ads_commission',
+                'affiliate_shop_ads_commission_before_pit', 'affiliate_shop_ads_commission_pit',
+                'affiliate_commission_deposit', 'affiliate_commission_refund',
+                'affiliate_partner_shop_ads_commission',
+                // AK-AX
+                'sfp_service_fee', 'bonus_refund_service_fee', 'live_coupon_service_fee',
+                'xtra_coupon_service_fee', 'eams_program_fee', 'flash_sale_service_fee',
+                'paylater_fee', 'shop_growth_support_fee', 'infrastructure_fee',
+                'campaign_resource_fee', 'preorder_fee',
+                'gmv_max_coupon', 'gmv_max_coupon_sales_tax', 'gmv_max_ads_fee',
+                // AZ-BJ
+                'adjustment_amount', 'related_order_id',
+                'customer_payment', 'customer_refund',
+                'seller_joint_coupon', 'seller_joint_coupon_refund',
+                'platform_discount', 'platform_discount_refund',
+                'platform_joint_coupon', 'platform_joint_coupon_refund',
+                'seller_shipping_discount',
+                // BK-BW
+                'estimated_parcel_weight', 'charged_weight', 'product_details', 'customer_bank',
+                'statement_id', 'payment_id', 'payment_status', 'payment_time', 'statement_time',
+                'net_sales_amount', 'fee_amount', 'settlement_amount', 'shipping_cost_amount',
+                'file_id',
             ])
             ->orderByDesc('payment_time')
             ->orderByDesc('id');
@@ -31,7 +62,8 @@ class TikTokTransactionController extends Controller
                 $qb->where('order_id', 'ilike', "%{$s}%")
                    ->orWhere('payment_id', 'ilike', "%{$s}%")
                    ->orWhere('statement_id', 'ilike', "%{$s}%")
-                   ->orWhere('transaction_type', 'ilike', "%{$s}%");
+                   ->orWhere('transaction_type', 'ilike', "%{$s}%")
+                   ->orWhere('product_details', 'ilike', "%{$s}%");
             });
         }
 
@@ -40,7 +72,7 @@ class TikTokTransactionController extends Controller
         }
 
         if ($request->filled('transaction_type')) {
-            $q->where('transaction_type', $request->transaction_type);
+            $q->where('transaction_type', 'ilike', '%' . $request->transaction_type . '%');
         }
 
         if ($request->filled('start_date')) {
@@ -52,7 +84,7 @@ class TikTokTransactionController extends Controller
         }
 
         if ($request->filled('payment_status')) {
-            $q->where('payment_status', $request->payment_status);
+            $q->where('payment_status', 'ilike', $request->payment_status);
         }
 
         return response()->json($q->paginate($request->integer('per_page', 50)));

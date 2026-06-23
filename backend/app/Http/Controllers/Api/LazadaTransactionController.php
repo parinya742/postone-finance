@@ -15,11 +15,11 @@ class LazadaTransactionController extends Controller
             ->table('lazada_transactions')
             ->select([
                 'id', 'shop_name', 'transaction_date', 'transaction_type',
-                'fee_name', 'transaction_number', 'details', 'order_no',
-                'order_item_no', 'order_item_status', 'seller_sku', 'lazada_sku',
+                'fee_name', 'transaction_number', 'details', 'seller_sku', 'lazada_sku',
                 'amount', 'vat_in_amount', 'wht_amount', 'wht_included_in_amount',
-                'statement', 'paid_status', 'shipping_provider', 'reference',
-                'comment', 'payment_ref_id', 'short_code', 'synced_at', 'file_id',
+                'statement', 'paid_status', 'order_no', 'order_item_no', 'order_item_status',
+                'shipping_provider', 'shipping_speed', 'shipment_type',
+                'reference', 'comment', 'payment_ref_id', 'short_code', 'synced_at', 'file_id',
             ])
             ->orderByDesc('transaction_date')
             ->orderByDesc('id');
@@ -39,7 +39,7 @@ class LazadaTransactionController extends Controller
         }
 
         if ($request->filled('transaction_type')) {
-            $q->where('transaction_type', $request->transaction_type);
+            $q->where('transaction_type', 'ilike', '%' . $request->transaction_type . '%');
         }
 
         if ($request->filled('start_date')) {
@@ -51,7 +51,7 @@ class LazadaTransactionController extends Controller
         }
 
         if ($request->filled('paid_status')) {
-            $q->where('paid_status', $request->paid_status);
+            $q->where('paid_status', 'ilike', $request->paid_status);
         }
 
         return response()->json($q->paginate($request->integer('per_page', 50)));

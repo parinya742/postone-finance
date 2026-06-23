@@ -394,6 +394,8 @@ export interface LazadaTransaction {
   order_item_no: string | null
   order_item_status: string | null
   shipping_provider: string | null
+  shipping_speed: string | null
+  shipment_type: string | null
   reference: string | null
   comment: string | null
   payment_ref_id: string | null
@@ -454,25 +456,154 @@ export interface TikTokTransaction {
   shop_name: string
   seller_id: string | null
   shops_code: string | null
+  // A
   order_id: string | null
+  // B
   transaction_type: string | null
+  // C
   order_create_time: string | null
+  // D
   order_paid_time: string | null
+  // E
   currency: string | null
+  // F
   total_payment_amount: number | null
+  // G
   revenue_amount: number | null
-  settlement_amount: number | null
-  net_sales_amount: number | null
-  fee_amount: number | null
-  shipping_cost_amount: number | null
-  total_fee: number | null
-  tiktok_commission: number | null
+  // H
+  product_amount_after_seller_discount: number | null
+  // I
+  product_amount_before_discount: number | null
+  // J
   seller_discount: number | null
-  payment_status: string | null
-  payment_id: string | null
+  // K
+  refund_after_seller_discount: number | null
+  // L
+  refund_before_seller_discount: number | null
+  // M
+  refund_seller_discount: number | null
+  // N
+  total_fee: number | null
+  // O
+  order_fee: number | null
+  // P
+  tiktok_commission: number | null
+  // Q
+  credit_card_installment: number | null
+  // R
+  seller_shipping_cost: number | null
+  // S
+  actual_shipping_fee: number | null
+  // T
+  platform_shipping_discount: number | null
+  // U
+  customer_shipping_fee: number | null
+  // V
+  return_shipping_fee: number | null
+  // W
+  shipping_refund: number | null
+  // X
+  shipping_subsidy: number | null
+  // Y
+  exchange_shipping_fee: number | null
+  // Z
+  replacement_shipping_fee: number | null
+  // AA
+  affiliate_commission: number | null
+  // AB
+  non_affiliate_commission_before_pit: number | null
+  // AC
+  affiliate_commission_pit: number | null
+  // AD
+  affiliate_partner_commission: number | null
+  // AE
+  affiliate_shop_ads_commission: number | null
+  // AF
+  affiliate_shop_ads_commission_before_pit: number | null
+  // AG
+  affiliate_shop_ads_commission_pit: number | null
+  // AH
+  affiliate_commission_deposit: number | null
+  // AI
+  affiliate_commission_refund: number | null
+  // AJ
+  affiliate_partner_shop_ads_commission: number | null
+  // AK
+  sfp_service_fee: number | null
+  // AL
+  bonus_refund_service_fee: number | null
+  // AM
+  live_coupon_service_fee: number | null
+  // AN
+  xtra_coupon_service_fee: number | null
+  // AO
+  eams_program_fee: number | null
+  // AP
+  flash_sale_service_fee: number | null
+  // AQ
+  paylater_fee: number | null
+  // AR
+  shop_growth_support_fee: number | null
+  // AS
+  infrastructure_fee: number | null
+  // AT
+  campaign_resource_fee: number | null
+  // AU
+  preorder_fee: number | null
+  // AV
+  gmv_max_coupon: number | null
+  // AW
+  gmv_max_coupon_sales_tax: number | null
+  // AX
+  gmv_max_ads_fee: number | null
+  // AZ
+  adjustment_amount: number | null
+  // BA
+  related_order_id: string | null
+  // BB
+  customer_payment: number | null
+  // BC
+  customer_refund: number | null
+  // BD
+  seller_joint_coupon: number | null
+  // BE
+  seller_joint_coupon_refund: number | null
+  // BF
+  platform_discount: number | null
+  // BG
+  platform_discount_refund: number | null
+  // BH
+  platform_joint_coupon: number | null
+  // BI
+  platform_joint_coupon_refund: number | null
+  // BJ
+  seller_shipping_discount: number | null
+  // BK
+  estimated_parcel_weight: number | null
+  // BL
+  charged_weight: number | null
+  // BM
+  product_details: string | null
+  // BN
+  customer_bank: string | null
+  // BO
   statement_id: string | null
+  // BP
+  payment_id: string | null
+  // BQ
+  payment_status: string | null
+  // BR
   payment_time: string | null
+  // BS
   statement_time: string | null
+  // BT
+  net_sales_amount: number | null
+  // BU
+  fee_amount: number | null
+  // BV
+  settlement_amount: number | null
+  // BW
+  shipping_cost_amount: number | null
   file_id: number | null
 }
 
@@ -513,21 +644,47 @@ export interface ShopeeTransaction {
   buyer_username: string | null
   order_date: string | null
   payment_method: string | null
+  hot_listing: string | null
   payment_detail: string | null
+  instalment_plan: string | null
+  fee_pct: string | null
   payout_date: string | null
   original_price: number | null
   seller_discount: number | null
   refund_to_buyer: number | null
   shopee_discount: number | null
   seller_voucher: number | null
+  seller_cojoint_voucher: number | null
+  coins_cashback_seller: number | null
+  coins_cashback_cojoint: number | null
+  buyer_shipping_fee: number | null
+  shopee_shipping_subsidy: number | null
+  shopee_paid_shipping_on_behalf: number | null
+  return_shipping_fee: number | null
+  return_shipping_seller: number | null
+  return_shipping_program: number | null
   ams_commission: number | null
   commission_fee: number | null
   service_fee: number | null
+  platform_infra_fee: number | null
+  free_shipping_program_fee: number | null
   transaction_fee: number | null
   tax: number | null
+  ads_escrow_topup: number | null
+  installation_fee_buyer: number | null
+  installation_fee_actual: number | null
+  trade_in_bonus: number | null
   total_payout: number | null
+  voucher_code: string | null
+  lost_compensation: number | null
+  seller_shipping_promo: number | null
   shipping_provider: string | null
   carrier_name: string | null
+  refund_to_buyer_return: number | null
+  coins_used_return: number | null
+  shopee_voucher_return: number | null
+  credit_promo_return1: number | null
+  credit_promo_return2: number | null
   shop_id: string | null
   shop_name: string | null
   file_id: number | null

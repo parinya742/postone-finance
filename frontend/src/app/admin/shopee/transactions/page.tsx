@@ -22,11 +22,28 @@ function AmountCell({ value }: { value: number | null }) {
   if (value == null) return <span className="text-slate-300">—</span>
   const isNeg = value < 0
   return (
-    <span className={isNeg ? 'text-red-600 font-medium' : 'text-green-700 font-medium'}>
+    <span className={isNeg ? 'text-red-600 font-medium' : 'text-slate-700'}>
       {fmtAmt(value)}
     </span>
   )
 }
+
+function TextCell({ value, mono = false }: { value: string | null; mono?: boolean }) {
+  if (!value) return <span className="text-slate-300">—</span>
+  return <span className={mono ? 'font-mono' : ''}>{value}</span>
+}
+
+const TH = ({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) => (
+  <th className={`px-3 py-2.5 font-medium text-slate-600 whitespace-nowrap text-xs ${right ? 'text-right' : center ? 'text-center' : 'text-left'}`}>
+    {children}
+  </th>
+)
+
+const TD = ({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) => (
+  <td className={`px-3 py-2 text-xs text-slate-700 ${right ? 'text-right' : center ? 'text-center' : ''}`}>
+    {children}
+  </td>
+)
 
 export default function ShopeeTransactionsPage() {
   const { can } = useAuth()
@@ -35,6 +52,8 @@ export default function ShopeeTransactionsPage() {
   const [shopName, setShopName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [orderStartDate, setOrderStartDate] = useState('')
+  const [orderEndDate, setOrderEndDate] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
 
   const { data: shopsData } = useQuery<PaginatedResponse<ShopeeShop>>({
@@ -44,16 +63,16 @@ export default function ShopeeTransactionsPage() {
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<ShopeeTransaction>>({
-    queryKey: ['shopee-transactions', search, page, shopName, startDate, endDate, paymentMethod],
+    queryKey: ['shopee-transactions', search, page, shopName, startDate, endDate, orderStartDate, orderEndDate, paymentMethod],
     queryFn: () =>
       api.get('/shopee/transactions', {
         params: {
-          search,
-          page,
-          per_page: 50,
+          search, page, per_page: 50,
           shop_name: shopName || undefined,
           start_date: startDate || undefined,
           end_date: endDate || undefined,
+          order_start_date: orderStartDate || undefined,
+          order_end_date: orderEndDate || undefined,
           payment_method: paymentMethod || undefined,
         },
       }).then((r) => r.data),
@@ -77,11 +96,13 @@ export default function ShopeeTransactionsPage() {
     setShopName('')
     setStartDate('')
     setEndDate('')
+    setOrderStartDate('')
+    setOrderEndDate('')
     setPaymentMethod('')
     setPage(1)
   }
 
-  const hasFilter = !!(search || shopName || startDate || endDate || paymentMethod)
+  const hasFilter = !!(search || shopName || startDate || endDate || orderStartDate || orderEndDate || paymentMethod)
 
   return (
     <div className="space-y-6">
@@ -117,20 +138,39 @@ export default function ShopeeTransactionsPage() {
           ))}
         </select>
 
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => { setStartDate(e.target.value); setPage(1) }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          title="วันที่ payout เริ่มต้น"
-        />
-        <input
-          type="date"
-          value={endDate}
-          onChange={(e) => { setEndDate(e.target.value); setPage(1) }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          title="วันที่ payout สิ้นสุด"
-        />
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-slate-500 whitespace-nowrap">วันที่ payout</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => { setStartDate(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <span className="text-xs text-slate-400">–</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => { setEndDate(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-slate-500 whitespace-nowrap">วันที่สั่งซื้อ</span>
+          <input
+            type="date"
+            value={orderStartDate}
+            onChange={(e) => { setOrderStartDate(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <span className="text-xs text-slate-400">–</span>
+          <input
+            type="date"
+            value={orderEndDate}
+            onChange={(e) => { setOrderEndDate(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
 
         <input
           value={paymentMethod}
@@ -151,36 +191,72 @@ export default function ShopeeTransactionsPage() {
 
       <div className="bg-white rounded-xl border border-slate-200">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1300px]">
+          <table className="w-full text-xs" style={{ minWidth: '4200px' }}>
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">วันที่ Payout</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ร้านค้า</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Order SN</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Buyer</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">วิธีชำระ</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ราคาต้น (฿)</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Commission (฿)</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Service Fee (฿)</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Tx Fee (฿)</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ยอดสุทธิ (฿)</th>
-                <th className="text-center px-4 py-3 font-medium text-slate-600 whitespace-nowrap">File ID</th>
+                <TH>ร้านค้า</TH>
+                {/* B */ }<TH>หมายเลขคำสั่งซื้อ</TH>
+                {/* C */ }<TH>รหัสคืนสินค้า</TH>
+                {/* D */ }<TH>ชื่อผู้ใช้ (ผู้ซื้อ)</TH>
+                {/* E */ }<TH>วันที่ทำการสั่งซื้อ</TH>
+                {/* F */ }<TH>ช่องทางการชำระเงินของผู้ซื้อ</TH>
+                {/* G */ }<TH center>Hot Listing</TH>
+                {/* H */ }<TH>ช่องทางการชำระเงิน (รายละเอียด)</TH>
+                {/* I */ }<TH>แผนการผ่อนชำระ</TH>
+                {/* J */ }<TH center>ค่าธรรมเนียม (%)</TH>
+                {/* K */ }<TH>วันที่โอนชำระเงินสำเร็จ</TH>
+                {/* L */ }<TH right>สินค้าราคาปกติ</TH>
+                {/* M */ }<TH right>ส่วนลดสินค้าจากผู้ขาย</TH>
+                {/* N */ }<TH right>จำนวนเงินที่ทำการคืนให้ผู้ซื้อ</TH>
+                {/* O */ }<TH right>ส่วนลดสินค้าที่ออกโดย Shopee</TH>
+                {/* P */ }<TH right>โค้ดส่วนลดที่ออกโดยผู้ขาย</TH>
+                {/* Q */ }<TH right>โค้ดส่วนลดร่วมที่ออกโดยผู้ขาย</TH>
+                {/* R */ }<TH right>Coins Cashback ที่สนับสนุนโดยผู้ขาย</TH>
+                {/* S */ }<TH right>Coins Cashback ร่วมที่สนับสนุนโดยผู้ขาย</TH>
+                {/* T */ }<TH right>ค่าจัดส่งที่ชำระโดยผู้ซื้อ</TH>
+                {/* U */ }<TH right>ค่าจัดส่งสินค้าที่ออกโดย Shopee</TH>
+                {/* V */ }<TH right>ค่าจัดส่งที่ Shopee ชำระโดยชื่อของคุณ</TH>
+                {/* W */ }<TH right>ค่าจัดส่งสินค้าคืน</TH>
+                {/* X */ }<TH right>ค่าจัดส่งสินค้าคืนผู้ขาย</TH>
+                {/* Y */ }<TH right>โปรแกรมประหยัดค่าจัดส่งคืนสินค้า</TH>
+                {/* Z */ }<TH right>ค่าคอมมิชชั่น AMS</TH>
+                {/* AA */}<TH right>ค่าคอมมิชชั่น</TH>
+                {/* AB */}<TH right>ค่าบริการ</TH>
+                {/* AC */}<TH right>ค่าธรรมเนียมโครงสร้างพื้นฐานแพลตฟอร์ม</TH>
+                {/* AD */}<TH right>ค่าธรรมเนียม ของโปรแกรมประหยัดค่าจัดส่ง</TH>
+                {/* AE */}<TH right>ค่าธุรกรรมการชำระเงิน</TH>
+                {/* AF */}<TH right>ภาษี</TH>
+                {/* AG */}<TH right>ค่าธรรมเนียมเติมเงินโฆษณาจากเงิน Escrow</TH>
+                {/* AH */}<TH right>ค่าบริการติดตั้งที่ชำระโดยผู้ซื้อ</TH>
+                {/* AI */}<TH right>ค่าบริการติดตั้งจริงจากผู้ให้บริการ</TH>
+                {/* AJ */}<TH right>โบนัสส่วนลดเครื่องเก่าแลกใหม่จากผู้ขาย</TH>
+                {/* AK */}<TH right>จำนวนเงินทั้งหมดที่โอนแล้ว (฿)</TH>
+                {/* AL */}<TH>โค้ดส่วนลด</TH>
+                {/* AM */}<TH right>ค่าชดเชยที่หายไป</TH>
+                {/* AN */}<TH right>โปรโมชั่นค่าจัดส่งจากผู้ขาย</TH>
+                {/* AO */}<TH>Shipping provider</TH>
+                {/* AP */}<TH>ชื่อผู้ให้บริการขนส่ง</TH>
+                {/* AR */}<TH right>เงินที่คืนไปยังผู้ซื้อ</TH>
+                {/* AS */}<TH right>Shopee Coins ที่ใช้กับสินค้าที่ขอคืน</TH>
+                {/* AT */}<TH right>โค้ดส่วนลด Shopee ที่ใช้กับสินค้าที่ขอคืน</TH>
+                {/* AU */}<TH right>โปรโมชั่นบัตรเครดิตที่ใช้กับสินค้าที่ขอคืน 1</TH>
+                {/* AV */}<TH right>โปรโมชั่นบัตรเครดิตที่ใช้กับสินค้าที่ขอคืน 2</TH>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 [...Array(8)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(11)].map((_, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="h-4 bg-slate-100 rounded animate-pulse" />
+                    {[...Array(47)].map((_, j) => (
+                      <td key={j} className="px-3 py-2">
+                        <div className="h-3 bg-slate-100 rounded animate-pulse" />
                       </td>
                     ))}
                   </tr>
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-5 py-12 text-center text-slate-400">
+                  <td colSpan={47} className="px-5 py-12 text-center text-slate-400">
                     <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     ไม่พบรายการธุรกรรม
                   </td>
@@ -188,40 +264,57 @@ export default function ShopeeTransactionsPage() {
               ) : (
                 items.map((item) => (
                   <tr key={item.order_sn} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
-                      <div>{fmtDate(item.payout_date)}</div>
-                      {item.order_date && (
-                        <div className="text-slate-400 text-[10px]">สั่ง {fmtDate(item.order_date)}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-xs font-medium text-slate-700">{item.shop_name ?? '—'}</p>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-orange-700 max-w-[160px] truncate" title={item.order_sn}>
-                      {item.order_sn}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-600 max-w-[120px] truncate" title={item.buyer_username ?? ''}>
-                      {item.buyer_username ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 max-w-[100px] truncate" title={item.payment_method ?? ''}>
-                      {item.payment_method ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <AmountCell value={item.original_price} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <AmountCell value={item.commission_fee} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <AmountCell value={item.service_fee} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <AmountCell value={item.transaction_fee} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <AmountCell value={item.total_payout} />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 text-center">{item.file_id ?? '—'}</td>
+                    <TD><span className="font-medium text-slate-800 whitespace-nowrap">{item.shop_name ?? '—'}</span></TD>
+                    <TD><span className="font-mono text-orange-700">{item.order_sn}</span></TD>
+                    <TD><TextCell value={item.return_sn} mono /></TD>
+                    <TD><TextCell value={item.buyer_username} /></TD>
+                    <TD><span className="whitespace-nowrap">{fmtDate(item.order_date)}</span></TD>
+                    <TD><TextCell value={item.payment_method} /></TD>
+                    <TD center><TextCell value={item.hot_listing} /></TD>
+                    <TD>
+                      <span className="max-w-[160px] truncate block" title={item.payment_detail ?? ''}>{item.payment_detail ?? '—'}</span>
+                    </TD>
+                    <TD><TextCell value={item.instalment_plan} /></TD>
+                    <TD center><TextCell value={item.fee_pct} /></TD>
+                    <TD><span className="whitespace-nowrap">{fmtDate(item.payout_date)}</span></TD>
+                    <TD right><AmountCell value={item.original_price} /></TD>
+                    <TD right><AmountCell value={item.seller_discount} /></TD>
+                    <TD right><AmountCell value={item.refund_to_buyer} /></TD>
+                    <TD right><AmountCell value={item.shopee_discount} /></TD>
+                    <TD right><AmountCell value={item.seller_voucher} /></TD>
+                    <TD right><AmountCell value={item.seller_cojoint_voucher} /></TD>
+                    <TD right><AmountCell value={item.coins_cashback_seller} /></TD>
+                    <TD right><AmountCell value={item.coins_cashback_cojoint} /></TD>
+                    <TD right><AmountCell value={item.buyer_shipping_fee} /></TD>
+                    <TD right><AmountCell value={item.shopee_shipping_subsidy} /></TD>
+                    <TD right><AmountCell value={item.shopee_paid_shipping_on_behalf} /></TD>
+                    <TD right><AmountCell value={item.return_shipping_fee} /></TD>
+                    <TD right><AmountCell value={item.return_shipping_seller} /></TD>
+                    <TD right><AmountCell value={item.return_shipping_program} /></TD>
+                    <TD right><AmountCell value={item.ams_commission} /></TD>
+                    <TD right><AmountCell value={item.commission_fee} /></TD>
+                    <TD right><AmountCell value={item.service_fee} /></TD>
+                    <TD right><AmountCell value={item.platform_infra_fee} /></TD>
+                    <TD right><AmountCell value={item.free_shipping_program_fee} /></TD>
+                    <TD right><AmountCell value={item.transaction_fee} /></TD>
+                    <TD right><AmountCell value={item.tax} /></TD>
+                    <TD right><AmountCell value={item.ads_escrow_topup} /></TD>
+                    <TD right><AmountCell value={item.installation_fee_buyer} /></TD>
+                    <TD right><AmountCell value={item.installation_fee_actual} /></TD>
+                    <TD right><AmountCell value={item.trade_in_bonus} /></TD>
+                    <TD right>
+                      <span className="font-semibold text-green-700">{fmtAmt(item.total_payout)}</span>
+                    </TD>
+                    <TD><TextCell value={item.voucher_code} mono /></TD>
+                    <TD right><AmountCell value={item.lost_compensation} /></TD>
+                    <TD right><AmountCell value={item.seller_shipping_promo} /></TD>
+                    <TD><TextCell value={item.shipping_provider} /></TD>
+                    <TD><TextCell value={item.carrier_name} /></TD>
+                    <TD right><AmountCell value={item.refund_to_buyer_return} /></TD>
+                    <TD right><AmountCell value={item.coins_used_return} /></TD>
+                    <TD right><AmountCell value={item.shopee_voucher_return} /></TD>
+                    <TD right><AmountCell value={item.credit_promo_return1} /></TD>
+                    <TD right><AmountCell value={item.credit_promo_return2} /></TD>
                   </tr>
                 ))
               )}
@@ -242,7 +335,7 @@ export default function ShopeeTransactionsPage() {
 
       <p className="text-xs text-slate-400 flex items-center gap-1">
         <ExternalLink className="w-3.5 h-3.5" />
-        ข้อมูลดึงจาก Shopee Income Payout Report ผ่าน n8n · กรองตามวันที่ payout_date
+        ข้อมูลดึงจาก Shopee Income Payout Report · แสดงผลตามลำดับคอลัมน์ของ Excel
       </p>
     </div>
   )

@@ -13,7 +13,9 @@
       "Bash(find c:\\\\\\\\xampp\\\\\\\\htdocs\\\\\\\\postone-finance -type f -name \"*.sql\")",
       "PowerShell(Get-ChildItem -Path \"c:\\\\xampp\\\\htdocs\\\\postone-finance\" -File | Where-Object { $_.Extension -in @\\('.sql', '.dump', '.bak'\\) })",
       "Bash(grep \"\\\\.php$\")",
-      "Bash(Get-Content \"c:\\\\xampp\\\\htdocs\\\\postone-finance\\\\backend\\\\storage\\\\logs\\\\laravel.log\" -Tail 50)"
+      "Bash(Get-Content \"c:\\\\xampp\\\\htdocs\\\\postone-finance\\\\backend\\\\storage\\\\logs\\\\laravel.log\" -Tail 50)",
+      "Bash(php -r ' *)",
+      "WebFetch(domain:call-center-pk.s3.ap-southeast-1.amazonaws.com)"
     ]
   }
 }

@@ -28,11 +28,35 @@ function AmountCell({ value }: { value: number | null }) {
   )
 }
 
+function TextCell({ value, mono = false }: { value: string | null; mono?: boolean }) {
+  if (!value) return <span className="text-slate-300">—</span>
+  return <span className={mono ? 'font-mono' : ''}>{value}</span>
+}
+
+function TH({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) {
+  return (
+    <th className={`px-3 py-2.5 font-medium text-slate-600 whitespace-nowrap text-xs ${right ? 'text-right' : center ? 'text-center' : 'text-left'}`}>
+      {children}
+    </th>
+  )
+}
+
+function TD({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) {
+  return (
+    <td className={`px-3 py-2 text-xs text-slate-700 ${right ? 'text-right' : center ? 'text-center' : ''}`}>
+      {children}
+    </td>
+  )
+}
+
 const PAID_STATUS_COLORS: Record<string, string> = {
-  Paid: 'bg-green-100 text-green-700',
+  paid:   'bg-green-100 text-green-700',
+  Paid:   'bg-green-100 text-green-700',
   Unpaid: 'bg-yellow-100 text-yellow-700',
   Failed: 'bg-red-100 text-red-700',
 }
+
+const PAID_STATUS_OPTIONS = ['Paid', 'Unpaid', 'Failed']
 
 export default function LazadaTransactionsPage() {
   const { can } = useAuth()
@@ -42,6 +66,7 @@ export default function LazadaTransactionsPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [txType, setTxType] = useState('')
+  const [paidStatus, setPaidStatus] = useState('')
 
   const { data: shopsData } = useQuery<PaginatedResponse<LazadaShop>>({
     queryKey: ['lazada-shops-all'],
@@ -50,10 +75,19 @@ export default function LazadaTransactionsPage() {
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<LazadaTransaction>>({
-    queryKey: ['lazada-transactions', search, page, shopName, startDate, endDate, txType],
+    queryKey: ['lazada-transactions', search, page, shopName, startDate, endDate, txType, paidStatus],
     queryFn: () =>
       api.get('/lazada/transactions', {
-        params: { search, page, per_page: 50, shop_name: shopName || undefined, start_date: startDate || undefined, end_date: endDate || undefined, transaction_type: txType || undefined },
+        params: {
+          search: search || undefined,
+          page,
+          per_page: 50,
+          shop_name: shopName || undefined,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+          transaction_type: txType || undefined,
+          paid_status: paidStatus || undefined,
+        },
       }).then((r) => r.data),
     enabled: can('lazada-shops.view'),
   })
@@ -76,8 +110,11 @@ export default function LazadaTransactionsPage() {
     setStartDate('')
     setEndDate('')
     setTxType('')
+    setPaidStatus('')
     setPage(1)
   }
+
+  const hasFilter = !!(search || shopName || startDate || endDate || txType || paidStatus)
 
   return (
     <div className="space-y-6">
@@ -91,17 +128,19 @@ export default function LazadaTransactionsPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
+        {/* Search */}
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="หมายเลขธุรกรรม, เลขออเดอร์, ค่าธรรมเนียม..."
+            placeholder="หมายเลขธุรกรรม, เลขออเดอร์, รายละเอียด..."
             className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
         </div>
 
+        {/* Shop */}
         <select
           value={shopName}
           onChange={(e) => { setShopName(e.target.value); setPage(1) }}
@@ -113,29 +152,45 @@ export default function LazadaTransactionsPage() {
           ))}
         </select>
 
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => { setStartDate(e.target.value); setPage(1) }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          title="วันที่เริ่มต้น"
-        />
-        <input
-          type="date"
-          value={endDate}
-          onChange={(e) => { setEndDate(e.target.value); setPage(1) }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          title="วันที่สิ้นสุด"
-        />
+        {/* Transaction Date range */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-slate-500 whitespace-nowrap">Transaction Date</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => { setStartDate(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <span className="text-xs text-slate-400">–</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => { setEndDate(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
 
+        {/* Transaction Type */}
         <input
           value={txType}
           onChange={(e) => { setTxType(e.target.value); setPage(1) }}
-          placeholder="ประเภทธุรกรรม"
+          placeholder="ประเภทธุรกรรม..."
           className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 min-w-[180px]"
         />
 
-        {(search || shopName || startDate || endDate || txType) && (
+        {/* Paid Status */}
+        <select
+          value={paidStatus}
+          onChange={(e) => { setPaidStatus(e.target.value); setPage(1) }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+        >
+          <option value="">ทุกสถานะ</option>
+          {PAID_STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+
+        {hasFilter && (
           <button
             onClick={resetFilters}
             className="px-3 py-2 text-sm text-slate-500 hover:text-slate-800 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
@@ -147,85 +202,107 @@ export default function LazadaTransactionsPage() {
 
       <div className="bg-white rounded-xl border border-slate-200">
         <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[1100px]">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">วันที่</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ร้านค้า</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">หมายเลขธุรกรรม</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ประเภท</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าธรรมเนียม</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">เลขออเดอร์</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ยอด (฿)</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">VAT (฿)</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600 whitespace-nowrap">สถานะ</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600 whitespace-nowrap">File ID</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Statement</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
-              [...Array(8)].map((_, i) => (
-                <tr key={i}>
-                  {[...Array(10)].map((_, j) => (
-                    <td key={j} className="px-4 py-3">
-                      <div className="h-4 bg-slate-100 rounded animate-pulse" />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : items.length === 0 ? (
+          <table className="w-full text-xs" style={{ minWidth: '2400px' }}>
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <td colSpan={10} className="px-5 py-12 text-center text-slate-400">
-                  <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  ไม่พบรายการธุรกรรม
-                </td>
+                <TH>Transaction Date</TH>
+                <TH>ร้านค้า</TH>
+                <TH>Transaction Type</TH>
+                <TH>Fee Name</TH>
+                <TH>Transaction Number</TH>
+                <TH>Details</TH>
+                <TH>Seller SKU</TH>
+                <TH>Lazada SKU</TH>
+                <TH right>Amount</TH>
+                <TH right>VAT in Amount</TH>
+                <TH right>WHT Amount</TH>
+                <TH center>WHT included in Amount</TH>
+                <TH>Statement</TH>
+                <TH center>Paid Status</TH>
+                <TH>Order No.</TH>
+                <TH>Order Item No.</TH>
+                <TH>Order Item Status</TH>
+                <TH>Shipping Provider</TH>
+                <TH>Shipping Speed</TH>
+                <TH>Shipment Type</TH>
+                <TH>Reference</TH>
+                <TH>Comment</TH>
+                <TH>PaymentRefId</TH>
+                <TH>ShortCode</TH>
               </tr>
-            ) : (
-              items.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap text-xs">{fmtDate(item.transaction_date)}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs font-medium text-slate-700">{item.shop_name}</span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-blue-700">{item.transaction_number ?? '—'}</td>
-                  <td className="px-4 py-3 text-xs text-slate-600 max-w-[140px] truncate" title={item.transaction_type ?? ''}>
-                    {item.transaction_type ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate" title={item.fee_name ?? ''}>
-                    {item.fee_name ?? '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    {item.order_no ? (
-                      <span className="font-mono text-xs text-slate-700">{item.order_no}</span>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <AmountCell value={item.amount} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <AmountCell value={item.vat_in_amount} />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {item.paid_status ? (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PAID_STATUS_COLORS[item.paid_status] ?? 'bg-slate-100 text-slate-600'}`}>
-                        {item.paid_status}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </td>
-                  <td className='text-xs text-slate-500 max-w-[120px] truncate text-center'>{item.file_id}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500 max-w-[120px] truncate" title={item.statement ?? ''}>
-                    {item.statement ?? '—'}
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                [...Array(8)].map((_, i) => (
+                  <tr key={i}>
+                    {[...Array(24)].map((_, j) => (
+                      <td key={j} className="px-3 py-2">
+                        <div className="h-3 bg-slate-100 rounded animate-pulse" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={24} className="px-5 py-12 text-center text-slate-400">
+                    <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    ไม่พบรายการธุรกรรม
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                items.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                    <TD>{fmtDate(item.transaction_date)}</TD>
+                    <TD><span className="font-medium text-slate-800">{item.shop_name}</span></TD>
+                    <TD>
+                      <span className="max-w-[160px] truncate block" title={item.transaction_type ?? ''}>{item.transaction_type ?? '—'}</span>
+                    </TD>
+                    <TD>
+                      <span className="max-w-[140px] truncate block text-slate-500" title={item.fee_name ?? ''}>{item.fee_name ?? '—'}</span>
+                    </TD>
+                    <TD><span className="font-mono text-blue-700">{item.transaction_number ?? '—'}</span></TD>
+                    <TD>
+                      <span className="max-w-[200px] truncate block text-slate-500" title={item.details ?? ''}>{item.details ?? '—'}</span>
+                    </TD>
+                    <TD><TextCell value={item.seller_sku} mono /></TD>
+                    <TD><TextCell value={item.lazada_sku} mono /></TD>
+                    <TD right><AmountCell value={item.amount} /></TD>
+                    <TD right><AmountCell value={item.vat_in_amount} /></TD>
+                    <TD right><AmountCell value={item.wht_amount} /></TD>
+                    <TD center>
+                      {item.wht_included_in_amount ? (
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${item.wht_included_in_amount.toLowerCase() === 'yes' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {item.wht_included_in_amount}
+                        </span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </TD>
+                    <TD>
+                      <span className="max-w-[160px] truncate block text-slate-500" title={item.statement ?? ''}>{item.statement ?? '—'}</span>
+                    </TD>
+                    <TD center>
+                      {item.paid_status ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PAID_STATUS_COLORS[item.paid_status] ?? 'bg-slate-100 text-slate-600'}`}>
+                          {item.paid_status}
+                        </span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </TD>
+                    <TD><span className="font-mono">{item.order_no ?? '—'}</span></TD>
+                    <TD><span className="font-mono">{item.order_item_no ?? '—'}</span></TD>
+                    <TD><TextCell value={item.order_item_status} /></TD>
+                    <TD><TextCell value={item.shipping_provider} /></TD>
+                    <TD><TextCell value={item.shipping_speed} /></TD>
+                    <TD><TextCell value={item.shipment_type} /></TD>
+                    <TD><TextCell value={item.reference} mono /></TD>
+                    <TD>
+                      <span className="max-w-[160px] truncate block text-slate-500" title={item.comment ?? ''}>{item.comment ?? '—'}</span>
+                    </TD>
+                    <TD><TextCell value={item.payment_ref_id} mono /></TD>
+                    <TD><TextCell value={item.short_code} /></TD>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
         {data && data.last_page > 1 && (
@@ -241,7 +318,7 @@ export default function LazadaTransactionsPage() {
 
       <p className="text-xs text-slate-400 flex items-center gap-1">
         <ExternalLink className="w-3.5 h-3.5" />
-        ข้อมูลดึงจาก Lazada Finance API ผ่าน n8n · ซิงค์ครั้งล่าสุดปรากฏในคอลัมน์ synced_at
+        ข้อมูลดึงจาก Lazada Finance Statement · แสดงผลตามลำดับคอลัมน์ของ Excel
       </p>
     </div>
   )

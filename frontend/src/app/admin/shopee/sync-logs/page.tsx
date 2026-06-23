@@ -467,7 +467,7 @@ export default function ShopeeSyncLogsPage() {
         <Activity className="w-6 h-6 text-[#0070F2]" />
         <div>
           <h1 className="text-xl font-semibold text-[#32363A]">Shopee Sync Logs</h1>
-          <p className="text-[#6A6D70] text-sm mt-0.5">ประวัติการซิงค์ข้อมูล Shopee ผ่าน n8n</p>
+          <p className="text-[#6A6D70] text-sm mt-0.5">ประวัติการซิงค์ข้อมูล Shopee</p>
         </div>
       </div>
 

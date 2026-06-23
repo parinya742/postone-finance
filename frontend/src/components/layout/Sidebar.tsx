@@ -103,7 +103,7 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { href: '/admin/lazada/sessions', label: 'Cookie Sessions', icon: Cookie, permission: 'lazada-sessions.view', exact: false },
       { href: '/admin/lazada/session-logs', label: 'Capture Logs', icon: HistoryIcon, permission: 'lazada-sessions.view', exact: false },
 
-      { sectionLabel: 'รายการรายรับ' },
+      { sectionLabel: 'รายการรายรับ (การเงิน)' },
       { href: '/admin/lazada/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: false },
       { href: '/admin/lazada/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'lazada-shops.view', exact: false },
 
@@ -118,7 +118,7 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { sectionLabel: 'การจัดการ' },
       { href: '/admin/tiktok/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'tiktok-shops.view', exact: false },
 
-      { sectionLabel: 'รายการรายรับ' },
+      { sectionLabel: 'รายการรายรับ (การเงิน)' },
       { href: '/admin/tiktok/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'tiktok-shops.view', exact: false },
       { href: '/admin/tiktok/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'tiktok-shops.view', exact: false },
     ],
@@ -132,7 +132,7 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { href: '/admin/shopee/sessions', label: 'Cookie Sessions', icon: Cookie, permission: 'shopee-sessions.view', exact: false },
       { href: '/admin/shopee/session-logs', label: 'Capture Logs', icon: HistoryIcon, permission: 'shopee-sessions.view', exact: false },
 
-      { sectionLabel: 'รายการรายรับ' },
+      { sectionLabel: 'รายการรายรับ (การเงิน)' },
       { href: '/admin/shopee/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'shopee-shops.view', exact: false },
 

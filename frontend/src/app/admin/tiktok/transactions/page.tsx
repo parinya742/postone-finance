@@ -22,9 +22,30 @@ function AmountCell({ value }: { value: number | null }) {
   if (value == null) return <span className="text-slate-300">—</span>
   const isNeg = value < 0
   return (
-    <span className={isNeg ? 'text-red-600 font-medium' : 'text-green-700 font-medium'}>
+    <span className={isNeg ? 'text-red-600 font-medium' : 'text-slate-700'}>
       {fmtAmt(value)}
     </span>
+  )
+}
+
+function TextCell({ value, mono = false }: { value: string | null; mono?: boolean }) {
+  if (!value) return <span className="text-slate-300">—</span>
+  return <span className={mono ? 'font-mono' : ''}>{value}</span>
+}
+
+function TH({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) {
+  return (
+    <th className={`px-3 py-2.5 font-medium text-slate-600 whitespace-nowrap text-xs ${right ? 'text-right' : center ? 'text-center' : 'text-left'}`}>
+      {children}
+    </th>
+  )
+}
+
+function TD({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) {
+  return (
+    <td className={`px-3 py-2 text-xs text-slate-700 ${right ? 'text-right' : center ? 'text-center' : ''}`}>
+      {children}
+    </td>
   )
 }
 
@@ -56,7 +77,7 @@ export default function TikTokTransactionsPage() {
     queryFn: () =>
       api.get('/tiktok/transactions', {
         params: {
-          search,
+          search: search || undefined,
           page,
           per_page: 50,
           shop_name: shopName || undefined,
@@ -93,6 +114,8 @@ export default function TikTokTransactionsPage() {
 
   const hasFilter = !!(search || shopName || startDate || endDate || txType || paymentStatus)
 
+  const COLS = 76 // A-BW (75) + ร้านค้า
+
   return (
     <div className="space-y-6">
       <div>
@@ -105,13 +128,13 @@ export default function TikTokTransactionsPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Order ID, Payment ID, Statement ID..."
+            placeholder="Order ID, Payment ID, Statement ID, สินค้า..."
             className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
           />
         </div>
@@ -127,25 +150,27 @@ export default function TikTokTransactionsPage() {
           ))}
         </select>
 
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => { setStartDate(e.target.value); setPage(1) }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
-          title="วันที่เริ่มต้น"
-        />
-        <input
-          type="date"
-          value={endDate}
-          onChange={(e) => { setEndDate(e.target.value); setPage(1) }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
-          title="วันที่สิ้นสุด"
-        />
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-slate-500 whitespace-nowrap">เวลาชำระ</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => { setStartDate(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+          />
+          <span className="text-xs text-slate-400">–</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => { setEndDate(e.target.value); setPage(1) }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+          />
+        </div>
 
         <input
           value={txType}
           onChange={(e) => { setTxType(e.target.value); setPage(1) }}
-          placeholder="ประเภทธุรกรรม"
+          placeholder="ประเภทธุรกรรม..."
           className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 min-w-[160px]"
         />
 
@@ -173,86 +198,195 @@ export default function TikTokTransactionsPage() {
 
       <div className="bg-white rounded-xl border border-slate-200">
         <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[1200px]">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">เวลาชำระ</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ร้านค้า</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Order ID</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ประเภท</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ยอดรวม (฿)</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">รายได้ (฿)</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Settlement (฿)</th>
-              <th className="text-right px-4 py-3 font-medium text-slate-600 whitespace-nowrap">ค่าธรรมเนียม (฿)</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600 whitespace-nowrap">สถานะ</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600 whitespace-nowrap">File ID</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600 whitespace-nowrap">Statement ID</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
-              [...Array(8)].map((_, i) => (
-                <tr key={i}>
-                  {[...Array(11)].map((_, j) => (
-                    <td key={j} className="px-4 py-3">
-                      <div className="h-4 bg-slate-100 rounded animate-pulse" />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : items.length === 0 ? (
+          <table className="w-full text-xs" style={{ minWidth: '6000px' }}>
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <td colSpan={11} className="px-5 py-12 text-center text-slate-400">
-                  <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  ไม่พบรายการธุรกรรม
-                </td>
+                <TH>ร้านค้า</TH>
+                {/* A */}<TH>หมายเลขคำสั่งซื้อ/การปรับ</TH>
+                {/* B */}<TH>ประเภทธุรกรรม</TH>
+                {/* C */}<TH>เวลาที่สร้างคำสั่งซื้อ</TH>
+                {/* D */}<TH>เวลาที่ชำระคำสั่งซื้อ</TH>
+                {/* E */}<TH center>สกุลเงิน</TH>
+                {/* F */}<TH right>จำนวนเงินที่ชำระทั้งหมด</TH>
+                {/* G */}<TH right>รายได้รวม</TH>
+                {/* H */}<TH right>ยอดรวมค่าสินค้าหลังหักส่วนลดจากผู้ขาย</TH>
+                {/* I */}<TH right>ยอดรวมค่าสินค้าก่อนหักส่วนลด</TH>
+                {/* J */}<TH right>ส่วนลดจากร้านค้า</TH>
+                {/* K */}<TH right>ยอดรวมเงินคืนหลังหักส่วนลดจากร้านค้า</TH>
+                {/* L */}<TH right>ยอดรวมเงินคืนก่อนหักส่วนลดจากร้านค้า</TH>
+                {/* M */}<TH right>เงินคืนจากส่วนลดร้านค้า</TH>
+                {/* N */}<TH right>ค่าธรรมเนียมทั้งหมด</TH>
+                {/* O */}<TH right>ค่าธรรมเนียมคำสั่งซื้อ</TH>
+                {/* P */}<TH right>ค่าคอมมิชชั่น TikTok Shop</TH>
+                {/* Q */}<TH right>การผ่อนชำระด้วยบัตรเครดิต</TH>
+                {/* R */}<TH right>ยอดรวมค่าจัดส่งที่ร้านค้าจ่ายจริง</TH>
+                {/* S */}<TH right>ค่าธรรมเนียมการจัดส่งจริง</TH>
+                {/* T */}<TH right>ส่วนลดค่าจัดส่งจากแพลตฟอร์ม</TH>
+                {/* U */}<TH right>ค่าธรรมเนียมการจัดส่งของลูกค้า</TH>
+                {/* V */}<TH right>ค่าจัดส่งสินค้าคืนตามจริง</TH>
+                {/* W */}<TH right>เงินคืนสำหรับค่าจัดส่ง</TH>
+                {/* X */}<TH right>เงินสนับสนุนการจัดส่ง</TH>
+                {/* Y */}<TH right>ค่าจัดส่งสินค้าที่แลกเปลี่ยน</TH>
+                {/* Z */}<TH right>ค่าจัดส่งสินค้าทดแทน</TH>
+                {/* AA */}<TH right>ค่าคอมมิชชั่นแอฟฟิลิเอต</TH>
+                {/* AB */}<TH right>ค่าคอมมิชชั่นไม่ใช่แอฟฟิลิเอต (ก่อน PIT)</TH>
+                {/* AC */}<TH right>PIT จากคอมมิชชั่นแอฟฟิลิเอต</TH>
+                {/* AD */}<TH right>ค่าคอมมิชชั่นพาร์ทเนอร์แอฟฟิลิเอต</TH>
+                {/* AE */}<TH right>ค่าคอมมิชชั่นโฆษณาร้านค้าแอฟฟิลิเอต</TH>
+                {/* AF */}<TH right>ค่าคอมมิชชั่นโฆษณาแอฟฟิลิเอต (ก่อน PIT)</TH>
+                {/* AG */}<TH right>PIT จากค่าคอมมิชชั่นโฆษณาแอฟฟิลิเอต</TH>
+                {/* AH */}<TH right>เงินมัดจำค่าคอมมิชชั่นแอฟฟิลิเอต</TH>
+                {/* AI */}<TH right>การคืนเงินค่าคอมมิชชั่นแอฟฟิลิเอต</TH>
+                {/* AJ */}<TH right>ค่าคอมมิชชั่นโฆษณาร้านค้าพาร์ทเนอร์</TH>
+                {/* AK */}<TH right>ค่าธรรมเนียม SFP</TH>
+                {/* AL */}<TH right>ค่าธรรมเนียมคืนเงินโบนัส</TH>
+                {/* AM */}<TH right>ค่าบริการคูปองไลฟ์คุ้ม</TH>
+                {/* AN */}<TH right>ค่าบริการคูปอง Xtra</TH>
+                {/* AO */}<TH right>ค่าบริการ EAMS</TH>
+                {/* AP */}<TH right>ค่าบริการแฟลชเซล</TH>
+                {/* AQ */}<TH right>ค่าธรรมเนียม PayLater</TH>
+                {/* AR */}<TH right>ค่าธรรมเนียมสนับสนุนการเติบโต</TH>
+                {/* AS */}<TH right>ค่าธรรมเนียมโครงสร้างพื้นฐาน</TH>
+                {/* AT */}<TH right>ค่าทรัพยากรแคมเปญ</TH>
+                {/* AU */}<TH right>ค่าธรรมเนียมพรีออเดอร์</TH>
+                {/* AV */}<TH right>คูปอง GMV Max</TH>
+                {/* AW */}<TH right>ภาษีการขายคูปอง GMV Max</TH>
+                {/* AX */}<TH right>ค่าโฆษณา GMV Max</TH>
+                {/* AZ */}<TH right>จำนวนการปรับยอด</TH>
+                {/* BA */}<TH>หมายเลขคำสั่งซื้อที่เกี่ยวข้อง</TH>
+                {/* BB */}<TH right>การชำระเงินของลูกค้า</TH>
+                {/* BC */}<TH right>การคืนเงินจากลูกค้า</TH>
+                {/* BD */}<TH right>คูปองส่วนลดร่วมของผู้ขาย</TH>
+                {/* BE */}<TH right>การคืนเงินคูปองส่วนลดร่วมผู้ขาย</TH>
+                {/* BF */}<TH right>ส่วนลดจากแพลตฟอร์ม</TH>
+                {/* BG */}<TH right>การคืนเงินส่วนลดจากแพลตฟอร์ม</TH>
+                {/* BH */}<TH right>คูปองส่วนลดร่วมของแพลตฟอร์ม</TH>
+                {/* BI */}<TH right>การคืนเงินคูปองส่วนลดร่วมแพลตฟอร์ม</TH>
+                {/* BJ */}<TH right>ส่วนลดค่าจัดส่งจากร้านค้า</TH>
+                {/* BK */}<TH right>น้ำหนักพัสดุโดยประมาณ</TH>
+                {/* BL */}<TH right>น้ำหนักที่เรียกเก็บเงิน</TH>
+                {/* BM */}<TH>รายละเอียดสินค้าที่ขายได้</TH>
+                {/* BN */}<TH>ธนาคารของลูกค้า</TH>
+                {/* BO */}<TH>หมายเลขใบแจ้งยอด</TH>
+                {/* BP */}<TH>หมายเลขการชำระเงิน</TH>
+                {/* BQ */}<TH center>สถานะการชำระเงิน</TH>
+                {/* BR */}<TH>เวลาที่ชำระเงิน</TH>
+                {/* BS */}<TH>เวลาของใบแจ้งยอด</TH>
+                {/* BT */}<TH right>ยอดขายสุทธิ</TH>
+                {/* BU */}<TH right>ค่าธรรมเนียมรวมใบแจ้งยอด</TH>
+                {/* BV */}<TH right>ยอดเงินสุทธิ (Settlement)</TH>
+                {/* BW */}<TH right>ค่าจัดส่งรวมใบแจ้งยอด</TH>
               </tr>
-            ) : (
-              items.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{fmtDateTime(item.payment_time)}</td>
-                  <td className="px-4 py-3">
-                    <p className="text-xs font-medium text-slate-700">{item.shop_name}</p>
-                    {item.shops_code && (
-                      <span className="text-[10px] font-mono text-rose-500">{item.shops_code}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-blue-700 max-w-[160px] truncate" title={item.order_id ?? ''}>
-                    {item.order_id ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-600 max-w-[140px] truncate" title={item.transaction_type ?? ''}>
-                    {item.transaction_type ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <AmountCell value={item.total_payment_amount} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <AmountCell value={item.revenue_amount} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <AmountCell value={item.settlement_amount} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <AmountCell value={item.fee_amount} />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {item.payment_status ? (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[item.payment_status] ?? 'bg-slate-100 text-slate-600'}`}>
-                        {item.payment_status}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 text-center">{item.file_id ?? '—'}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500 font-mono max-w-[140px] truncate" title={item.statement_id ?? ''}>
-                    {item.statement_id ?? '—'}
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                [...Array(8)].map((_, i) => (
+                  <tr key={i}>
+                    {[...Array(COLS)].map((_, j) => (
+                      <td key={j} className="px-3 py-2">
+                        <div className="h-3 bg-slate-100 rounded animate-pulse" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={COLS} className="px-5 py-12 text-center text-slate-400">
+                    <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    ไม่พบรายการธุรกรรม
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                items.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                    <TD><span className="font-medium text-slate-800 whitespace-nowrap">{item.shop_name}</span></TD>
+                    <TD><span className="font-mono text-blue-700">{item.order_id ?? '—'}</span></TD>
+                    <TD><span className="max-w-[160px] truncate block" title={item.transaction_type ?? ''}>{item.transaction_type ?? '—'}</span></TD>
+                    <TD><span className="whitespace-nowrap">{fmtDateTime(item.order_create_time)}</span></TD>
+                    <TD><span className="whitespace-nowrap">{fmtDateTime(item.order_paid_time)}</span></TD>
+                    <TD center><TextCell value={item.currency} /></TD>
+                    <TD right><AmountCell value={item.total_payment_amount} /></TD>
+                    <TD right><AmountCell value={item.revenue_amount} /></TD>
+                    <TD right><AmountCell value={item.product_amount_after_seller_discount} /></TD>
+                    <TD right><AmountCell value={item.product_amount_before_discount} /></TD>
+                    <TD right><AmountCell value={item.seller_discount} /></TD>
+                    <TD right><AmountCell value={item.refund_after_seller_discount} /></TD>
+                    <TD right><AmountCell value={item.refund_before_seller_discount} /></TD>
+                    <TD right><AmountCell value={item.refund_seller_discount} /></TD>
+                    <TD right><AmountCell value={item.total_fee} /></TD>
+                    <TD right><AmountCell value={item.order_fee} /></TD>
+                    <TD right><AmountCell value={item.tiktok_commission} /></TD>
+                    <TD right><AmountCell value={item.credit_card_installment} /></TD>
+                    <TD right><AmountCell value={item.seller_shipping_cost} /></TD>
+                    <TD right><AmountCell value={item.actual_shipping_fee} /></TD>
+                    <TD right><AmountCell value={item.platform_shipping_discount} /></TD>
+                    <TD right><AmountCell value={item.customer_shipping_fee} /></TD>
+                    <TD right><AmountCell value={item.return_shipping_fee} /></TD>
+                    <TD right><AmountCell value={item.shipping_refund} /></TD>
+                    <TD right><AmountCell value={item.shipping_subsidy} /></TD>
+                    <TD right><AmountCell value={item.exchange_shipping_fee} /></TD>
+                    <TD right><AmountCell value={item.replacement_shipping_fee} /></TD>
+                    <TD right><AmountCell value={item.affiliate_commission} /></TD>
+                    <TD right><AmountCell value={item.non_affiliate_commission_before_pit} /></TD>
+                    <TD right><AmountCell value={item.affiliate_commission_pit} /></TD>
+                    <TD right><AmountCell value={item.affiliate_partner_commission} /></TD>
+                    <TD right><AmountCell value={item.affiliate_shop_ads_commission} /></TD>
+                    <TD right><AmountCell value={item.affiliate_shop_ads_commission_before_pit} /></TD>
+                    <TD right><AmountCell value={item.affiliate_shop_ads_commission_pit} /></TD>
+                    <TD right><AmountCell value={item.affiliate_commission_deposit} /></TD>
+                    <TD right><AmountCell value={item.affiliate_commission_refund} /></TD>
+                    <TD right><AmountCell value={item.affiliate_partner_shop_ads_commission} /></TD>
+                    <TD right><AmountCell value={item.sfp_service_fee} /></TD>
+                    <TD right><AmountCell value={item.bonus_refund_service_fee} /></TD>
+                    <TD right><AmountCell value={item.live_coupon_service_fee} /></TD>
+                    <TD right><AmountCell value={item.xtra_coupon_service_fee} /></TD>
+                    <TD right><AmountCell value={item.eams_program_fee} /></TD>
+                    <TD right><AmountCell value={item.flash_sale_service_fee} /></TD>
+                    <TD right><AmountCell value={item.paylater_fee} /></TD>
+                    <TD right><AmountCell value={item.shop_growth_support_fee} /></TD>
+                    <TD right><AmountCell value={item.infrastructure_fee} /></TD>
+                    <TD right><AmountCell value={item.campaign_resource_fee} /></TD>
+                    <TD right><AmountCell value={item.preorder_fee} /></TD>
+                    <TD right><AmountCell value={item.gmv_max_coupon} /></TD>
+                    <TD right><AmountCell value={item.gmv_max_coupon_sales_tax} /></TD>
+                    <TD right><AmountCell value={item.gmv_max_ads_fee} /></TD>
+                    <TD right><AmountCell value={item.adjustment_amount} /></TD>
+                    <TD><TextCell value={item.related_order_id} mono /></TD>
+                    <TD right><AmountCell value={item.customer_payment} /></TD>
+                    <TD right><AmountCell value={item.customer_refund} /></TD>
+                    <TD right><AmountCell value={item.seller_joint_coupon} /></TD>
+                    <TD right><AmountCell value={item.seller_joint_coupon_refund} /></TD>
+                    <TD right><AmountCell value={item.platform_discount} /></TD>
+                    <TD right><AmountCell value={item.platform_discount_refund} /></TD>
+                    <TD right><AmountCell value={item.platform_joint_coupon} /></TD>
+                    <TD right><AmountCell value={item.platform_joint_coupon_refund} /></TD>
+                    <TD right><AmountCell value={item.seller_shipping_discount} /></TD>
+                    <TD right><AmountCell value={item.estimated_parcel_weight} /></TD>
+                    <TD right><AmountCell value={item.charged_weight} /></TD>
+                    <TD><span className="max-w-[200px] truncate block text-slate-500" title={item.product_details ?? ''}>{item.product_details ?? '—'}</span></TD>
+                    <TD><TextCell value={item.customer_bank} /></TD>
+                    <TD><span className="font-mono text-slate-600">{item.statement_id ?? '—'}</span></TD>
+                    <TD><span className="font-mono text-slate-600">{item.payment_id ?? '—'}</span></TD>
+                    <TD center>
+                      {item.payment_status ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[item.payment_status] ?? 'bg-slate-100 text-slate-600'}`}>
+                          {item.payment_status}
+                        </span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </TD>
+                    <TD><span className="whitespace-nowrap">{fmtDateTime(item.payment_time)}</span></TD>
+                    <TD><span className="whitespace-nowrap">{fmtDateTime(item.statement_time)}</span></TD>
+                    <TD right><AmountCell value={item.net_sales_amount} /></TD>
+                    <TD right><AmountCell value={item.fee_amount} /></TD>
+                    <TD right>
+                      <span className="font-semibold text-green-700">{fmtAmt(item.settlement_amount)}</span>
+                    </TD>
+                    <TD right><AmountCell value={item.shipping_cost_amount} /></TD>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
         {data && data.last_page > 1 && (
@@ -268,7 +402,7 @@ export default function TikTokTransactionsPage() {
 
       <p className="text-xs text-slate-400 flex items-center gap-1">
         <ExternalLink className="w-3.5 h-3.5" />
-        ข้อมูลดึงจาก TikTok Shop Finance API ผ่าน n8n · กรองตามวันที่ payment_time
+        ข้อมูลดึงจาก TikTok Shop Finance · แสดงผลตามลำดับคอลัมน์ของ Excel
       </p>
     </div>
   )
