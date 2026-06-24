@@ -203,7 +203,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/lazada/shops/auto-refresh', [LazadaShopController::class, 'autoRefresh']);
     });
     Route::middleware('permission:lazada-shops.delete')->delete('/lazada/shops/{id}', [LazadaShopController::class, 'destroy']);
-    Route::get('/audit-logs', [AuditLogController::class, 'index']);
+    // === Audit Logs ===
+    Route::middleware('permission:audit_logs.view')->get('/audit-logs', [AuditLogController::class, 'index']);
+    Route::post('/audit-logs', [AuditLogController::class, 'store']);
 
     // === Lazada Sessions (cookie-based) ===
     Route::middleware('permission:lazada-sessions.view')->group(function () {

@@ -4,8 +4,9 @@ import api from '@/lib/api'
 import { LazadaTransaction, LazadaShop, PaginatedResponse } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Search, Lock, Receipt, ExternalLink } from 'lucide-react'
+import { Search, Lock, Receipt, ExternalLink, Download } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import * as XLSX from 'xlsx'
 
 function fmtDate(d: string | null) {
   if (!d) return '—'
@@ -67,6 +68,87 @@ export default function LazadaTransactionsPage() {
   const [endDate, setEndDate] = useState('')
   const [txType, setTxType] = useState('')
   const [paidStatus, setPaidStatus] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const res = await api.get('/lazada/transactions', {
+        params: {
+          search: search || undefined,
+          per_page: 50000,
+          shop_name: shopName || undefined,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+          transaction_type: txType || undefined,
+          paid_status: paidStatus || undefined,
+        },
+      })
+      const fetchItems = res.data?.data ?? []
+      if (fetchItems.length === 0) {
+        alert('ไม่พบข้อมูลสำหรับส่งออก')
+        return
+      }
+
+      const rows = fetchItems.map((item: LazadaTransaction) => ({
+        'Transaction Date': item.transaction_date ? new Date(item.transaction_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—',
+        'ร้านค้า': item.shop_name ?? '',
+        'Transaction Type': item.transaction_type ?? '',
+        'Fee Name': item.fee_name ?? '',
+        'Transaction Number': item.transaction_number ?? '',
+        'Details': item.details ?? '',
+        'Seller SKU': item.seller_sku ?? '',
+        'Lazada SKU': item.lazada_sku ?? '',
+        'Amount': item.amount ?? '',
+        'VAT in Amount': item.vat_in_amount ?? '',
+        'WHT Amount': item.wht_amount ?? '',
+        'WHT included in Amount': item.wht_included_in_amount ?? '',
+        'Statement': item.statement ?? '',
+        'Paid Status': item.paid_status ?? '',
+        'Order No.': item.order_no ?? '',
+        'Order Item No.': item.order_item_no ?? '',
+        'Order Item Status': item.order_item_status ?? '',
+        'Shipping Provider': item.shipping_provider ?? '',
+        'Shipping Speed': item.shipping_speed ?? '',
+        'Shipment Type': item.shipment_type ?? '',
+        'Reference': item.reference ?? '',
+        'Comment': item.comment ?? '',
+        'PaymentRefId': item.payment_ref_id ?? '',
+        'ShortCode': item.short_code ?? '',
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Transactions')
+
+      const dateStr = new Date().toISOString().slice(0, 10)
+      const filename = `lazada-transactions-${dateStr}.xlsx`
+      XLSX.writeFile(wb, filename)
+
+      api.post('/audit-logs', {
+        action: 'export',
+        target_type: 'lazada-transactions',
+        target_id: 0,
+        target_name: filename,
+        payload: {
+          row_count: fetchItems.length,
+          filters: {
+            search: search || null,
+            shop_name: shopName || null,
+            start_date: startDate || null,
+            end_date: endDate || null,
+            transaction_type: txType || null,
+            paid_status: paidStatus || null,
+          },
+        },
+      }).catch(() => {})
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert('เกิดข้อผิดพลาดในการส่งออก')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const { data: shopsData } = useQuery<PaginatedResponse<LazadaShop>>({
     queryKey: ['lazada-shops-all'],
@@ -118,14 +200,25 @@ export default function LazadaTransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <Receipt className="w-6 h-6 text-orange-500" />
-          <h1 className="text-2xl font-bold text-slate-800">รายการธุรกรรม Lazada</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Receipt className="w-6 h-6 text-orange-500" />
+            <h1 className="text-2xl font-bold text-slate-800">รายการธุรกรรม Lazada</h1>
+          </div>
+          <p className="text-slate-500 text-sm mt-1">
+            ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ
+          </p>
         </div>
-        <p className="text-slate-500 text-sm mt-1">
-          ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ
-        </p>
+
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors shrink-0"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? 'กำลังส่งออก...' : 'Export Excel'}
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">

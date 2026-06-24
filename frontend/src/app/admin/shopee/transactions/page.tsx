@@ -4,8 +4,9 @@ import api from '@/lib/api'
 import { ShopeeTransaction, ShopeeShop, PaginatedResponse } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Search, Lock, Receipt, ExternalLink } from 'lucide-react'
+import { Search, Lock, Receipt, ExternalLink, Download } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import * as XLSX from 'xlsx'
 
 function fmtDate(d: string | null) {
   if (!d) return '—'
@@ -55,6 +56,112 @@ export default function ShopeeTransactionsPage() {
   const [orderStartDate, setOrderStartDate] = useState('')
   const [orderEndDate, setOrderEndDate] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const res = await api.get('/shopee/transactions', {
+        params: {
+          search: search || undefined,
+          per_page: 50000,
+          shop_name: shopName || undefined,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+          order_start_date: orderStartDate || undefined,
+          order_end_date: orderEndDate || undefined,
+          payment_method: paymentMethod || undefined,
+        },
+      })
+      const fetchItems = res.data?.data ?? []
+      if (fetchItems.length === 0) {
+        alert('ไม่พบข้อมูลสำหรับส่งออก')
+        return
+      }
+
+      const rows = fetchItems.map((item: ShopeeTransaction) => ({
+        'ร้านค้า': item.shop_name ?? item.shop_id ?? '',
+        'หมายเลขคำสั่งซื้อ': item.order_sn ?? '',
+        'รหัสคืนสินค้า': item.return_sn ?? '',
+        'ชื่อผู้ใช้ (ผู้ซื้อ)': item.buyer_username ?? '',
+        'วันที่ทำการสั่งซื้อ': item.order_date ? new Date(item.order_date).toLocaleDateString('th-TH', { dateStyle: 'short' }) : '—',
+        'ช่องทางการชำระเงินของผู้ซื้อ': item.payment_method ?? '',
+        'Hot Listing': item.hot_listing ?? '',
+        'ช่องทางการชำระเงิน (รายละเอียด)': item.payment_detail ?? '',
+        'แผนการผ่อนชำระ': item.instalment_plan ?? '',
+        'ค่าธรรมเนียม (%)': item.fee_pct ?? '',
+        'วันที่โอนชำระเงินสำเร็จ': item.payout_date ? new Date(item.payout_date).toLocaleDateString('th-TH', { dateStyle: 'short' }) : '—',
+        'สินค้าราคาปกติ': item.original_price ?? '',
+        'ส่วนลดสินค้าจากผู้ขาย': item.seller_discount ?? '',
+        'จำนวนเงินที่ทำการคืนให้ผู้ซื้อ': item.refund_to_buyer ?? '',
+        'ส่วนลดสินค้าที่ออกโดย Shopee': item.shopee_discount ?? '',
+        'โค้ดส่วนลดที่ออกโดยผู้ขาย': item.seller_voucher ?? '',
+        'โค้ดส่วนลดร่วมที่ออกโดยผู้ขาย': item.seller_cojoint_voucher ?? '',
+        'Coins Cashback ที่สนับสนุนโดยผู้ขาย': item.coins_cashback_seller ?? '',
+        'Coins Cashback ร่วมที่สนับสนุนโดยผู้ขาย': item.coins_cashback_cojoint ?? '',
+        'ค่าจัดส่งที่ชำระโดยผู้ซื้อ': item.buyer_shipping_fee ?? '',
+        'ค่าจัดส่งสินค้าที่ออกโดย Shopee': item.shopee_shipping_subsidy ?? '',
+        'ค่าจัดส่งที่ Shopee ชำระโดยชื่อของคุณ': item.shopee_paid_shipping_on_behalf ?? '',
+        'ค่าจัดส่งสินค้าคืน': item.return_shipping_fee ?? '',
+        'ค่าจัดส่งสินค้าคืนผู้ขาย': item.return_shipping_seller ?? '',
+        'โปรแกรมประหยัดค่าจัดส่งคืนสินค้า': item.return_shipping_program ?? '',
+        'ค่าคอมมิชชั่น AMS': item.ams_commission ?? '',
+        'ค่าคอมมิชชั่น': item.commission_fee ?? '',
+        'ค่าบริการ': item.service_fee ?? '',
+        'ค่าธรรมเนียมโครงสร้างพื้นฐานแพลตฟอร์ม': item.platform_infra_fee ?? '',
+        'ค่าธรรมเนียม ของโปรแกรมประหยัดค่าจัดส่ง': item.free_shipping_program_fee ?? '',
+        'ค่าธุรกรรมการชำระเงิน': item.transaction_fee ?? '',
+        'ภาษี': item.tax ?? '',
+        'ค่าธรรมเนียมเติมเงินโฆษณาจากเงิน Escrow': item.ads_escrow_topup ?? '',
+        'ค่าบริการติดตั้งที่ชำระโดยผู้ซื้อ': item.installation_fee_buyer ?? '',
+        'ค่าบริการติดตั้งจริงจากผู้ให้บริการ': item.installation_fee_actual ?? '',
+        'โบนัสส่วนลดเครื่องเก่าแลกใหม่จากผู้ขาย': item.trade_in_bonus ?? '',
+        'จำนวนเงินทั้งหมดที่โอนแล้ว (฿)': item.total_payout ?? '',
+        'โค้ดส่วนลด': item.voucher_code ?? '',
+        'ค่าชดเชยที่หายไป': item.lost_compensation ?? '',
+        'โปรโมชั่นค่าจัดส่งจากผู้ขาย': item.seller_shipping_promo ?? '',
+        'Shipping provider': item.shipping_provider ?? '',
+        'ชื่อผู้ให้บริการขนส่ง': item.carrier_name ?? '',
+        'เงินที่คืนไปยังผู้ซื้อ': item.refund_to_buyer_return ?? '',
+        'Shopee Coins ที่ใช้กับสินค้าที่ขอคืน': item.coins_used_return ?? '',
+        'โค้ดส่วนลด Shopee ที่ใช้กับสินค้าที่ขอคืน': item.shopee_voucher_return ?? '',
+        'โปรโมชั่นบัตรเครดิตที่ใช้กับสินค้าที่ขอคืน 1': item.credit_promo_return1 ?? '',
+        'โปรโมชั่นบัตรเครดิตที่ใช้กับสินค้าที่ขอคืน 2': item.credit_promo_return2 ?? '',
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Shopee Transactions')
+
+      const dateStr = new Date().toISOString().slice(0, 10)
+      const filename = `shopee-transactions-${dateStr}.xlsx`
+      XLSX.writeFile(wb, filename)
+
+      api.post('/audit-logs', {
+        action: 'export',
+        target_type: 'shopee-transactions',
+        target_id: 0,
+        target_name: filename,
+        payload: {
+          row_count: fetchItems.length,
+          filters: {
+            search: search || null,
+            shop_name: shopName || null,
+            start_date: startDate || null,
+            end_date: endDate || null,
+            order_start_date: orderStartDate || null,
+            order_end_date: orderEndDate || null,
+            payment_method: paymentMethod || null,
+          },
+        },
+      }).catch(() => {})
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert('เกิดข้อผิดพลาดในการส่งออก')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const { data: shopsData } = useQuery<PaginatedResponse<ShopeeShop>>({
     queryKey: ['shopee-shops-all'],
@@ -106,17 +213,28 @@ export default function ShopeeTransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <Receipt className="w-6 h-6 text-orange-500" />
-          <h1 className="text-2xl font-bold text-slate-800">รายการธุรกรรม Shopee</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Receipt className="w-6 h-6 text-orange-500" />
+            <h1 className="text-2xl font-bold text-slate-800">รายการธุรกรรม Shopee</h1>
+          </div>
+          <p className="text-slate-500 text-sm mt-1">
+            ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ
+          </p>
         </div>
-        <p className="text-slate-500 text-sm mt-1">
-          ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ · ซิงค์อัตโนมัติทุกวัน
-        </p>
+
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors shrink-0"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? 'กำลังส่งออก...' : 'Export Excel'}
+        </button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input

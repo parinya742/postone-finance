@@ -23,4 +23,25 @@ class AuditLogController extends Controller
 
         return response()->json($q->paginate($request->integer('per_page', 30)));
     }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'action'      => 'required|string|max:50',
+            'target_type' => 'required|string|max:50',
+            'target_id'   => 'required|integer|min:0',
+            'target_name' => 'required|string|max:150',
+            'payload'     => 'nullable|array',
+        ]);
+
+        AuditLog::record(
+            $validated['action'],
+            $validated['target_type'],
+            (int) $validated['target_id'],
+            $validated['target_name'],
+            $validated['payload'] ?? []
+        );
+
+        return response()->json(['ok' => true], 201);
+    }
 }

@@ -4,8 +4,9 @@ import api from '@/lib/api'
 import { TikTokTransaction, TikTokShop, PaginatedResponse } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Search, Lock, Receipt, ExternalLink } from 'lucide-react'
+import { Search, Lock, Receipt, ExternalLink, Download } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import * as XLSX from 'xlsx'
 
 function fmtDateTime(d: string | null) {
   if (!d) return '—'
@@ -65,6 +66,138 @@ export default function TikTokTransactionsPage() {
   const [endDate, setEndDate] = useState('')
   const [txType, setTxType] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const res = await api.get('/tiktok/transactions', {
+        params: {
+          search: search || undefined,
+          per_page: 50000,
+          shop_name: shopName || undefined,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+          transaction_type: txType || undefined,
+          payment_status: paymentStatus || undefined,
+        },
+      })
+      const fetchItems = res.data?.data ?? []
+      if (fetchItems.length === 0) {
+        alert('ไม่พบข้อมูลสำหรับส่งออก')
+        return
+      }
+
+      const rows = fetchItems.map((item: TikTokTransaction) => ({
+        'ร้านค้า': item.shop_name ?? item.seller_id ?? '',
+        'หมายเลขคำสั่งซื้อ/การปรับ': item.order_id ?? '',
+        'ประเภทธุรกรรม': item.transaction_type ?? '',
+        'เวลาที่สร้างคำสั่งซื้อ': item.order_create_time ? new Date(item.order_create_time).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '—',
+        'เวลาที่ชำระคำสั่งซื้อ': item.order_paid_time ? new Date(item.order_paid_time).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '—',
+        'สกุลเงิน': item.currency ?? '',
+        'จำนวนเงินที่ชำระทั้งหมด': item.total_payment_amount ?? '',
+        'รายได้รวม': item.revenue_amount ?? '',
+        'ยอดรวมค่าสินค้าหลังหักส่วนลดจากผู้ขาย': item.product_amount_after_seller_discount ?? '',
+        'ยอดรวมค่าสินค้าก่อนหักส่วนลด': item.product_amount_before_discount ?? '',
+        'ส่วนลดจากร้านค้า': item.seller_discount ?? '',
+        'ยอดรวมเงินคืนหลังหักส่วนลดจากร้านค้า': item.refund_after_seller_discount ?? '',
+        'ยอดรวมเงินคืนก่อนหักส่วนลดจากร้านค้า': item.refund_before_seller_discount ?? '',
+        'เงินคืนจากส่วนลดร้านค้า': item.refund_seller_discount ?? '',
+        'ค่าธรรมเนียมทั้งหมด': item.total_fee ?? '',
+        'ค่าธรรมเนียมคำสั่งซื้อ': item.order_fee ?? '',
+        'ค่าคอมมิชชั่น TikTok Shop': item.tiktok_commission ?? '',
+        'การผ่อนชำระด้วยบัตรเครดิต': item.credit_card_installment ?? '',
+        'ยอดรวมค่าจัดส่งที่ร้านค้าจ่ายจริง': item.seller_shipping_cost ?? '',
+        'ค่าธรรมเนียมการจัดส่งจริง': item.actual_shipping_fee ?? '',
+        'ส่วนลดค่าจัดส่งจากแพลตฟอร์ม': item.platform_shipping_discount ?? '',
+        'ค่าธรรมเนียมการจัดส่งของลูกค้า': item.customer_shipping_fee ?? '',
+        'ค่าจัดส่งสินค้าคืนตามจริง': item.return_shipping_fee ?? '',
+        'เงินคืนสำหรับค่าจัดส่ง': item.shipping_refund ?? '',
+        'เงินสนับสนุนการจัดส่ง': item.shipping_subsidy ?? '',
+        'ค่าจัดส่งสินค้าที่แลกเปลี่ยน': item.exchange_shipping_fee ?? '',
+        'ค่าจัดส่งสินค้าทดแทน': item.replacement_shipping_fee ?? '',
+        'ค่าคอมมิชชั่นแอฟฟิลิเอต': item.affiliate_commission ?? '',
+        'ค่าคอมมิชชั่นไม่ใช่แอฟฟิลิเอต (ก่อน PIT)': item.non_affiliate_commission_before_pit ?? '',
+        'PIT จากคอมมิชชั่นแอฟฟิลิเอต': item.affiliate_commission_pit ?? '',
+        'ค่าคอมมิชชั่นพาร์ทเนอร์แอฟฟิลิเอต': item.affiliate_partner_commission ?? '',
+        'ค่าคอมมิชชั่นโฆษณาร้านค้าแอฟฟิลิเอต': item.affiliate_shop_ads_commission ?? '',
+        'ค่าคอมมิชชั่นโฆษณาแอฟฟิลิเอต (ก่อน PIT)': item.affiliate_shop_ads_commission_before_pit ?? '',
+        'PIT จากค่าคอมมิชชั่นโฆษณาแอฟฟิลิเอต': item.affiliate_shop_ads_commission_pit ?? '',
+        'เงินมัดจำค่าคอมมิชชั่นแอฟฟิลิเอต': item.affiliate_commission_deposit ?? '',
+        'การคืนเงินค่าคอมมิชชั่นแอฟฟิลิเอต': item.affiliate_commission_refund ?? '',
+        'ค่าคอมมิชชั่นโฆษณาร้านค้าพาร์ทเนอร์': item.affiliate_partner_shop_ads_commission ?? '',
+        'ค่าธรรมเนียม SFP': item.sfp_service_fee ?? '',
+        'ค่าธรรมเนียมคืนเงินโบนัส': item.bonus_refund_service_fee ?? '',
+        'ค่าบริการคูปองไลฟ์คุ้ม': item.live_coupon_service_fee ?? '',
+        'ค่าบริการคูปอง Xtra': item.xtra_coupon_service_fee ?? '',
+        'ค่าบริการ EAMS': item.eams_program_fee ?? '',
+        'ค่าบริการแฟลชเซล': item.flash_sale_service_fee ?? '',
+        'ค่าธรรมเนียม PayLater': item.paylater_fee ?? '',
+        'ค่าธรรมเนียมสนับสนุนการเติบโต': item.shop_growth_support_fee ?? '',
+        'ค่าธรรมเนียมโครงสร้างพื้นฐาน': item.infrastructure_fee ?? '',
+        'ค่าทรัพยากรแคมเปญ': item.campaign_resource_fee ?? '',
+        'ค่าธรรมเนียมพรีออเดอร์': item.preorder_fee ?? '',
+        'คูปอง GMV Max': item.gmv_max_coupon ?? '',
+        'ภาษีการขายคูปอง GMV Max': item.gmv_max_coupon_sales_tax ?? '',
+        'ค่าโฆษณา GMV Max': item.gmv_max_ads_fee ?? '',
+        'จำนวนการปรับยอด': item.adjustment_amount ?? '',
+        'หมายเลขคำสั่งซื้อที่เกี่ยวข้อง': item.related_order_id ?? '',
+        'การชำระเงินของลูกค้า': item.customer_payment ?? '',
+        'การคืนเงินจากลูกค้า': item.customer_refund ?? '',
+        'คูปองส่วนลดร่วมของผู้ขาย': item.seller_joint_coupon ?? '',
+        'การคืนเงินคูปองส่วนลดร่วมผู้ขาย': item.seller_joint_coupon_refund ?? '',
+        'ส่วนลดจากแพลตฟอร์ม': item.platform_discount ?? '',
+        'การคืนเงินส่วนลดจากแพลตฟอร์ม': item.platform_discount_refund ?? '',
+        'คูปองส่วนลดร่วมของแพลตฟอร์ม': item.platform_joint_coupon ?? '',
+        'การคืนเงินคูปองส่วนลดร่วมแพลตฟอร์ม': item.platform_joint_coupon_refund ?? '',
+        'ส่วนลดค่าจัดส่งจากร้านค้า': item.seller_shipping_discount ?? '',
+        'น้ำหนักพัสดุโดยประมาณ': item.estimated_parcel_weight ?? '',
+        'น้ำหนักที่เรียกเก็บเงิน': item.charged_weight ?? '',
+        'รายละเอียดสินค้าที่ขายได้': item.product_details ?? '',
+        'ธนาคารของลูกค้า': item.customer_bank ?? '',
+        'หมายเลขใบแจ้งยอด': item.statement_id ?? '',
+        'หมายเลขการชำระเงิน': item.payment_id ?? '',
+        'สถานะการชำระเงิน': item.payment_status ?? '',
+        'เวลาที่ชำระเงิน': item.payment_time ? new Date(item.payment_time).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '—',
+        'เวลาของใบแจ้งยอด': item.statement_time ? new Date(item.statement_time).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '—',
+        'ยอดขายสุทธิ': item.net_sales_amount ?? '',
+        'ค่าธรรมเนียมรวมใบแจ้งยอด': item.fee_amount ?? '',
+        'ยอดเงินสุทธิ (Settlement)': item.settlement_amount ?? '',
+        'ค่าจัดส่งรวมใบแจ้งยอด': item.shipping_cost_amount ?? '',
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'TikTok Transactions')
+
+      const dateStr = new Date().toISOString().slice(0, 10)
+      const filename = `tiktok-transactions-${dateStr}.xlsx`
+      XLSX.writeFile(wb, filename)
+
+      api.post('/audit-logs', {
+        action: 'export',
+        target_type: 'tiktok-transactions',
+        target_id: 0,
+        target_name: filename,
+        payload: {
+          row_count: fetchItems.length,
+          filters: {
+            search: search || null,
+            shop_name: shopName || null,
+            start_date: startDate || null,
+            end_date: endDate || null,
+            transaction_type: txType || null,
+            payment_status: paymentStatus || null,
+          },
+        },
+      }).catch(() => {})
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert('เกิดข้อผิดพลาดในการส่งออก')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const { data: shopsData } = useQuery<PaginatedResponse<TikTokShop>>({
     queryKey: ['tiktok-shops-all'],
@@ -118,14 +251,25 @@ export default function TikTokTransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <Receipt className="w-6 h-6 text-rose-500" />
-          <h1 className="text-2xl font-bold text-slate-800">รายการธุรกรรม TikTok</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Receipt className="w-6 h-6 text-rose-500" />
+            <h1 className="text-2xl font-bold text-slate-800">รายการธุรกรรม TikTok</h1>
+          </div>
+          <p className="text-slate-500 text-sm mt-1">
+            ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ
+          </p>
         </div>
-        <p className="text-slate-500 text-sm mt-1">
-          ทั้งหมด {data?.total?.toLocaleString('th-TH') ?? 0} รายการ · ซิงค์อัตโนมัติทุกวัน
-        </p>
+
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="flex items-center gap-2 px-4 py-2 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors shrink-0"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? 'กำลังส่งออก...' : 'Export Excel'}
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
