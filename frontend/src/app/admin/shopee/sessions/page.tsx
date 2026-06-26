@@ -78,15 +78,25 @@ function TriggerModal({
   const [result, setResult] = useState<CaptureResult | null>(null)
   const [error, setError] = useState('')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
 
   useEffect(() => {
     if (running) {
       setElapsed(0)
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000)
     } else {
-      if (timerRef.current) clearInterval(timerRef.current)
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+    return () => {
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
   }, [running])
 
   const handleStart = async () => {
@@ -95,13 +105,15 @@ function TriggerModal({
     setResult(null)
     try {
       const res = await api.post(`/shopee/sessions/${item.id}/trigger-capture`, { manual })
+      if (!mountedRef.current) return
       setResult(res.data.capture)
       onSuccess()
     } catch (err: unknown) {
+      if (!mountedRef.current) return
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       setError(msg ?? 'เกิดข้อผิดพลาด')
     } finally {
-      setRunning(false)
+      if (mountedRef.current) setRunning(false)
     }
   }
 
@@ -269,6 +281,8 @@ function SessionModal({
   const [showCookie, setShowCookie] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const sessionMountedRef = useRef(true)
+  useEffect(() => () => { sessionMountedRef.current = false }, [])
 
   const isEdit = !!item
 
@@ -289,10 +303,11 @@ function SessionModal({
       }
       onSuccess()
     } catch (err: unknown) {
+      if (!sessionMountedRef.current) return
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       setError(msg ?? 'เกิดข้อผิดพลาด')
     } finally {
-      setSaving(false)
+      if (sessionMountedRef.current) setSaving(false)
     }
   }
 

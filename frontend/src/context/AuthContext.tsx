@@ -1,5 +1,6 @@
 'use client'
 
+import axios from 'axios'
 import api from '@/lib/api'
 import { AuthState } from '@/lib/types'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
@@ -22,13 +23,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null)
 
-  const fetchMe = useCallback(async () => {
+  const fetchMe = useCallback(async (signal?: AbortSignal) => {
     try {
-      const { data } = await api.get('/auth/me')
+      const { data } = await api.get('/auth/me', { signal })
       setAuth({ user: data.user, roles: data.roles, permissions: data.permissions })
-    } catch {
+      setLoading(false)
+    } catch (err: unknown) {
+      if (axios.isCancel(err)) return
       setAuth({ user: null, roles: [], permissions: [] })
-    } finally {
       setLoading(false)
     }
   }, [])
@@ -45,8 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (expiresAt) setSessionExpiresAt(Number(expiresAt))
-    if (token) fetchMe()
-    else setLoading(false)
+
+    if (token) {
+      const controller = new AbortController()
+      fetchMe(controller.signal)
+      return () => controller.abort()
+    } else {
+      setLoading(false)
+    }
   }, [fetchMe])
 
   // Periodic session expiry check every 30 seconds

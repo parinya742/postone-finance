@@ -3,7 +3,7 @@
 import api from '@/lib/api'
 import { ShopeeShop, AuditLog, PaginatedResponse } from '@/lib/types'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Plus, Pencil, Trash2, Search, Lock, Store, X,
   Eye, EyeOff, CheckCircle2, XCircle, KeyRound, ExternalLink, RefreshCw,
@@ -41,6 +41,8 @@ function ShopModal({
   const [showRefresh, setShowRefresh] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
 
   const set = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }))
@@ -63,10 +65,11 @@ function ShopModal({
       }
       onSuccess()
     } catch (err: unknown) {
+      if (!mountedRef.current) return
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       setError(msg ?? 'เกิดข้อผิดพลาด')
     } finally {
-      setSaving(false)
+      if (mountedRef.current) setSaving(false)
     }
   }
 

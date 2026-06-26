@@ -3,7 +3,7 @@
 import api from '@/lib/api'
 import { Permission, Role } from '@/lib/types'
 import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { X } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -29,10 +29,12 @@ export default function RoleFormModal({ role, allPermissions, onClose, onSuccess
   )
   const [error, setError] = useState('')
 
-  const grouped = allPermissions.reduce<Record<string, Permission[]>>((acc, p) => {
-    acc[p.module] = [...(acc[p.module] ?? []), p]
-    return acc
-  }, {})
+  const grouped = useMemo(() =>
+    allPermissions.reduce<Record<string, Permission[]>>((acc, p) => {
+      acc[p.module] = [...(acc[p.module] ?? []), p]
+      return acc
+    }, {}),
+  [allPermissions])
 
   const togglePerm = (id: number) =>
     setSelectedPerms((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
