@@ -105,7 +105,8 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
 
       { sectionLabel: 'รายการรายรับ (การเงิน)' },
       { href: '/admin/lazada/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: false },
-      { href: '/admin/lazada/transactions-work', label: 'รายการธุรกรรม (Work)', icon: Receipt, permission: 'lazada-shops.view', exact: false },
+      { href: '/admin/lazada/transactions-work', label: 'จัดการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: true },
+      { href: '/admin/lazada/transactions-work/history', label: 'ประวัติการจัดการธุรกรรม', icon: HistoryIcon, permission: 'lazada-shops.view', exact: false },
       { href: '/admin/lazada/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'lazada-shops.view', exact: false },
 
       { sectionLabel: 'รายการใบแจ้งหนี้' },

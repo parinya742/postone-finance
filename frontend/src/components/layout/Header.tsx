@@ -38,6 +38,8 @@ const pageTitles: Record<string, string> = {
   '/admin/lazada/shops': 'Lazada — จัดการร้านค้า',
   '/admin/lazada/sessions': 'Lazada — Cookie Sessions',
   '/admin/lazada/transactions': 'Lazada — รายการธุรกรรม',
+  '/admin/lazada/transactions-work': 'Lazada — จัดการรายการธุรกรรม',
+  '/admin/lazada/transactions-work/history': 'Lazada — ประวัติการจัดการธุรกรรม',
   '/admin/lazada/files': 'Lazada — ไฟล์ส่งออก',
   '/admin/lazada/invoices': 'Lazada — ใบแจ้งหนี้',
 

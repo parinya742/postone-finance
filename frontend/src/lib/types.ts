@@ -422,6 +422,7 @@ export interface LazadaTransaction {
 
 export interface LazadaTransactionWork extends LazadaTransaction {
   source: string | null
+  transferred_at: string | null
 }
 
 export interface LazadaTransactionFile {

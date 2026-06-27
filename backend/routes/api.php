@@ -199,6 +199,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/lazada/shops/{id}/auth-url', [LazadaShopController::class, 'getAuthUrl']);
         Route::get('/lazada/transactions', [LazadaTransactionController::class, 'index']);
         Route::get('/lazada/transactions-work', [LazadaTransactionWorkController::class, 'index']);
+        Route::get('/lazada/transactions-work/ids', [LazadaTransactionWorkController::class, 'ids']);
+        Route::patch('/lazada/transactions-work/bulk-transfer', [LazadaTransactionWorkController::class, 'bulkTransfer']);
+        Route::post('/lazada/transactions-work/smart-undo', [LazadaTransactionWorkController::class, 'smartUndo']);
         Route::get('/lazada/files', [LazadaTransactionFileController::class, 'index']);
     });
     Route::middleware('permission:lazada-shops.create')->post('/lazada/shops', [LazadaShopController::class, 'store']);

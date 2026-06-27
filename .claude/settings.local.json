@@ -15,7 +15,9 @@
       "Bash(grep \"\\\\.php$\")",
       "Bash(Get-Content \"c:\\\\xampp\\\\htdocs\\\\postone-finance\\\\backend\\\\storage\\\\logs\\\\laravel.log\" -Tail 50)",
       "Bash(php -r ' *)",
-      "WebFetch(domain:call-center-pk.s3.ap-southeast-1.amazonaws.com)"
+      "WebFetch(domain:call-center-pk.s3.ap-southeast-1.amazonaws.com)",
+      "Bash(Get-Content \"c:\\\\xampp\\\\htdocs\\\\postone-finance\\\\backend\\\\storage\\\\logs\\\\laravel.log\" -Tail 40)",
+      "PowerShell(cd \"c:\\\\xampp\\\\htdocs\\\\postone-finance\\\\backend\" && php artisan tinker --execute=\"$cols = DB::connection\\('n8n'\\)->select\\(\\\\\"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'lazada_transactions_work' AND column_name IN \\('transferred_at','transferred_at_2'\\) ORDER BY column_name\\\\\"\\); foreach\\(\\\\$cols as \\\\$c\\) echo \\\\$c->column_name . ' => ' . \\\\$c->data_type . PHP_EOL;\")"
     ]
   }
 }
