@@ -4,66 +4,10 @@ import api from '@/lib/api'
 import { LazadaTransaction, LazadaShop, PaginatedResponse } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Search, Lock, Download, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Search, Download, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import * as XLSX from 'xlsx'
-
-// ── Formatters ────────────────────────────────────────────────────────────────
-
-function fmtDate(d: string | null) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' })
-}
-
-function fmtAmt(n: number | null) {
-  if (n == null) return '—'
-  const fmt = Math.abs(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return n < 0 ? `-${fmt}` : fmt
-}
-
-// ── Cell Components ───────────────────────────────────────────────────────────
-
-function AmountCell({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-[#D9D9D9]">—</span>
-  return (
-    <span className={`font-mono tabular-nums ${value < 0 ? 'text-[#BB0000]' : value > 0 ? 'text-[#107E3E]' : 'text-[#6A6D70]'}`}>
-      {fmtAmt(value)}
-    </span>
-  )
-}
-
-function StatusBadge({ value, colorMap }: { value: string | null; colorMap: Record<string, string> }) {
-  if (!value) return <span className="text-[#D9D9D9]">—</span>
-  const cls = colorMap[value] ?? 'bg-[#F5F5F5] text-[#6A6D70] border-[#D9D9D9]'
-  return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold border rounded-sm ${cls}`}>
-      {value}
-    </span>
-  )
-}
-
-// ── Table Primitives ──────────────────────────────────────────────────────────
-
-function TH({ children, right, center, w }: {
-  children: React.ReactNode; right?: boolean; center?: boolean; w?: string
-}) {
-  return (
-    <th
-      style={w ? { width: w, minWidth: w } : undefined}
-      className={`px-2.5 py-2 text-[10px] font-semibold text-[#354A5E] uppercase tracking-wider whitespace-nowrap border-r border-[#D9D9D9] last:border-r-0 ${right ? 'text-right' : center ? 'text-center' : 'text-left'}`}
-    >
-      {children}
-    </th>
-  )
-}
-
-function TD({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) {
-  return (
-    <td className={`px-2.5 py-1.5 text-xs text-[#32363A] border-r border-[#EBEBEB] last:border-r-0 ${right ? 'text-right' : center ? 'text-center' : ''}`}>
-      {children}
-    </td>
-  )
-}
+import { fmtDate, TH, TD, AmountCell, StatusBadge, SapInput, inputCls, ErpNoAccess, ErpPagination } from '@/components/erp'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -75,19 +19,6 @@ const PAID_STATUS_COLORS: Record<string, string> = {
 }
 
 const PAID_STATUS_OPTIONS = ['Paid', 'Unpaid', 'Failed']
-
-// ── SAP Input Primitive ───────────────────────────────────────────────────────
-
-function SapInput({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5 min-w-0">
-      <span className="text-[10px] text-[#6A6D70] uppercase tracking-wide font-medium whitespace-nowrap">{label}</span>
-      {children}
-    </div>
-  )
-}
-
-const inputCls = 'h-8 border border-[#D9D9D9] rounded text-sm text-[#32363A] bg-white px-2.5 focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2]/20'
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -185,14 +116,7 @@ export default function LazadaTransactionsPage() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  if (!can('lazada-shops.view')) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-[#6A6D70]">
-        <Lock className="w-10 h-10 mb-3 text-[#D9D9D9]" />
-        <p className="text-sm font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
-      </div>
-    )
-  }
+  if (!can('lazada-shops.view')) return <ErpNoAccess />
 
   const items = data?.data ?? []
   const shops = shopsData?.data ?? []
@@ -296,7 +220,7 @@ export default function LazadaTransactionsPage() {
         {/* Advanced filters */}
         {(showAdv || hasAdvFilter) && (
           <div className="flex flex-wrap gap-3 items-end mt-3 pt-3 border-t border-[#EBEBEB]">
-            <SapInput label="ประเภทธุรกรรม">
+            <SapInput label="ประเภทธุรกรรม  (Transaction Type)">
               <input
                 value={txType}
                 onChange={e => { setTxType(e.target.value); setPage(1) }}
@@ -413,36 +337,7 @@ export default function LazadaTransactionsPage() {
         </table>
 
         {/* ── Pagination ──────────────────────────────────────────────────── */}
-        {data && (
-          <div className="px-4 py-2.5 border-t border-[#D9D9D9] flex items-center justify-between bg-[#F9FAFB]">
-            <span className="text-xs text-[#6A6D70]">
-              {data.total > 0
-                ? `แสดง ${((data.current_page - 1) * data.per_page) + 1}–${Math.min(data.current_page * data.per_page, data.total)} จาก ${data.total.toLocaleString('th-TH')} รายการ`
-                : '0 รายการ'}
-            </span>
-            {data.last_page > 1 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[#6A6D70]">หน้า {data.current_page} / {data.last_page}</span>
-                <div className="flex gap-1">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage(p => p - 1)}
-                    className="h-7 px-3 border border-[#D9D9D9] rounded text-xs text-[#32363A] disabled:opacity-40 hover:bg-[#F5F5F5] transition-colors"
-                  >
-                    ‹ ก่อนหน้า
-                  </button>
-                  <button
-                    disabled={page === data.last_page}
-                    onClick={() => setPage(p => p + 1)}
-                    className="h-7 px-3 border border-[#D9D9D9] rounded text-xs text-[#32363A] disabled:opacity-40 hover:bg-[#F5F5F5] transition-colors"
-                  >
-                    ถัดไป ›
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {data && <ErpPagination data={data} page={page} setPage={setPage} />}
       </div>
     </div>
   )

@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\TikTokShopController;
 use App\Http\Controllers\Api\TikTokTransactionController;
 use App\Http\Controllers\Api\TikTokTransactionFileController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UserPreferenceController;
 use Illuminate\Support\Facades\Route;
 
 // Public
@@ -202,6 +203,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/lazada/transactions-work/ids', [LazadaTransactionWorkController::class, 'ids']);
         Route::patch('/lazada/transactions-work/bulk-transfer', [LazadaTransactionWorkController::class, 'bulkTransfer']);
         Route::post('/lazada/transactions-work/smart-undo', [LazadaTransactionWorkController::class, 'smartUndo']);
+        Route::post('/lazada/transactions-work/sync-customers', [LazadaTransactionWorkController::class, 'syncCustomers']);
         Route::get('/lazada/files', [LazadaTransactionFileController::class, 'index']);
     });
     Route::middleware('permission:lazada-shops.create')->post('/lazada/shops', [LazadaShopController::class, 'store']);
@@ -282,6 +284,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/shopee/sessions/{id}/trigger-capture', [ShopeeSessionController::class, 'triggerCapture']);
     });
     Route::middleware('permission:shopee-sessions.delete')->delete('/shopee/sessions/{id}', [ShopeeSessionController::class, 'destroy']);
+
+    // === User Preferences ===
+    Route::get('/user-preferences/{key}', [UserPreferenceController::class, 'show'])->where('key', '[a-z0-9._-]+');
+    Route::put('/user-preferences/{key}', [UserPreferenceController::class, 'upsert'])->where('key', '[a-z0-9._-]+');
 
     // === Master Data — Domestic Letter Rates ===
     Route::middleware('permission:domestic-letter-rates.view')->group(function () {

@@ -142,6 +142,34 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'wins_681' => [
+            'driver'                   => 'sqlsrv',
+            'host'                     => env('DB_HOST_WINS_681', 'localhost'),
+            'port'                     => env('DB_PORT_WINS_681', '1433'),
+            'database'                 => env('DB_NAME_WINS_681', ''),
+            'username'                 => env('DB_USER_WINS_681', ''),
+            'password'                 => env('DB_PASS_WINS_681', ''),
+            'charset'                  => 'utf8',
+            'prefix'                   => '',
+            'prefix_indexes'           => true,
+            'encrypt'                  => env('DB_ENCRYPT_WINS', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE_WINS', 'false'),
+        ],
+
+        'wins_682' => [
+            'driver'                   => 'sqlsrv',
+            'host'                     => env('DB_HOST_WINS_682', 'localhost'),
+            'port'                     => env('DB_PORT_WINS_682', '1433'),
+            'database'                 => env('DB_NAME_WINS_682', ''),
+            'username'                 => env('DB_USER_WINS_682', ''),
+            'password'                 => env('DB_PASS_WINS_682', ''),
+            'charset'                  => 'utf8',
+            'prefix'                   => '',
+            'prefix_indexes'           => true,
+            'encrypt'                  => env('DB_ENCRYPT_WINS', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE_WINS', 'false'),
+        ],
+
         'iscodeselect' => [
             'driver' => env('DB_DRIVER_ISCODE', 'sqlsrv'),
             'host' => env('DB_HOST_ISCODE', 'database-2.ctuqbcneumgf.ap-southeast-1.rds.amazonaws.com'),
