@@ -321,6 +321,9 @@ export interface LazadaSession {
   updated_at: string | null
   days_ago: number | null
   status: 'active' | 'warning' | 'expired' | 'unknown'
+  bank_name_th: string | null
+  bank_account_name: string | null
+  bank_account_number: string | null
 }
 
 export interface ShopeeSessionLog {
@@ -359,6 +362,14 @@ export interface LazadaInvoices {
   s3_url: string
 }
 
+export interface MasterBank {
+  id: number
+  bank_code: string
+  swift_code: string | null
+  bank_name_th: string | null
+  bank_name_en: string | null
+}
+
 export interface LazadaShop {
   id: number
   shop_name: string
@@ -370,6 +381,11 @@ export interface LazadaShop {
   seller_id: string
   short_code: string
   is_active: boolean
+  bank_id: number | null
+  bank_account_name: string | null
+  bank_account_number: string | null
+  bank_name_th: string | null
+  bank_name_en: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -402,6 +418,10 @@ export interface LazadaTransaction {
   short_code: string | null
   synced_at: string | null
   file_id: number | null
+}
+
+export interface LazadaTransactionWork extends LazadaTransaction {
+  source: string | null
 }
 
 export interface LazadaTransactionFile {

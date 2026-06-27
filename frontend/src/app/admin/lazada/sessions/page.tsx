@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
   Plus, Pencil, Trash2, Search, Lock, X, Cookie,
-  CheckCircle2, AlertTriangle, XCircle, ClipboardList, Eye, EyeOff, RefreshCw,
+  CheckCircle2, AlertTriangle, XCircle, ClipboardList, Eye, EyeOff, RefreshCw, Landmark,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
@@ -268,7 +268,7 @@ export default function LazadaSessionsPage() {
         <div>
           <div className="flex items-center gap-2">
             <Cookie className="w-6 h-6 text-orange-500" />
-            <h1 className="text-2xl font-bold text-slate-800">Cookie Sessions Lazada</h1>
+            <h1 className="text-2xl font-bold text-slate-800">จัดการเซสชั่น Lazada</h1>
           </div>
           <p className="text-slate-500 text-sm mt-1">
             ทั้งหมด {data?.total ?? 0} sessions ·
@@ -368,6 +368,15 @@ export default function LazadaSessionsPage() {
                       <span className="font-mono text-xs text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">
                         {item.seller_key}
                       </span>
+                      {item.bank_name_th && (
+                        <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                          <Landmark className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>{item.bank_name_th}</span>
+                          {item.bank_account_number && (
+                            <span className="font-mono text-slate-400">· {item.bank_account_number}</span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-5 py-4 font-mono text-xs text-slate-400 max-w-[200px] truncate">
                       {item.cookie_preview ?? '—'}

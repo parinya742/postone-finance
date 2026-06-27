@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\LazadaSessionLogController;
 use App\Http\Controllers\Api\LazadaShopController;
 use App\Http\Controllers\Api\LazadaTransactionController;
 use App\Http\Controllers\Api\LazadaTransactionFileController;
+use App\Http\Controllers\Api\LazadaTransactionWorkController;
+use App\Http\Controllers\Api\MasterBankController;
 use App\Http\Controllers\Api\LineGroupExtractedFileController;
 use App\Http\Controllers\Api\LineGroupFileController;
 use App\Http\Controllers\Api\LineGroupMediaController;
@@ -187,12 +189,16 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::middleware('permission:ems-rates.delete')->delete('/ems-rates/{id}', [EmsRateController::class, 'destroy']);
 
+    // === Master Data (shared) ===
+    Route::get('/master-banks', [MasterBankController::class, 'index']);
+
     // === Lazada ===
     Route::middleware('permission:lazada-shops.view')->group(function () {
         Route::get('/lazada/shops', [LazadaShopController::class, 'index']);
         Route::get('/lazada/auth-config', [LazadaShopController::class, 'authConfig']);
         Route::get('/lazada/shops/{id}/auth-url', [LazadaShopController::class, 'getAuthUrl']);
         Route::get('/lazada/transactions', [LazadaTransactionController::class, 'index']);
+        Route::get('/lazada/transactions-work', [LazadaTransactionWorkController::class, 'index']);
         Route::get('/lazada/files', [LazadaTransactionFileController::class, 'index']);
     });
     Route::middleware('permission:lazada-shops.create')->post('/lazada/shops', [LazadaShopController::class, 'store']);
