@@ -86,10 +86,20 @@ interface TransferPayload {
 
 function LogRow({ log }: { log: AuditLog }) {
   const qc = useQueryClient()
-  const [open, setOpen]           = useState(false)
-  const [reDateValue, setReDate]  = useState('')
-  const [acting, setActing]       = useState(false)
+  const [open, setOpen]               = useState(false)
+  const [smartReDateValue, setSmartReDate] = useState('')
+  const [forceReDateValue, setForceReDate] = useState('')
+  const [acting, setActing]           = useState(false)
   const [feedback, setFeedback]   = useState<{ ok: boolean; msg: string } | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    title: string
+    msg: string
+    danger?: boolean
+    expectedInput?: string
+    onConfirm?: () => void
+  }>({ open: false, title: '', msg: '' })
+  const [confirmInput, setConfirmInput] = useState('')
 
   const meta    = ACTION_META[log.action] ?? { label: log.action, dotCls: 'bg-[#6A6D70]', textCls: 'text-[#6A6D70]', borderCls: 'border-[#D9D9D9]', bgCls: 'bg-[#F5F5F5]', icon: null }
   const payload = log.payload as TransferPayload | null
@@ -123,29 +133,29 @@ function LogRow({ log }: { log: AuditLog }) {
   }
 
   async function handleSmartReDate() {
-    if (!reDateValue) return
+    if (!smartReDateValue) return
     await withAction(async () => {
       const res = await api.post('/lazada/transactions-work/smart-undo', {
-        ids, original_transferred_at: getOriginalValue(), new_transferred_at: reDateValue,
+        ids, original_transferred_at: getOriginalValue(), new_transferred_at: smartReDateValue,
         start_date: payload?.start_date ?? null, end_date: payload?.end_date ?? null,
       })
       const { updated, skipped } = res.data as { updated: number; skipped: number }
-      let msg = `Smart อัพเดทวันที่โอนเป็น ${fmtDate(reDateValue)} สำเร็จ ${updated} รายการ`
+      let msg = `Smart อัพเดทวันที่โอนเป็น ${fmtDate(smartReDateValue)} สำเร็จ ${updated} รายการ`
       if (skipped > 0) msg += ` · ข้าม ${skipped} รายการ`
-      setFeedback({ ok: true, msg }); setReDate('')
+      setFeedback({ ok: true, msg }); setSmartReDate('')
       qc.invalidateQueries({ queryKey: ['lazada-txwork-audit'] })
     })
   }
 
   async function handleForceReDate() {
-    if (!reDateValue) return
+    if (!forceReDateValue) return
     await withAction(async () => {
       const res = await api.patch('/lazada/transactions-work/bulk-transfer', {
-        ids, transferred_at: reDateValue,
+        ids, transferred_at: forceReDateValue,
         start_date: payload?.start_date ?? null, end_date: payload?.end_date ?? null,
       })
-      setFeedback({ ok: true, msg: `Force อัพเดทวันที่โอนเป็น ${fmtDate(reDateValue)} สำเร็จ ${res.data.updated} รายการ` })
-      setReDate(''); qc.invalidateQueries({ queryKey: ['lazada-txwork-audit'] })
+      setFeedback({ ok: true, msg: `Force อัพเดทวันที่โอนเป็น ${fmtDate(forceReDateValue)} สำเร็จ ${res.data.updated} รายการ` })
+      setForceReDate(''); qc.invalidateQueries({ queryKey: ['lazada-txwork-audit'] })
     })
   }
 
@@ -210,15 +220,16 @@ function LogRow({ log }: { log: AuditLog }) {
         {open && (
           <div className="border-t border-[#EBEBEB] bg-[#F9FAFB] px-4 py-4 space-y-4">
 
-            {/* IDs */}
+            {/* IDs Summary Card */}
             {ids.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold text-[#6A6D70] uppercase tracking-wider mb-2">
-                  IDs ที่ถูกอัพเดท ({ids.length} รายการ)
-                </p>
-                <div className="flex flex-wrap gap-1">
+              <div className="bg-white border border-[#E2E8F0] shadow-sm rounded-lg overflow-hidden mb-6">
+                <div className="bg-[#F8FAFC] px-4 py-2 border-b border-[#E2E8F0] flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider">รหัสธุรกรรมที่ได้รับผลกระทบ</span>
+                  <span className="text-[11px] font-semibold text-[#0EA5E9] bg-[#E0F2FE] px-2 py-0.5 rounded-full">{ids.length} รายการ</span>
+                </div>
+                <div className="p-4 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                   {ids.map(id => (
-                    <span key={id} className="inline-block px-1.5 py-0.5 bg-white border border-[#D9D9D9] rounded-sm text-[10px] font-mono text-[#32363A]">
+                    <span key={id} className="inline-flex items-center px-2 py-1 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#334155] border border-[#CBD5E1] rounded text-[10px] font-mono transition-colors cursor-default">
                       {id}
                     </span>
                   ))}
@@ -226,67 +237,75 @@ function LogRow({ log }: { log: AuditLog }) {
               </div>
             )}
 
-            {/* Actions */}
+            {/* Actions Grid */}
             {ids.length > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
 
                 {/* ── Zone A: Smart (Safe) ──────────────────────── */}
-                <div className="bg-white border border-[#D9D9D9] rounded">
+                <div className="flex flex-col bg-white border border-[#E2E8F0] shadow-sm rounded-lg overflow-hidden transition-shadow hover:shadow-md">
                   {/* Zone header */}
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-[#EBEBEB] bg-[#F2F4F7]">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#107E3E] shrink-0" />
-                    <span className="text-xs font-semibold text-[#32363A]">Smart Operation</span>
-                    <span className="text-[10px] text-[#107E3E] font-medium ml-auto">ปลอดภัย</span>
+                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#E2E8F0] bg-gradient-to-r from-[#F0FDF4] to-white">
+                    <div className="p-1.5 bg-[#DCFCE7] rounded-md">
+                      <ShieldCheck className="w-4 h-4 text-[#16A34A]" />
+                    </div>
+                    <span className="text-sm font-bold text-[#1E293B]">Smart Operation</span>
+                    <span className="text-[10px] text-[#16A34A] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded-full ml-auto uppercase tracking-wide">โหมดปลอดภัย</span>
                   </div>
 
-                  <div className="px-3 py-3 space-y-3">
-                    <p className="text-[11px] text-[#6A6D70] leading-relaxed">
-                      ตรวจสอบก่อน: อัพเดทเฉพาะ IDs ที่ยังมีค่า
-                      {' '}<strong className="text-[#32363A]">"{fmtDate(originalValue)}"</strong>{' '}
-                      อยู่ · IDs ที่ถูก log อื่นเปลี่ยนแล้วจะถูก<strong>ข้าม</strong>
+                  <div className="p-4 flex-1 flex flex-col space-y-4">
+                    <p className="text-[11px] text-[#64748B] leading-relaxed bg-[#F8FAFC] p-2.5 rounded border border-[#F1F5F9]">
+                      <strong className="text-[#334155]">ระบบตรวจสอบก่อน:</strong> จะอัพเดทเฉพาะ IDs ที่ยังมีค่าเดิมคือ
+                      {' '}<strong className="text-[#0EA5E9]">"{fmtDate(originalValue)}"</strong>{' '}
+                      IDs ที่ถูกประวัติอื่นเปลี่ยนแปลงไปแล้วจะถูก<strong className="text-[#EF4444]">ข้ามอัตโนมัติ</strong>
                     </p>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-3 mt-auto">
                       {/* Smart Undo button */}
                       {canSmartUndo && (
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between p-3 border border-[#E2E8F0] rounded-lg hover:border-[#CBD5E1] transition-colors">
                           <div>
-                            <p className="text-[11px] font-medium text-[#32363A]">Smart Undo</p>
-                            <p className="text-[10px] text-[#6A6D70]">ล้างวันที่โอน → ยังไม่โอน</p>
+                            <p className="text-xs font-bold text-[#1E293B]">Smart Undo</p>
+                            <p className="text-[10px] text-[#64748B] mt-0.5">ล้างวันที่โอนให้กลับไปเป็น 'ยังไม่โอน'</p>
                           </div>
                           <button
                             onClick={() => {
-                              if (confirm(`Smart Undo: ล้างเฉพาะ IDs ที่ยังมีค่า "${fmtDate(originalValue)}" อยู่?`)) handleSmartUndo()
+                              setConfirmInput('')
+                              setConfirmDialog({
+                                open: true,
+                                title: 'ยืนยันการทำ Smart Undo',
+                                msg: `คุณต้องการล้างวันที่เฉพาะ IDs ที่ยังมีค่า "${fmtDate(originalValue)}" อยู่ใช่หรือไม่?`,
+                                onConfirm: handleSmartUndo
+                              })
                             }}
                             disabled={acting}
-                            className="flex items-center gap-1 h-7 px-3 border border-[#D9D9D9] rounded text-xs text-[#32363A] bg-white hover:bg-[#F5F5F5] disabled:opacity-40 transition-colors whitespace-nowrap"
+                            className="flex items-center gap-1.5 h-8 px-4 border border-[#E2E8F0] rounded-md text-xs font-semibold text-[#334155] bg-white hover:bg-[#F8FAFC] hover:border-[#CBD5E1] disabled:opacity-40 transition-all shadow-sm"
                           >
-                            <RotateCcw className="w-3 h-3" />
-                            {acting ? '...' : 'Smart Undo'}
+                            <RotateCcw className="w-3.5 h-3.5 text-[#64748B]" />
+                            {acting ? 'กำลังทำงาน...' : 'ล้างวันที่'}
                           </button>
                         </div>
                       )}
 
                       {/* Smart Re-date */}
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-3 p-3 border border-[#E2E8F0] rounded-lg bg-[#F8FAFC]">
                         <div className="shrink-0">
-                          <p className="text-[11px] font-medium text-[#32363A]">Smart Re-date</p>
-                          <p className="text-[10px] text-[#6A6D70]">เปลี่ยนวันที่โอนเฉพาะที่ยังมีค่าเดิม</p>
+                          <p className="text-xs font-bold text-[#1E293B]">Smart Re-date</p>
+                          <p className="text-[10px] text-[#64748B] mt-0.5">เปลี่ยนวันที่โอนเฉพาะรายการที่ยังไม่มีการเปลี่ยนแปลง</p>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <input
                             type="date"
-                            value={reDateValue}
-                            onChange={e => setReDate(e.target.value)}
-                            className="h-7 border border-[#D9D9D9] rounded text-xs px-2 text-[#32363A] focus:outline-none focus:border-[#0070F2] w-32"
+                            value={smartReDateValue}
+                            onChange={e => setSmartReDate(e.target.value)}
+                            className="h-8 border border-[#CBD5E1] rounded-md text-xs px-2.5 text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]/20 focus:border-[#0EA5E9] w-[130px] shadow-sm bg-white"
                           />
                           <button
                             onClick={handleSmartReDate}
-                            disabled={!reDateValue || acting}
-                            className="flex items-center gap-1 h-7 px-3 bg-[#0070F2] hover:bg-[#0064D9] disabled:opacity-40 text-white text-xs font-semibold rounded transition-colors whitespace-nowrap"
+                            disabled={!smartReDateValue || acting}
+                            className="flex items-center gap-1.5 h-8 px-4 bg-[#0EA5E9] hover:bg-[#0284C7] disabled:opacity-50 text-white text-xs font-semibold rounded-md transition-all shadow-sm shadow-[#0EA5E9]/20 whitespace-nowrap"
                           >
-                            <CalendarCheck className="w-3 h-3" />
-                            {acting ? '...' : 'อัพเดท'}
+                            <CalendarCheck className="w-3.5 h-3.5" />
+                            {acting ? 'กำลังทำงาน...' : 'อัพเดทวันที่'}
                           </button>
                         </div>
                       </div>
@@ -295,45 +314,57 @@ function LogRow({ log }: { log: AuditLog }) {
                 </div>
 
                 {/* ── Zone B: Force (Overwrite) ─────────────────── */}
-                <div className="bg-white border border-[#D9D9D9] rounded">
+                <div className="flex flex-col bg-white border border-[#E2E8F0] shadow-sm rounded-lg overflow-hidden transition-shadow hover:shadow-md">
                   {/* Zone header */}
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-[#EBEBEB] bg-[#F2F4F7]">
-                    <AlertTriangle className="w-3.5 h-3.5 text-[#E9730C] shrink-0" />
-                    <span className="text-xs font-semibold text-[#32363A]">Force Re-date</span>
-                    <span className="text-[10px] text-[#E9730C] font-medium ml-auto">Overwrite</span>
+                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#E2E8F0] bg-gradient-to-r from-[#FFF7ED] to-white">
+                    <div className="p-1.5 bg-[#FFEDD5] rounded-md">
+                      <AlertTriangle className="w-4 h-4 text-[#F97316]" />
+                    </div>
+                    <span className="text-sm font-bold text-[#1E293B]">Force Operation</span>
+                    <span className="text-[10px] text-[#F97316] font-bold bg-[#FFEDD5] px-2 py-0.5 rounded-full ml-auto uppercase tracking-wide">Warning</span>
                   </div>
 
-                  <div className="px-3 py-3 space-y-3">
-                    <p className="text-[11px] text-[#6A6D70] leading-relaxed">
-                      อัพเดท<strong className="text-[#32363A]">ทุก {ids.length} IDs</strong> โดยไม่ตรวจสอบค่าปัจจุบัน
-                      · รวมถึง IDs ที่ถูก log อื่นเปลี่ยนไปแล้ว
-                    </p>
+                  <div className="p-4 flex-1 flex flex-col space-y-4">
+                    <div className="bg-[#FEF2F2] border border-[#FECACA] p-3 rounded-lg flex gap-3">
+                      <AlertTriangle className="w-4 h-4 text-[#EF4444] shrink-0 mt-0.5" />
+                      <p className="text-[11px] text-[#991B1B] leading-relaxed">
+                        <strong>คำเตือน:</strong> การทำงานนี้จะเขียนทับข้อมูล<strong className="font-bold">ทั้ง {ids.length} รายการ</strong> โดยไม่สนสถานะปัจจุบัน แม้ว่าข้อมูลนั้นจะถูกแก้ไขโดยประวัติอื่นไปแล้วก็ตาม
+                      </p>
+                    </div>
 
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="shrink-0">
-                        <p className="text-[11px] font-medium text-[#32363A]">Force อัพเดทวันที่ใหม่</p>
-                        <p className="text-[10px] text-[#E9730C]">⚠ Overwrite ทุก ID ใน log นี้</p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="date"
-                          value={reDateValue}
-                          onChange={e => setReDate(e.target.value)}
-                          className="h-7 border border-[#D9D9D9] rounded text-xs px-2 text-[#32363A] focus:outline-none focus:border-[#E9730C] w-32"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!reDateValue) return
-                            if (confirm(`Force อัพเดทวันที่โอนเป็น ${fmtDate(reDateValue)}?\n\nจะ overwrite ทุก ${ids.length} IDs ไม่ว่าค่าปัจจุบันจะเป็นอะไร`)) {
-                              handleForceReDate()
-                            }
-                          }}
-                          disabled={!reDateValue || acting}
-                          className="flex items-center gap-1 h-7 px-3 border border-[#E9730C] text-[#E9730C] hover:bg-[#FEF9F0] disabled:opacity-40 text-xs font-semibold rounded transition-colors whitespace-nowrap bg-white"
-                        >
-                          <AlertTriangle className="w-3 h-3" />
-                          {acting ? '...' : 'Force'}
-                        </button>
+                    <div className="mt-auto border border-[#FECACA] bg-[#FFF5F5] rounded-lg p-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="shrink-0">
+                          <p className="text-xs font-bold text-[#7F1D1D]">Force Re-date All</p>
+                          <p className="text-[10px] text-[#991B1B] mt-0.5">บังคับเขียนทับข้อมูลทั้งหมด</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            value={forceReDateValue}
+                            onChange={e => setForceReDate(e.target.value)}
+                            className="h-8 border border-[#FECACA] rounded-md text-xs px-2.5 text-[#7F1D1D] bg-white focus:outline-none focus:ring-2 focus:ring-[#EF4444]/20 focus:border-[#EF4444] w-[130px] shadow-sm"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!forceReDateValue) return
+                              setConfirmInput('')
+                              setConfirmDialog({
+                                open: true,
+                                title: 'ยืนยันการ Force Re-date',
+                                msg: `คุณต้องการอัพเดทวันที่โอนเป็น ${fmtDate(forceReDateValue)} ใช่หรือไม่?\n${(payload?.start_date || payload?.end_date) ? `\nช่วงวันที่ธุรกรรม: ${fmtDate(payload?.start_date ?? null)} – ${fmtDate(payload?.end_date ?? null)}\n` : ''}\nคำเตือน: ระบบจะเขียนทับทุกๆ ${ids.length} รายการ ไม่ว่าค่าปัจจุบันจะเป็นอะไรก็ตาม`,
+                                danger: true,
+                                expectedInput: 'CONFIRM',
+                                onConfirm: handleForceReDate
+                              })
+                            }}
+                            disabled={!forceReDateValue || acting}
+                            className="flex items-center gap-1.5 h-8 px-4 bg-[#EF4444] hover:bg-[#DC2626] disabled:opacity-50 text-white text-xs font-semibold rounded-md transition-all shadow-sm shadow-[#EF4444]/20 whitespace-nowrap"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            {acting ? 'กำลังทำงาน...' : 'บังคับอัพเดท'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -343,11 +374,71 @@ function LogRow({ log }: { log: AuditLog }) {
 
             {/* Feedback */}
             {feedback && (
-              <div className={`flex items-center gap-2 text-xs px-3 py-2 border rounded-sm ${feedback.ok ? 'bg-[#F1FAF4] border-[#107E3E]/30 text-[#107E3E]' : 'bg-[#FFF5F5] border-[#BB0000]/30 text-[#BB0000]'}`}>
-                {feedback.ok
-                  ? <CalendarCheck className="w-3.5 h-3.5 shrink-0" />
-                  : <XCircle className="w-3.5 h-3.5 shrink-0" />}
-                {feedback.msg}
+              <div className={`mt-4 flex items-start gap-3 p-4 border rounded-lg shadow-sm ${feedback.ok ? 'bg-[#F0FDF4] border-[#BBF7D0]' : 'bg-[#FEF2F2] border-[#FECACA]'}`}>
+                <div className={`p-1.5 rounded-full shrink-0 ${feedback.ok ? 'bg-[#DCFCE7] text-[#16A34A]' : 'bg-[#FEE2E2] text-[#EF4444]'}`}>
+                  {feedback.ok ? <ShieldCheck className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                </div>
+                <div className="flex-1 pt-0.5">
+                  <h3 className={`text-xs font-bold ${feedback.ok ? 'text-[#166534]' : 'text-[#991B1B]'}`}>
+                    {feedback.ok ? 'ทำรายการสำเร็จ' : 'ทำรายการไม่สำเร็จ'}
+                  </h3>
+                  <p className={`text-[11px] mt-1 leading-relaxed ${feedback.ok ? 'text-[#15803D]' : 'text-[#B91C1C]'}`}>
+                    {feedback.msg}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Custom Confirm Dialog */}
+            {confirmDialog.open && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  <div className={`px-5 py-4 border-b flex items-center gap-3 ${confirmDialog.danger ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+                    {confirmDialog.danger ? <AlertTriangle className="w-5 h-5 text-red-600" /> : <ShieldCheck className="w-5 h-5 text-slate-600" />}
+                    <h3 className={`font-semibold ${confirmDialog.danger ? 'text-red-900' : 'text-slate-900'}`}>
+                      {confirmDialog.title}
+                    </h3>
+                  </div>
+                  <div className="px-5 py-6 space-y-4">
+                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{confirmDialog.msg}</p>
+                    {confirmDialog.expectedInput && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1.5">
+                          โปรดพิมพ์คำว่า <strong className="text-red-600 font-mono select-all bg-red-50 px-1 py-0.5 rounded border border-red-100">{confirmDialog.expectedInput}</strong> เพื่อยืนยัน
+                        </label>
+                        <input
+                          type="text"
+                          value={confirmInput}
+                          onChange={e => setConfirmInput(e.target.value)}
+                          placeholder={confirmDialog.expectedInput}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-shadow"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                    <button
+                      onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                      className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      onClick={() => {
+                        setConfirmDialog({ ...confirmDialog, open: false })
+                        confirmDialog.onConfirm?.()
+                      }}
+                      disabled={!!confirmDialog.expectedInput && confirmInput !== confirmDialog.expectedInput}
+                      className={`px-4 py-2 text-xs font-medium text-white rounded-lg transition-all shadow-sm ${
+                        confirmDialog.danger 
+                          ? 'bg-red-600 hover:bg-red-700 shadow-red-200 disabled:opacity-50 disabled:cursor-not-allowed' 
+                          : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
+                    >
+                      ยืนยัน
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

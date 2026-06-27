@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Search, Download, CalendarCheck,
   ChevronDown, ChevronUp, X, CheckCircle2, RefreshCw, SlidersHorizontal,
+  AlertTriangle, ShieldCheck
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import * as XLSX from 'xlsx'
@@ -126,6 +127,8 @@ function ColumnPicker({ hidden, onToggle, onReset, saving }: {
           </div>
         </div>
       )}
+
+
     </div>
   )
 }
@@ -178,6 +181,13 @@ export default function LazadaTransactionsWorkPage() {
   const [exporting, setExporting]             = useState(false)
   const [syncing, setSyncing]                 = useState(false)
   const [syncResult, setSyncResult]           = useState<{ custRows: number; docRows: number; custFound: number; docFound: number } | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    title: string
+    msg: string
+    danger?: boolean
+    onConfirm?: () => void
+  }>({ open: false, title: '', msg: '' })
 
   // Column visibility
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set())
@@ -675,7 +685,15 @@ export default function LazadaTransactionsWorkPage() {
                   {updating ? 'กำลังอัพเดท...' : 'อัพเดทวันที่โอน'}
                 </button>
                 <button
-                  onClick={() => { if (confirm(`ล้างวันที่โอนของ ${selectedIds.size} รายการที่เลือก?`)) handleBulkTransfer(null) }}
+                  onClick={() => { 
+                    setConfirmDialog({
+                      open: true,
+                      title: 'ยืนยันการล้างวันที่โอน',
+                      msg: `คุณต้องการล้างวันที่โอนของ ${selectedIds.size.toLocaleString('th-TH')} รายการที่เลือกใช่หรือไม่?`,
+                      danger: true,
+                      onConfirm: () => handleBulkTransfer(null)
+                    })
+                  }}
                   disabled={updating}
                   className="h-7 px-3 border border-[#D9D9D9] hover:bg-[#F5F5F5] disabled:opacity-40 text-xs text-[#32363A] rounded transition-colors"
                 >
@@ -837,6 +855,44 @@ export default function LazadaTransactionsWorkPage() {
         {/* ── Pagination ──────────────────────────────────────────────────── */}
         {data && <ErpPagination data={data} page={page} setPage={setPage} />}
       </div>
+
+      {/* Custom Confirm Dialog */}
+      {confirmDialog.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className={`px-5 py-4 border-b flex items-center gap-3 ${confirmDialog.danger ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+              {confirmDialog.danger ? <AlertTriangle className="w-5 h-5 text-red-600" /> : <ShieldCheck className="w-5 h-5 text-slate-600" />}
+              <h3 className={`font-semibold ${confirmDialog.danger ? 'text-red-900' : 'text-slate-900'}`}>
+                {confirmDialog.title}
+              </h3>
+            </div>
+            <div className="px-5 py-6">
+              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{confirmDialog.msg}</p>
+            </div>
+            <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmDialog({ ...confirmDialog, open: false })
+                  confirmDialog.onConfirm?.()
+                }}
+                className={`px-4 py-2 text-xs font-medium text-white rounded-lg transition-all shadow-sm ${
+                  confirmDialog.danger 
+                    ? 'bg-red-600 hover:bg-red-700 shadow-red-200' 
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                }`}
+              >
+                ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
