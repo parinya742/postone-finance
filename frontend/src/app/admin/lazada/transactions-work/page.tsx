@@ -197,7 +197,7 @@ export default function LazadaTransactionsWorkPage() {
 
   useEffect(() => {
     setSelectedIds(new Set()); setAllFilterSelected(false)
-  }, [startDate, endDate, search, shopName, txType, paidStatus, source, transferStatus, transferredStart, transferredEnd, diStatus, page])
+  }, [startDate, endDate, search, shopName, txType, paidStatus, source, transferStatus, transferredStart, transferredEnd, diStatus])
 
   useEffect(() => {
     if (!checkboxMode) { setSelectedIds(new Set()); setAllFilterSelected(false) }
@@ -723,9 +723,9 @@ export default function LazadaTransactionsWorkPage() {
       </div>
 
       {/* ══ Data Table ════════════════════════════════════════════════════════ */}
-      <div className="bg-white border border-[#D9D9D9] border-t-0 overflow-x-auto">
+      <div className="bg-white border border-[#D9D9D9] border-t-0 overflow-auto max-h-[calc(100vh-244px)] lg:max-h-[calc(100vh-260px)]">
         <table className="w-full text-xs border-collapse" style={{ minWidth }}>
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="bg-[#F2F4F7] border-b-2 border-[#0070F2]">
               {checkboxMode && (
                 <th className="w-9 px-2.5 py-2 border-r border-[#D9D9D9]">
@@ -852,9 +852,10 @@ export default function LazadaTransactionsWorkPage() {
           </tbody>
         </table>
 
-        {/* ── Pagination ──────────────────────────────────────────────────── */}
-        {data && <ErpPagination data={data} page={page} setPage={setPage} />}
       </div>
+
+      {/* ── Pagination ──────────────────────────────────────────────────── */}
+      {data && <ErpPagination data={data} page={page} setPage={setPage} />}
 
       {/* Custom Confirm Dialog */}
       {confirmDialog.open && (
