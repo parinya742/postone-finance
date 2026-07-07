@@ -16,9 +16,13 @@ class ShopeeSessionController extends Controller
         return DB::connection('n8n')
             ->table('shopee_session as ss')
             ->leftJoin('shopee_transaction_tokens as stt', 'stt.shop_id', '=', 'ss.seller_key')
+            ->leftJoin('master_banks as mb', 'mb.id', '=', 'stt.bank_id')
             ->select(
                 'ss.id', 'ss.seller_key', 'ss.cookie', 'ss.updated_at',
-                DB::raw("COALESCE(stt.shop_name, ss.shop_name) as shop_name")
+                DB::raw("COALESCE(stt.shop_name, ss.shop_name) as shop_name"),
+                'stt.bank_account_name',
+                'stt.bank_account_number',
+                'mb.bank_name_th'
             );
     }
 
@@ -189,14 +193,17 @@ class ShopeeSessionController extends Controller
         };
 
         return [
-            'id'             => $session->id,
-            'seller_key'     => $session->seller_key,
-            'shop_name'      => $session->shop_name ?? null,
-            'cookie_length'  => strlen($session->cookie ?? ''),
-            'cookie_preview' => $session->cookie ? substr($session->cookie, 0, 30) . '...' : null,
-            'updated_at'     => $session->updated_at,
-            'days_ago'       => $daysAgo,
-            'status'         => $status,
+            'id'                  => $session->id,
+            'seller_key'          => $session->seller_key,
+            'shop_name'           => $session->shop_name ?? null,
+            'cookie_length'       => strlen($session->cookie ?? ''),
+            'cookie_preview'      => $session->cookie ? substr($session->cookie, 0, 30) . '...' : null,
+            'updated_at'          => $session->updated_at,
+            'days_ago'            => $daysAgo,
+            'status'              => $status,
+            'bank_name_th'        => $session->bank_name_th ?? null,
+            'bank_account_name'   => $session->bank_account_name ?? null,
+            'bank_account_number' => $session->bank_account_number ?? null,
         ];
     }
 }

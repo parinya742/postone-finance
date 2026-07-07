@@ -1,13 +1,13 @@
 'use client'
 
 import api from '@/lib/api'
-import { ShopeeShop, AuditLog, PaginatedResponse } from '@/lib/types'
+import { ShopeeShop, MasterBank, AuditLog, PaginatedResponse } from '@/lib/types'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef, useEffect } from 'react'
 import {
   Plus, Pencil, Trash2, Search, Lock, Store, X,
   Eye, EyeOff, CheckCircle2, XCircle, KeyRound, ExternalLink, RefreshCw,
-  ClipboardList,
+  ClipboardList, Landmark,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
@@ -15,16 +15,21 @@ const EMPTY_FORM = {
   shop_name: '',
   access_token: '',
   refresh_token: '',
+  bank_id: '' as string | number,
+  bank_account_name: '',
+  bank_account_number: '',
 }
 
 function ShopModal({
   item,
   partnerId,
+  banks,
   onClose,
   onSuccess,
 }: {
   item: ShopeeShop | null
   partnerId: string
+  banks: MasterBank[]
   onClose: () => void
   onSuccess: () => void
 }) {
@@ -34,6 +39,9 @@ function ShopModal({
           shop_name: item.shop_name ?? '',
           access_token: item.access_token ?? '',
           refresh_token: item.refresh_token ?? '',
+          bank_id: item.bank_id ?? ('' as string | number),
+          bank_account_name: item.bank_account_name ?? '',
+          bank_account_number: item.bank_account_number ?? '',
         }
       : EMPTY_FORM
   )
@@ -44,7 +52,7 @@ function ShopModal({
   const mountedRef = useRef(true)
   useEffect(() => () => { mountedRef.current = false }, [])
 
-  const set = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }))
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,15 +60,22 @@ function ShopModal({
     setSaving(true)
     setError('')
     try {
+      const bankPayload = {
+        bank_id: form.bank_id === '' ? null : Number(form.bank_id),
+        bank_account_name: form.bank_account_name || null,
+        bank_account_number: form.bank_account_number || null,
+      }
       if (item) {
         await api.put(`/shopee/shops/${item.shop_id}`, {
           shop_name: form.shop_name || null,
           access_token: form.access_token || null,
           refresh_token: form.refresh_token || null,
+          ...bankPayload,
         })
       } else {
         await api.post('/shopee/shops', {
           shop_name: form.shop_name || null,
+          ...bankPayload,
         })
       }
       onSuccess()
@@ -87,7 +102,7 @@ function ShopModal({
             <X className="w-4 h-4" />
           </button>
         </div>
-
+        
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{error}</div>
@@ -131,6 +146,50 @@ function ShopModal({
                 readOnly
                 className="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm font-mono bg-slate-50 text-slate-500 cursor-not-allowed"
               />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Landmark className="w-4 h-4 text-slate-400" />
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">ข้อมูลธนาคาร</p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">ธนาคาร</label>
+                <select
+                  value={form.bank_id}
+                  onChange={set('bank_id')}
+                  className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                >
+                  <option value="">— ไม่ระบุ —</option>
+                  {banks.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.bank_name_th} ({b.bank_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">ชื่อบัญชี</label>
+                <input
+                  value={form.bank_account_name}
+                  onChange={set('bank_account_name')}
+                  maxLength={255}
+                  placeholder="เช่น บริษัท โพสโตน จำกัด"
+                  className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">เลขบัญชี</label>
+                <input
+                  value={form.bank_account_number}
+                  onChange={set('bank_account_number')}
+                  maxLength={50}
+                  placeholder="เช่น 1234567890"
+                  className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
             </div>
           </div>
 
@@ -213,6 +272,13 @@ export default function ShopeeShopsPage() {
     enabled: can('shopee-shops.view'),
   })
 
+  const { data: banksData } = useQuery<MasterBank[]>({
+    queryKey: ['master-banks'],
+    queryFn: () => api.get('/master-banks').then((r) => r.data),
+    enabled: can('shopee-shops.view'),
+    staleTime: 1000 * 60 * 10,
+  })
+
   const { data, isLoading } = useQuery<PaginatedResponse<ShopeeShop>>({
     queryKey: ['shopee-shops', search, page],
     queryFn: () =>
@@ -284,6 +350,7 @@ export default function ShopeeShopsPage() {
   }
 
   const items = data?.data ?? []
+  const banks = banksData ?? []
 
   return (
     <div className="space-y-6">
@@ -325,6 +392,7 @@ export default function ShopeeShopsPage() {
               <tr>
                 <th className="text-left px-5 py-3 font-medium text-slate-600">ชื่อร้านค้า</th>
                 <th className="text-left px-5 py-3 font-medium text-slate-600">Shop ID</th>
+                <th className="text-left px-5 py-3 font-medium text-slate-600">ธนาคาร</th>
                 <th className="text-center px-5 py-3 font-medium text-slate-600">Access Token</th>
                 <th className="text-center px-5 py-3 font-medium text-slate-600">Refresh Token</th>
                 <th className="text-left px-5 py-3 font-medium text-slate-600">อัปเดตล่าสุด</th>
@@ -335,7 +403,7 @@ export default function ShopeeShopsPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(6)].map((_, j) => (
+                    {[...Array(7)].map((_, j) => (
                       <td key={j} className="px-5 py-4">
                         <div className="h-4 bg-slate-100 rounded animate-pulse" />
                       </td>
@@ -344,7 +412,7 @@ export default function ShopeeShopsPage() {
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
                     <Store className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     ไม่พบร้านค้า — กดปุ่ม &ldquo;เพิ่มร้านค้า&rdquo; เพื่อเริ่มต้น
                   </td>
@@ -367,6 +435,25 @@ export default function ShopeeShopsPage() {
                         {isPending ? (
                           <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-medium">รอ Token</span>
                         ) : item.shop_id}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        {item.bank_id ? (
+                          <div className="flex items-start gap-1.5">
+                            <Landmark className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                            <div>
+                              <p className="text-xs font-medium text-slate-700">{item.bank_name_th ?? `Bank #${item.bank_id}`}</p>
+                              {item.bank_account_number && (
+                                <p className="text-xs font-mono text-slate-500">{item.bank_account_number}</p>
+                              )}
+                              {item.bank_account_name && (
+                                <p className="text-xs text-slate-400 truncate max-w-[160px]">{item.bank_account_name}</p>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
                       </td>
 
                       <td className="px-5 py-4 text-center">
@@ -519,6 +606,7 @@ export default function ShopeeShopsPage() {
         <ShopModal
           item={editingItem}
           partnerId={authConfig?.partner_id ?? ''}
+          banks={banks}
           onClose={() => setShowForm(false)}
           onSuccess={() => {
             setShowForm(false)

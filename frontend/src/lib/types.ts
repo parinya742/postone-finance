@@ -661,6 +661,11 @@ export interface ShopeeShop {
   refresh_token: string | null
   updated_at: string | null
   partner_key: string | null
+  bank_id: number | null
+  bank_account_name: string | null
+  bank_account_number: string | null
+  bank_name_th: string | null
+  bank_name_en: string | null
 }
 
 export interface ShopeeTransaction {

@@ -13,12 +13,28 @@ class ShopeeShopController extends Controller
 {
     private function query()
     {
-        return DB::connection('n8n')->table('shopee_transaction_tokens');
+        return DB::connection('n8n')
+            ->table('shopee_transaction_tokens as t')
+            ->leftJoin('master_banks as b', 'b.id', '=', 't.bank_id')
+            ->select([
+                't.*',
+                'b.bank_name_th',
+                'b.bank_name_en',
+            ]);
     }
 
     private function find(string $shopId)
     {
-        return DB::connection('n8n')->table('shopee_transaction_tokens')->where('shop_id', $shopId)->first();
+        return DB::connection('n8n')
+            ->table('shopee_transaction_tokens as t')
+            ->leftJoin('master_banks as b', 'b.id', '=', 't.bank_id')
+            ->select([
+                't.*',
+                'b.bank_name_th',
+                'b.bank_name_en',
+            ])
+            ->where('t.shop_id', $shopId)
+            ->first();
     }
 
     private function makeSign(string $path): array
@@ -34,13 +50,13 @@ class ShopeeShopController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $q = $this->query()->orderBy('shop_name');
+        $q = $this->query()->orderBy('t.shop_name');
 
         if ($request->filled('search')) {
             $s = $request->search;
             $q->where(function ($qb) use ($s) {
-                $qb->where('shop_name', 'ilike', "%{$s}%")
-                   ->orWhere('shop_id', 'ilike', "%{$s}%");
+                $qb->where('t.shop_name', 'ilike', "%{$s}%")
+                   ->orWhere('t.shop_id', 'ilike', "%{$s}%");
             });
         }
 
@@ -50,20 +66,26 @@ class ShopeeShopController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'shop_name' => 'nullable|string|max:255',
+            'shop_name'           => 'nullable|string|max:255',
+            'bank_id'             => 'nullable|integer',
+            'bank_account_name'   => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:50',
         ]);
 
         // Use a temporary placeholder ID until the real shop_id is received from OAuth
         $tempShopId = 'PENDING_' . now()->timestamp . '_' . uniqid();
 
         DB::connection('n8n')->table('shopee_transaction_tokens')->insert([
-            'shop_id'       => $tempShopId,
-            'shop_name'     => $data['shop_name'] ?? null,
-            'partner_id'    => env('SHOPEE_PARTNER_ID'),
-            'partner_key'   => env('SHOPEE_PARTNER_KEY'),
-            'access_token'  => '',
-            'refresh_token' => '',
-            'updated_at'    => now(),
+            'shop_id'             => $tempShopId,
+            'shop_name'           => $data['shop_name'] ?? null,
+            'partner_id'          => env('SHOPEE_PARTNER_ID'),
+            'partner_key'         => env('SHOPEE_PARTNER_KEY'),
+            'access_token'        => '',
+            'refresh_token'       => '',
+            'bank_id'             => $data['bank_id'] ?? null,
+            'bank_account_name'   => $data['bank_account_name'] ?? null,
+            'bank_account_number' => $data['bank_account_number'] ?? null,
+            'updated_at'          => now(),
         ]);
 
         AuditLog::record('create', 'shopee_shop', 0, $data['shop_name'] ?? $tempShopId);
@@ -79,13 +101,16 @@ class ShopeeShopController extends Controller
         }
 
         $data = $request->validate([
-            'shop_name'     => 'sometimes|nullable|string|max:255',
-            'access_token'  => 'sometimes|nullable|string',
-            'refresh_token' => 'sometimes|nullable|string',
+            'shop_name'           => 'sometimes|nullable|string|max:255',
+            'access_token'        => 'sometimes|nullable|string',
+            'refresh_token'       => 'sometimes|nullable|string',
+            'bank_id'             => 'nullable|integer',
+            'bank_account_name'   => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:50',
         ]);
 
         $data['updated_at'] = now();
-        $this->query()->where('shop_id', $shopId)->update($data);
+        DB::connection('n8n')->table('shopee_transaction_tokens')->where('shop_id', $shopId)->update($data);
 
         $logPayload = array_filter($data, fn($k) => !in_array($k, ['access_token', 'refresh_token', 'updated_at']), ARRAY_FILTER_USE_KEY);
         AuditLog::record('update', 'shopee_shop', (int) $shopId, $shop->shop_name ?? $shopId, $logPayload);
@@ -100,7 +125,7 @@ class ShopeeShopController extends Controller
             return response()->json(['message' => 'ไม่พบข้อมูล'], 404);
         }
 
-        $this->query()->where('shop_id', $shopId)->delete();
+        DB::connection('n8n')->table('shopee_transaction_tokens')->where('shop_id', $shopId)->delete();
 
         AuditLog::record('delete', 'shopee_shop', (int) $shopId, $shop->shop_name ?? $shopId);
 
@@ -174,16 +199,16 @@ class ShopeeShopController extends Controller
                 $existing = $this->find($targetShopId);
                 if ($existing) {
                     // Real shop already has a record — update it and remove the pending placeholder
-                    $this->query()->where('shop_id', $targetShopId)->update($tokenData);
-                    $this->query()->where('shop_id', $shopId)->delete();
+                    DB::connection('n8n')->table('shopee_transaction_tokens')->where('shop_id', $targetShopId)->update($tokenData);
+                    DB::connection('n8n')->table('shopee_transaction_tokens')->where('shop_id', $shopId)->delete();
                 } else {
                     // Promote the pending record to the real shop_id
-                    $this->query()->where('shop_id', $shopId)->update(
+                    DB::connection('n8n')->table('shopee_transaction_tokens')->where('shop_id', $shopId)->update(
                         array_merge($tokenData, ['shop_id' => $targetShopId])
                     );
                 }
             } else {
-                $this->query()->where('shop_id', $shopId)->update($tokenData);
+                DB::connection('n8n')->table('shopee_transaction_tokens')->where('shop_id', $shopId)->update($tokenData);
             }
 
             AuditLog::record('exchange_token', 'shopee_shop', (int) $targetShopId, $shop->shop_name ?? $targetShopId, [
@@ -230,7 +255,7 @@ class ShopeeShopController extends Controller
 
         if ($newToken) {
             $expireIn = $result['expire_in'] ?? 14400;
-            $this->query()->where('shop_id', $shopId)->update([
+            DB::connection('n8n')->table('shopee_transaction_tokens')->where('shop_id', $shopId)->update([
                 'access_token'  => $newToken,
                 'refresh_token' => $result['refresh_token'] ?? $shop->refresh_token,
                 'expires_at'    => now()->addSeconds($expireIn),
