@@ -55,13 +55,11 @@ class LineSoController extends Controller
                 SUM(
                     CASE
                         WHEN dl_calculated_cost IS NOT NULL THEN
-                            CEIL(ROUND(
-                                CASE WHEN weight_grams < 10 THEN weight_grams ELSE weight_grams / 1000.0 END * 10000
-                            ) / 100.0) / 100.0
+                            CEIL(ROUND(weight_grams * 10000) / 100.0) / 100.0
                         WHEN ems_calculated_cost IS NOT NULL THEN
-                            CEIL(CASE WHEN weight_grams < 10 THEN weight_grams ELSE weight_grams / 1000.0 END)
+                            CEIL(weight_grams)
                         ELSE
-                            CASE WHEN weight_grams < 10 THEN weight_grams ELSE weight_grams / 1000.0 END
+                            weight_grams
                     END
                 ) as weight_kg,
                 COUNT(*) as total_count
@@ -174,9 +172,7 @@ class LineSoController extends Controller
                             (SELECT value FROM ems_settings WHERE key = 'offset' LIMIT 1), 0
                         ))
                         FROM ems_rates er
-                        WHERE er.weight >= CEIL(
-                            CASE WHEN thpa.weight_grams < 10 THEN thpa.weight_grams ELSE thpa.weight_grams / 1000.0 END
-                        )
+                        WHERE er.weight >= CEIL(thpa.weight_grams)
                         ORDER BY er.weight ASC
                         LIMIT 1
                     ) ELSE NULL END AS ems_calculated_cost
@@ -187,9 +183,7 @@ class LineSoController extends Controller
                             (SELECT value FROM domestic_letter_settings WHERE key = 'offset' LIMIT 1), 0
                         ))
                         FROM domestic_letter_rates dlr
-                        WHERE dlr.weight >= CEIL(
-                            (CASE WHEN thpa.weight_grams < 10 THEN thpa.weight_grams ELSE thpa.weight_grams / 1000.0 END) * 100.0
-                        ) / 100.0
+                        WHERE dlr.weight >= CEIL(thpa.weight_grams * 100.0) / 100.0
                         ORDER BY dlr.weight ASC
                         LIMIT 1
                     ) ELSE NULL END AS dl_calculated_cost
@@ -223,11 +217,12 @@ class LineSoController extends Controller
         }
 
         if ($request->filled('date_from')) {
-            $query->whereDate('thpa.deposit_datetime', '>=', $request->date_from);
+            // Use regex to ensure valid date format before casting to prevent 500 error on invalid dates from n8n
+            $query->whereRaw("CASE WHEN thpa.deposit_datetime ~ '^\d{4}-\d{2}-\d{2}' THEN thpa.deposit_datetime::date >= ? ELSE false END", [$request->date_from]);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('thpa.deposit_datetime', '<=', $request->date_to);
+            $query->whereRaw("CASE WHEN thpa.deposit_datetime ~ '^\d{4}-\d{2}-\d{2}' THEN thpa.deposit_datetime::date <= ? ELSE false END", [$request->date_to]);
         }
 
         if ($request->boolean('no_pi_number')) {

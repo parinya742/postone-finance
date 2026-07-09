@@ -3,15 +3,20 @@
 import api from '@/lib/api'
 import { LazadaTransactionWork, LazadaShop, PaginatedResponse } from '@/lib/types'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Search, Download, CalendarCheck,
   ChevronDown, ChevronUp, X, CheckCircle2, RefreshCw, SlidersHorizontal,
-  AlertTriangle, ShieldCheck
+  AlertTriangle, ShieldCheck, ChevronsUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import * as XLSX from 'xlsx'
-import { fmtDate, TH, TD, AmountCell, StatusBadge, SapInput, inputCls, ErpNoAccess, ErpPagination } from '@/components/erp'
+import {
+  createColumnHelper, flexRender,
+  getCoreRowModel, getSortedRowModel, useReactTable,
+  type SortingState, type VisibilityState, type ColumnDef,
+} from '@tanstack/react-table'
+import { fmtDate, AmountCell, StatusBadge, SapInput, inputCls, ErpNoAccess, ErpPagination } from '@/components/erp'
 
 // ── Page-specific cell ────────────────────────────────────────────────────────
 
@@ -25,41 +30,202 @@ function TransferDateCell({ value }: { value: string | null }) {
   )
 }
 
-// ── Column Definitions ────────────────────────────────────────────────────────
+function SortIcon({ sorted }: { sorted: false | 'asc' | 'desc' }) {
+  if (sorted === 'asc')  return <ArrowUp className="w-3 h-3 text-[#0070F2] shrink-0" />
+  if (sorted === 'desc') return <ArrowDown className="w-3 h-3 text-[#0070F2] shrink-0" />
+  return <ChevronsUpDown className="w-3 h-3 text-[#C0C5CC] shrink-0" />
+}
 
-type ColDef = { key: string; label: string; w: string; right?: boolean; center?: boolean }
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const PAID_STATUS_COLORS: Record<string, string> = {
+  Paid:   'bg-[#F1FAF4] text-[#107E3E] border-[#107E3E]/40',
+  paid:   'bg-[#F1FAF4] text-[#107E3E] border-[#107E3E]/40',
+  Unpaid: 'bg-[#FEF9F0] text-[#E9730C] border-[#E9730C]/40',
+  Failed: 'bg-[#FFF5F5] text-[#BB0000] border-[#BB0000]/40',
+}
+const SOURCE_COLORS: Record<string, string> = {
+  openapi: 'bg-[#EBF5FB] text-[#0064D9] border-[#0064D9]/30',
+  file:    'bg-[#F5F5F5] text-[#6A6D70] border-[#D9D9D9]',
+}
+const PAID_STATUS_OPTIONS = ['Paid', 'Unpaid', 'Failed']
+const SOURCE_OPTIONS      = ['openapi', 'file']
+
+// ── TanStack column helper ────────────────────────────────────────────────────
+
+const ch = createColumnHelper<LazadaTransactionWork>()
+type ColMeta = { align?: 'left' | 'right' | 'center' }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const COLUMNS: ColumnDef<LazadaTransactionWork, any>[] = [
+  ch.accessor('transaction_date', {
+    id: 'tx_date', header: 'Tx Date', size: 90,
+    cell: i => <span className="text-[#6A6D70]">{fmtDate(i.getValue())}</span>,
+  }),
+  ch.accessor('transferred_at', {
+    header: 'วันที่โอน', size: 110,
+    cell: i => <TransferDateCell value={i.getValue()} />,
+  }),
+  ch.accessor('shop_name', {
+    header: 'ร้านค้า', size: 130,
+    cell: i => <span className="font-semibold text-[#32363A]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('transaction_type', {
+    header: 'Transaction Type', size: 160,
+    cell: i => <span className="max-w-[160px] truncate block" title={i.getValue() ?? ''}>{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('fee_name', {
+    header: 'Fee Name', size: 140,
+    cell: i => <span className="max-w-[140px] truncate block text-[#6A6D70]" title={i.getValue() ?? ''}>{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('transaction_number', {
+    header: 'Tx Number', size: 140,
+    cell: i => <span className="font-mono text-[#0064D9] text-[10px]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('details', {
+    header: 'Details', size: 200,
+    cell: i => <span className="max-w-[200px] truncate block text-[#6A6D70]" title={i.getValue() ?? ''}>{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('seller_sku', {
+    header: 'Seller SKU', size: 100,
+    cell: i => <span className="font-mono text-[10px]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('lazada_sku', {
+    header: 'Lazada SKU', size: 100,
+    cell: i => <span className="font-mono text-[10px]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('amount', {
+    header: 'Amount', size: 90,
+    meta: { align: 'right' } satisfies ColMeta,
+    cell: i => <AmountCell value={i.getValue()} />,
+  }),
+  ch.accessor('vat_in_amount', {
+    header: 'VAT', size: 90,
+    meta: { align: 'right' } satisfies ColMeta,
+    cell: i => <AmountCell value={i.getValue()} />,
+  }),
+  ch.accessor('wht_amount', {
+    header: 'WHT', size: 80,
+    meta: { align: 'right' } satisfies ColMeta,
+    cell: i => <AmountCell value={i.getValue()} />,
+  }),
+  ch.accessor('wht_included_in_amount', {
+    id: 'wht_included', header: 'WHT Inc.', size: 60,
+    meta: { align: 'center' } satisfies ColMeta,
+    cell: i => {
+      const v = i.getValue()
+      if (!v) return <span className="text-[#D9D9D9]">—</span>
+      return <span className={`text-[10px] font-semibold ${v.toLowerCase() === 'yes' ? 'text-[#0070F2]' : 'text-[#6A6D70]'}`}>{v}</span>
+    },
+  }),
+  ch.accessor('statement', {
+    header: 'Statement', size: 160,
+    cell: i => <span className="max-w-[160px] truncate block text-[#6A6D70]" title={i.getValue() ?? ''}>{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('paid_status', {
+    header: 'Paid', size: 80,
+    meta: { align: 'center' } satisfies ColMeta,
+    cell: i => <StatusBadge value={i.getValue()} colorMap={PAID_STATUS_COLORS} />,
+  }),
+  ch.accessor('order_no', {
+    header: 'Order No.', size: 120,
+    cell: i => <span className="font-mono text-[10px]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('cust_code', {
+    header: 'Cust Code', size: 100,
+    cell: i => <span className="font-mono text-[10px] text-[#0064D9]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('cust_billname', {
+    header: 'Cust Name', size: 180,
+    cell: i => <span className="max-w-[180px] truncate block" title={i.getValue() ?? ''}>{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('docuno', {
+    header: 'Docuno', size: 120,
+    cell: i => <span className="font-mono text-[10px] text-[#107E3E]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('docudate', {
+    header: 'Docudate', size: 90,
+    cell: i => <span className="text-[#6A6D70]">{fmtDate(i.getValue())}</span>,
+  }),
+  ch.accessor('order_item_no', {
+    header: 'Order Item No.', size: 110,
+    cell: i => <span className="font-mono text-[10px]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('order_item_status', {
+    header: 'Item Status', size: 120,
+    cell: i => <span className="text-[#6A6D70]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('shipping_provider', {
+    header: 'Shipping Provider', size: 120,
+    cell: i => <span className="text-[#6A6D70]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('shipping_speed', {
+    header: 'Speed', size: 90,
+    cell: i => <span className="text-[#6A6D70]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('shipment_type', {
+    header: 'Shipment', size: 90,
+    cell: i => <span className="text-[#6A6D70]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('reference', {
+    header: 'Reference', size: 110,
+    cell: i => <span className="font-mono text-[10px]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('comment', {
+    header: 'Comment', size: 160,
+    cell: i => <span className="max-w-[160px] truncate block text-[#6A6D70]" title={i.getValue() ?? ''}>{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('payment_ref_id', {
+    header: 'PaymentRefId', size: 120,
+    cell: i => <span className="font-mono text-[10px]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('short_code', {
+    header: 'ShortCode', size: 80,
+    cell: i => <span className="text-[#6A6D70]">{i.getValue() ?? '—'}</span>,
+  }),
+  ch.accessor('source', {
+    header: 'Source', size: 70,
+    meta: { align: 'center' } satisfies ColMeta,
+    cell: i => <StatusBadge value={i.getValue()} colorMap={SOURCE_COLORS} />,
+  }),
+]
+
+// ── Column Definitions for ColumnPicker ───────────────────────────────────────
+// Keys must match the TanStack column IDs above (id field or accessor key)
+
+type ColDef = { key: string; label: string }
 
 const COLUMN_DEFS: ColDef[] = [
-  { key: 'tx_date',            label: 'Tx Date',            w: '90px' },
-  { key: 'transferred_at',     label: 'วันที่โอน',           w: '110px' },
-  { key: 'shop_name',          label: 'ร้านค้า',             w: '130px' },
-  { key: 'transaction_type',   label: 'Transaction Type',   w: '160px' },
-  { key: 'fee_name',           label: 'Fee Name',           w: '140px' },
-  { key: 'transaction_number', label: 'Tx Number',          w: '140px' },
-  { key: 'details',            label: 'Details',            w: '200px' },
-  { key: 'seller_sku',         label: 'Seller SKU',         w: '100px' },
-  { key: 'lazada_sku',         label: 'Lazada SKU',         w: '100px' },
-  { key: 'amount',             label: 'Amount',             w: '90px',  right: true },
-  { key: 'vat_in_amount',      label: 'VAT',                w: '90px',  right: true },
-  { key: 'wht_amount',         label: 'WHT',                w: '80px',  right: true },
-  { key: 'wht_included',       label: 'WHT Inc.',           w: '60px',  center: true },
-  { key: 'statement',          label: 'Statement',          w: '160px' },
-  { key: 'paid_status',        label: 'Paid',               w: '80px',  center: true },
-  { key: 'order_no',           label: 'Order No.',          w: '120px' },
-  { key: 'cust_code',          label: 'Cust Code',          w: '100px' },
-  { key: 'cust_billname',      label: 'Cust Name',          w: '180px' },
-  { key: 'docuno',             label: 'Docuno',             w: '120px' },
-  { key: 'docudate',           label: 'Docudate',           w: '90px' },
-  { key: 'order_item_no',      label: 'Order Item No.',     w: '110px' },
-  { key: 'order_item_status',  label: 'Item Status',        w: '120px' },
-  { key: 'shipping_provider',  label: 'Shipping Provider',  w: '120px' },
-  { key: 'shipping_speed',     label: 'Speed',              w: '90px' },
-  { key: 'shipment_type',      label: 'Shipment',           w: '90px' },
-  { key: 'reference',          label: 'Reference',          w: '110px' },
-  { key: 'comment',            label: 'Comment',            w: '160px' },
-  { key: 'payment_ref_id',     label: 'PaymentRefId',       w: '120px' },
-  { key: 'short_code',         label: 'ShortCode',          w: '80px' },
-  { key: 'source',             label: 'Source',             w: '70px',  center: true },
+  { key: 'tx_date',            label: 'Tx Date' },
+  { key: 'transferred_at',     label: 'วันที่โอน' },
+  { key: 'shop_name',          label: 'ร้านค้า' },
+  { key: 'transaction_type',   label: 'Transaction Type' },
+  { key: 'fee_name',           label: 'Fee Name' },
+  { key: 'transaction_number', label: 'Tx Number' },
+  { key: 'details',            label: 'Details' },
+  { key: 'seller_sku',         label: 'Seller SKU' },
+  { key: 'lazada_sku',         label: 'Lazada SKU' },
+  { key: 'amount',             label: 'Amount' },
+  { key: 'vat_in_amount',      label: 'VAT' },
+  { key: 'wht_amount',         label: 'WHT' },
+  { key: 'wht_included',       label: 'WHT Inc.' },
+  { key: 'statement',          label: 'Statement' },
+  { key: 'paid_status',        label: 'Paid' },
+  { key: 'order_no',           label: 'Order No.' },
+  { key: 'cust_code',          label: 'Cust Code' },
+  { key: 'cust_billname',      label: 'Cust Name' },
+  { key: 'docuno',             label: 'Docuno' },
+  { key: 'docudate',           label: 'Docudate' },
+  { key: 'order_item_no',      label: 'Order Item No.' },
+  { key: 'order_item_status',  label: 'Item Status' },
+  { key: 'shipping_provider',  label: 'Shipping Provider' },
+  { key: 'shipping_speed',     label: 'Speed' },
+  { key: 'shipment_type',      label: 'Shipment' },
+  { key: 'reference',          label: 'Reference' },
+  { key: 'comment',            label: 'Comment' },
+  { key: 'payment_ref_id',     label: 'PaymentRefId' },
+  { key: 'short_code',         label: 'ShortCode' },
+  { key: 'source',             label: 'Source' },
 ]
 
 const PREF_KEY = 'columns.lazada-transactions-work'
@@ -127,27 +293,9 @@ function ColumnPicker({ hidden, onToggle, onReset, saving }: {
           </div>
         </div>
       )}
-
-
     </div>
   )
 }
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const PAID_STATUS_COLORS: Record<string, string> = {
-  Paid:   'bg-[#F1FAF4] text-[#107E3E] border-[#107E3E]/40',
-  paid:   'bg-[#F1FAF4] text-[#107E3E] border-[#107E3E]/40',
-  Unpaid: 'bg-[#FEF9F0] text-[#E9730C] border-[#E9730C]/40',
-  Failed: 'bg-[#FFF5F5] text-[#BB0000] border-[#BB0000]/40',
-}
-const SOURCE_COLORS: Record<string, string> = {
-  openapi: 'bg-[#EBF5FB] text-[#0064D9] border-[#0064D9]/30',
-  file:    'bg-[#F5F5F5] text-[#6A6D70] border-[#D9D9D9]',
-}
-
-const PAID_STATUS_OPTIONS = ['Paid', 'Unpaid', 'Failed']
-const SOURCE_OPTIONS      = ['openapi', 'file']
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -182,16 +330,15 @@ export default function LazadaTransactionsWorkPage() {
   const [syncing, setSyncing]                 = useState(false)
   const [syncResult, setSyncResult]           = useState<{ custRows: number; docRows: number; custFound: number; docFound: number } | null>(null)
   const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean
-    title: string
-    msg: string
-    danger?: boolean
-    onConfirm?: () => void
+    open: boolean; title: string; msg: string; danger?: boolean; onConfirm?: () => void
   }>({ open: false, title: '', msg: '' })
 
-  // Column visibility
+  // Column visibility (server-persisted)
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set())
   const prefSynced = useRef(false)
+
+  // Sort state
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const checkboxMode = !!(startDate && endDate)
 
@@ -245,6 +392,29 @@ export default function LazadaTransactionsWorkPage() {
       },
     }).then(r => r.data),
     enabled: can('lazada-shops.view'),
+  })
+
+  // ── TanStack Table ────────────────────────────────────────────────────────
+
+  const items = data?.data ?? []
+  const shops = shopsData?.data ?? []
+
+  const columnVisibility = useMemo<VisibilityState>(() => {
+    const v: VisibilityState = {}
+    hiddenCols.forEach(k => { v[k] = false })
+    return v
+  }, [hiddenCols])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const columns = useMemo(() => COLUMNS, [])
+
+  const table = useReactTable({
+    data: items,
+    columns,
+    state: { sorting, columnVisibility },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   })
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -387,8 +557,6 @@ export default function LazadaTransactionsWorkPage() {
 
   if (!can('lazada-shops.view')) return <ErpNoAccess />
 
-  const items   = data?.data ?? []
-  const shops   = shopsData?.data ?? []
   const allPageIds     = items.map(i => i.id)
   const selectedOnPage = allPageIds.filter(id => selectedIds.has(id))
   const allOnPageSel   = allPageIds.length > 0 && selectedOnPage.length === allPageIds.length
@@ -413,17 +581,15 @@ export default function LazadaTransactionsWorkPage() {
     setSearch(''); setShopName(''); setStartDate(''); setEndDate('')
     setTxType(''); setPaidStatus(''); setSource('')
     setTransferStatus(''); setTransferredStart(''); setTransferredEnd('')
-    setDiStatus('')
-    setPage(1)
+    setDiStatus(''); setPage(1)
   }
 
   const hasFilter    = !!(search || shopName || startDate || endDate || txType || paidStatus || source || transferStatus || transferredStart || transferredEnd || diStatus)
   const hasAdvFilter = !!(txType || paidStatus || source || transferStatus || transferredStart || transferredEnd || diStatus)
 
-  const vis = (key: string) => !hiddenCols.has(key)
-  const visibleCols = COLUMN_DEFS.filter(c => !hiddenCols.has(c.key))
-  const colCount    = visibleCols.length + (checkboxMode ? 1 : 0)
-  const minWidth    = visibleCols.reduce((s, c) => s + parseInt(c.w), 0) + (checkboxMode ? 36 : 0) + 'px'
+  const visibleLeafCols = table.getVisibleLeafColumns()
+  const visibleCount    = visibleLeafCols.length + (checkboxMode ? 1 : 0)
+  const minWidth        = visibleLeafCols.reduce((s, c) => s + (c.getSize() ?? 0), 0) + (checkboxMode ? 36 : 0) + 'px'
 
   return (
     <div className="space-y-0 text-[#32363A]">
@@ -483,7 +649,6 @@ export default function LazadaTransactionsWorkPage() {
 
       {/* ══ Filter Bar ═══════════════════════════════════════════════════════ */}
       <div className="bg-[#F9FAFB] border-x border-b border-[#D9D9D9] px-4 py-3">
-        {/* Filter header row */}
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[10px] font-semibold text-[#6A6D70] uppercase tracking-wider">ตัวกรอง</span>
           <div className="flex items-center gap-1.5">
@@ -506,7 +671,6 @@ export default function LazadaTransactionsWorkPage() {
           </div>
         </div>
 
-        {/* Primary filters */}
         <div className="flex flex-wrap gap-3 items-end">
           <SapInput label="ค้นหา">
             <div className="relative">
@@ -556,7 +720,6 @@ export default function LazadaTransactionsWorkPage() {
           </SapInput>
         </div>
 
-        {/* Advanced filters */}
         {(showAdv || hasTransferFilter || hasDiFilter) && (
           <div className="flex flex-wrap gap-3 items-end mt-3 pt-3 border-t border-[#EBEBEB]">
             <SapInput label="ประเภทธุรกรรม">
@@ -685,7 +848,7 @@ export default function LazadaTransactionsWorkPage() {
                   {updating ? 'กำลังอัพเดท...' : 'อัพเดทวันที่โอน'}
                 </button>
                 <button
-                  onClick={() => { 
+                  onClick={() => {
                     setConfirmDialog({
                       open: true,
                       title: 'ยืนยันการล้างวันที่โอน',
@@ -726,67 +889,66 @@ export default function LazadaTransactionsWorkPage() {
       <div className="bg-white border border-[#D9D9D9] border-t-0 overflow-auto max-h-[calc(100vh-244px)] lg:max-h-[calc(100vh-260px)]">
         <table className="w-full text-xs border-collapse" style={{ minWidth }}>
           <thead className="sticky top-0 z-10">
-            <tr className="bg-[#F2F4F7] border-b-2 border-[#0070F2]">
-              {checkboxMode && (
-                <th className="w-9 px-2.5 py-2 border-r border-[#D9D9D9]">
-                  <HeaderCheckbox checked={allOnPageSel} indeterminate={someOnPageSel} onChange={toggleAll} />
-                </th>
-              )}
-              {vis('tx_date')            && <TH w="90px">Tx Date</TH>}
-              {vis('transferred_at')     && <TH w="110px">วันที่โอน</TH>}
-              {vis('shop_name')          && <TH w="130px">ร้านค้า</TH>}
-              {vis('transaction_type')   && <TH w="160px">Transaction Type</TH>}
-              {vis('fee_name')           && <TH w="140px">Fee Name</TH>}
-              {vis('transaction_number') && <TH w="140px">Transaction Number</TH>}
-              {vis('details')            && <TH w="200px">Details</TH>}
-              {vis('seller_sku')         && <TH w="100px">Seller SKU</TH>}
-              {vis('lazada_sku')         && <TH w="100px">Lazada SKU</TH>}
-              {vis('amount')             && <TH w="90px" right>Amount</TH>}
-              {vis('vat_in_amount')      && <TH w="90px" right>VAT</TH>}
-              {vis('wht_amount')         && <TH w="80px" right>WHT</TH>}
-              {vis('wht_included')       && <TH w="60px" center>WHT Inc.</TH>}
-              {vis('statement')          && <TH w="160px">Statement</TH>}
-              {vis('paid_status')        && <TH w="80px" center>Paid</TH>}
-              {vis('order_no')           && <TH w="120px">Order No.</TH>}
-              {vis('cust_code')          && <TH w="100px">Cust Code</TH>}
-              {vis('cust_billname')      && <TH w="180px">Cust Name</TH>}
-              {vis('docuno')             && <TH w="120px">Docuno</TH>}
-              {vis('docudate')           && <TH w="90px">Docudate</TH>}
-              {vis('order_item_no')      && <TH w="110px">Order Item No.</TH>}
-              {vis('order_item_status')  && <TH w="120px">Item Status</TH>}
-              {vis('shipping_provider')  && <TH w="120px">Shipping Provider</TH>}
-              {vis('shipping_speed')     && <TH w="90px">Speed</TH>}
-              {vis('shipment_type')      && <TH w="90px">Shipment</TH>}
-              {vis('reference')          && <TH w="110px">Reference</TH>}
-              {vis('comment')            && <TH w="160px">Comment</TH>}
-              {vis('payment_ref_id')     && <TH w="120px">PaymentRefId</TH>}
-              {vis('short_code')         && <TH w="80px">ShortCode</TH>}
-              {vis('source')             && <TH w="70px" center>Source</TH>}
-            </tr>
+            {table.getHeaderGroups().map(hg => (
+              <tr key={hg.id} className="bg-[#F2F4F7] border-b-2 border-[#0070F2]">
+                {checkboxMode && (
+                  <th className="w-9 px-2.5 py-2 border-r border-[#D9D9D9]">
+                    <HeaderCheckbox checked={allOnPageSel} indeterminate={someOnPageSel} onChange={toggleAll} />
+                  </th>
+                )}
+                {hg.headers.map(header => {
+                  const meta    = header.column.columnDef.meta as ColMeta | undefined
+                  const align   = meta?.align ?? 'left'
+                  const sorted  = header.column.getIsSorted()
+                  const canSort = header.column.getCanSort()
+                  return (
+                    <th
+                      key={header.id}
+                      style={{ width: header.column.columnDef.size, minWidth: header.column.columnDef.size }}
+                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                      className={[
+                        'px-2.5 py-2 text-[10px] font-semibold text-[#354A5E] uppercase tracking-wider whitespace-nowrap',
+                        'border-r border-[#D9D9D9] last:border-r-0',
+                        align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left',
+                        canSort ? 'cursor-pointer hover:bg-[#E8EDF3] select-none' : '',
+                      ].join(' ')}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          <SortIcon sorted={sorted} />
+                        </span>
+                      )}
+                    </th>
+                  )
+                })}
+              </tr>
+            ))}
           </thead>
           <tbody>
             {isLoading ? (
               [...Array(10)].map((_, i) => (
                 <tr key={i} className="border-b border-[#EBEBEB]">
-                  {[...Array(colCount)].map((_, j) => (
+                  {[...Array(visibleCount)].map((_, j) => (
                     <td key={j} className="px-2.5 py-1.5 border-r border-[#EBEBEB]">
                       <div className="h-2.5 bg-[#F2F4F7] rounded animate-pulse" />
                     </td>
                   ))}
                 </tr>
               ))
-            ) : items.length === 0 ? (
+            ) : table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={colCount} className="px-5 py-12 text-center text-[#6A6D70] text-sm">
+                <td colSpan={visibleCount} className="px-5 py-12 text-center text-[#6A6D70] text-sm">
                   ไม่พบรายการที่ตรงกับเงื่อนไขที่เลือก
                 </td>
               </tr>
             ) : (
-              items.map(item => {
+              table.getRowModel().rows.map(row => {
+                const item = row.original
                 const isSel = selectedIds.has(item.id)
                 return (
                   <tr
-                    key={item.id}
+                    key={row.id}
                     onClick={checkboxMode ? () => toggleOne(item.id) : undefined}
                     className={`border-b border-[#EBEBEB] transition-colors ${
                       isSel
@@ -807,57 +969,33 @@ export default function LazadaTransactionsWorkPage() {
                         />
                       </td>
                     )}
-                    {vis('tx_date')            && <TD><span className="text-[#6A6D70]">{fmtDate(item.transaction_date)}</span></TD>}
-                    {vis('transferred_at')     && <TD><TransferDateCell value={item.transferred_at} /></TD>}
-                    {vis('shop_name')          && <TD><span className="font-semibold text-[#32363A]">{item.shop_name}</span></TD>}
-                    {vis('transaction_type')   && <TD><span className="max-w-[160px] truncate block" title={item.transaction_type ?? ''}>{item.transaction_type ?? '—'}</span></TD>}
-                    {vis('fee_name')           && <TD><span className="max-w-[140px] truncate block text-[#6A6D70]" title={item.fee_name ?? ''}>{item.fee_name ?? '—'}</span></TD>}
-                    {vis('transaction_number') && <TD><span className="font-mono text-[#0064D9] text-[10px]">{item.transaction_number ?? '—'}</span></TD>}
-                    {vis('details')            && <TD><span className="max-w-[200px] truncate block text-[#6A6D70]" title={item.details ?? ''}>{item.details ?? '—'}</span></TD>}
-                    {vis('seller_sku')         && <TD><span className="font-mono text-[10px]">{item.seller_sku ?? '—'}</span></TD>}
-                    {vis('lazada_sku')         && <TD><span className="font-mono text-[10px]">{item.lazada_sku ?? '—'}</span></TD>}
-                    {vis('amount')             && <TD right><AmountCell value={item.amount} /></TD>}
-                    {vis('vat_in_amount')      && <TD right><AmountCell value={item.vat_in_amount} /></TD>}
-                    {vis('wht_amount')         && <TD right><AmountCell value={item.wht_amount} /></TD>}
-                    {vis('wht_included')       && (
-                      <TD center>
-                        {item.wht_included_in_amount ? (
-                          <span className={`text-[10px] font-semibold ${item.wht_included_in_amount.toLowerCase() === 'yes' ? 'text-[#0070F2]' : 'text-[#6A6D70]'}`}>
-                            {item.wht_included_in_amount}
-                          </span>
-                        ) : <span className="text-[#D9D9D9]">—</span>}
-                      </TD>
-                    )}
-                    {vis('statement')          && <TD><span className="max-w-[160px] truncate block text-[#6A6D70]" title={item.statement ?? ''}>{item.statement ?? '—'}</span></TD>}
-                    {vis('paid_status')        && <TD center><StatusBadge value={item.paid_status} colorMap={PAID_STATUS_COLORS} /></TD>}
-                    {vis('order_no')           && <TD><span className="font-mono text-[10px]">{item.order_no ?? '—'}</span></TD>}
-                    {vis('cust_code')          && <TD><span className="font-mono text-[10px] text-[#0064D9]">{item.cust_code ?? '—'}</span></TD>}
-                    {vis('cust_billname')      && <TD><span className="max-w-[180px] truncate block" title={item.cust_billname ?? ''}>{item.cust_billname ?? '—'}</span></TD>}
-                    {vis('docuno')             && <TD><span className="font-mono text-[10px] text-[#107E3E]">{item.docuno ?? '—'}</span></TD>}
-                    {vis('docudate')           && <TD><span className="text-[#6A6D70]">{fmtDate(item.docudate)}</span></TD>}
-                    {vis('order_item_no')      && <TD><span className="font-mono text-[10px]">{item.order_item_no ?? '—'}</span></TD>}
-                    {vis('order_item_status')  && <TD><span className="text-[#6A6D70]">{item.order_item_status ?? '—'}</span></TD>}
-                    {vis('shipping_provider')  && <TD><span className="text-[#6A6D70]">{item.shipping_provider ?? '—'}</span></TD>}
-                    {vis('shipping_speed')     && <TD><span className="text-[#6A6D70]">{item.shipping_speed ?? '—'}</span></TD>}
-                    {vis('shipment_type')      && <TD><span className="text-[#6A6D70]">{item.shipment_type ?? '—'}</span></TD>}
-                    {vis('reference')          && <TD><span className="font-mono text-[10px]">{item.reference ?? '—'}</span></TD>}
-                    {vis('comment')            && <TD><span className="max-w-[160px] truncate block text-[#6A6D70]" title={item.comment ?? ''}>{item.comment ?? '—'}</span></TD>}
-                    {vis('payment_ref_id')     && <TD><span className="font-mono text-[10px]">{item.payment_ref_id ?? '—'}</span></TD>}
-                    {vis('short_code')         && <TD><span className="text-[#6A6D70]">{item.short_code ?? '—'}</span></TD>}
-                    {vis('source')             && <TD center><StatusBadge value={item.source} colorMap={SOURCE_COLORS} /></TD>}
+                    {row.getVisibleCells().map(cell => {
+                      const meta  = cell.column.columnDef.meta as ColMeta | undefined
+                      const align = meta?.align ?? 'left'
+                      return (
+                        <td
+                          key={cell.id}
+                          className={[
+                            'px-2.5 py-1.5 text-xs text-[#32363A] border-r border-[#EBEBEB] last:border-r-0',
+                            align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : '',
+                          ].join(' ')}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      )
+                    })}
                   </tr>
                 )
               })
             )}
           </tbody>
         </table>
-
       </div>
 
-      {/* ── Pagination ──────────────────────────────────────────────────── */}
+      {/* ── Pagination ────────────────────────────────────────────────────── */}
       {data && <ErpPagination data={data} page={page} setPage={setPage} />}
 
-      {/* Custom Confirm Dialog */}
+      {/* ── Confirm Dialog ────────────────────────────────────────────────── */}
       {confirmDialog.open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -883,8 +1021,8 @@ export default function LazadaTransactionsWorkPage() {
                   confirmDialog.onConfirm?.()
                 }}
                 className={`px-4 py-2 text-xs font-medium text-white rounded-lg transition-all shadow-sm ${
-                  confirmDialog.danger 
-                    ? 'bg-red-600 hover:bg-red-700 shadow-red-200' 
+                  confirmDialog.danger
+                    ? 'bg-red-600 hover:bg-red-700 shadow-red-200'
                     : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
                 }`}
               >
