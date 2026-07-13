@@ -52,6 +52,7 @@ class LineSoController extends Controller
                 SUM(service_fee) as service_fee,
                 SUM(special_zone_rate) as special_zone_rate,
                 SUM(COALESCE(dl_calculated_cost, ems_calculated_cost, service_fee)) as transport,
+                SUM(CASE WHEN service_name NOT ILIKE '%ขนาดใหญ่%' AND service_name NOT ILIKE '%จดหมายในประเทศ - ซอง%' THEN COALESCE(special_zone_rate, 0) ELSE 0 END) as special_zone_for_diff,
                 SUM(
                     CASE
                         WHEN dl_calculated_cost IS NOT NULL THEN
@@ -68,6 +69,7 @@ class LineSoController extends Controller
 
         $transport   = (float) ($result->transport ?? 0);
         $serviceFee  = (float) ($result->service_fee ?? 0);
+        $specialZoneForDiff = (float) ($result->special_zone_for_diff ?? 0);
 
         return response()->json([
             'weight_grams'      => (float) ($result->weight_grams ?? 0),
@@ -75,7 +77,7 @@ class LineSoController extends Controller
             'special_zone_rate' => (float) ($result->special_zone_rate ?? 0),
             'transport'         => $transport,
             'weight_kg'         => (float) ($result->weight_kg ?? 0),
-            'diff'              => $transport - $serviceFee,
+            'diff'              => $serviceFee - $transport - $specialZoneForDiff,
             'total_count'       => (int) ($result->total_count ?? 0),
         ]);
     }

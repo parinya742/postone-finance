@@ -94,6 +94,13 @@ function AreaCombobox({
   )
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function hidesSpecialZone(serviceName: string | null | undefined) {
+  const svc = serviceName ?? ''
+  return svc.includes('ขนาดใหญ่') || svc.includes('จดหมายในประเทศ - ซอง')
+}
+
 // ── Formatters ────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string | null) {
@@ -187,9 +194,9 @@ function buildSummarySheet(items: LineSoJoin[]) {
       else totalWeightKg += g
     }
     totalTransport += Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
-    totalSpecialZone += Number(i.special_zone_rate ?? 0)
+    if (!hidesSpecialZone(i.service_name)) totalSpecialZone += Number(i.special_zone_rate ?? 0)
   }
-  const totalDiff = totalTransport - totalServiceFee
+  const totalDiff = totalServiceFee - totalTransport - totalSpecialZone
 
   const areaMap = new Map<string, { count: number; found: number; serviceFee: number; transport: number; diff: number }>()
   for (const i of items) {
@@ -199,7 +206,8 @@ function buildSummarySheet(items: LineSoJoin[]) {
     row.count++; if (i.PINo !== null) row.found++
     row.serviceFee += Number(i.service_fee ?? 0)
     const t = Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
-    row.transport += t; row.diff += t - Number(i.service_fee ?? 0)
+    const spz = hidesSpecialZone(i.service_name) ? 0 : Number(i.special_zone_rate ?? 0)
+    row.transport += t; row.diff += Number(i.service_fee ?? 0) - t - spz
   }
 
   const exportDate = new Date().toLocaleDateString('th-TH', { dateStyle: 'short' })
@@ -210,7 +218,7 @@ function buildSummarySheet(items: LineSoJoin[]) {
     ['ผลรวมตัวเลข (ทุกรายการ)', ''], ['น้ำหนัก (g) Before', totalWeightG],
     ['ค่าบริการ Before', totalServiceFee], ['น้ำหนัก (กก.)', Math.round(totalWeightKg * 100) / 100],
     ['ค่าขนส่ง (คำนวณ)', totalTransport], ['อัตราพื้นที่พิเศษ', totalSpecialZone],
-    ['Diff (ค่าขนส่ง − ค่าบริการ)', totalDiff], [],
+    ['Diff (ค่าบริการ Before − ค่าขนส่ง − พื้นที่พิเศษ)', totalDiff], [],
     ['สรุปแยกตาม Area'],
     ['Area', 'รายการทั้งหมด', 'พบ ISCODE', 'ไม่พบ ISCODE', 'ค่าบริการ Before', 'ค่าขนส่ง (คำนวณ)', 'Diff'],
     ...[...areaMap.entries()].sort((a, b) => b[1].count - a[1].count)
@@ -231,7 +239,8 @@ function buildExcelRows(items: LineSoJoin[]) {
     }
     const transport = item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? null
     const before = item.service_fee ?? null
-    const diff = transport != null && before != null ? transport - before : ''
+    const spz = hidesSpecialZone(item.service_name) ? 0 : Number(item.special_zone_rate ?? 0)
+    const diff = transport != null && before != null ? Number(before) - Number(transport) - spz : ''
     return {
       'วันฝากส่ง': fmtDate(item.deposit_datetime),
       'Barcode': item.barcode ?? '',
@@ -249,7 +258,7 @@ function buildExcelRows(items: LineSoJoin[]) {
       'ชื่อผู้รับ': item.customer_name ?? '', 'สินค้า': item.product_details ?? '',
       'น้ำหนัก (กก.)': excelKg,
       'ค่าขนส่ง': item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? '',
-      'อัตราพื้นที่พิเศษ': item.special_zone_rate ?? '', 'Diff': diff,
+      'อัตราพื้นที่พิเศษ': hidesSpecialZone(item.service_name) ? '' : (item.special_zone_rate ?? ''), 'Diff': diff,
     }
   })
 }
@@ -411,9 +420,12 @@ const COLUMNS: ColumnDef<LineSoJoin, any>[] = [
   ch.accessor('special_zone_rate', {
     header: ({ table }) => <span className="inline-flex items-center justify-end gap-1">อัตราพื้นที่พิเศษ<SumBtn col="special_zone_rate" table={table} /></span>,
     size: 140, meta: { align: 'right' } satisfies ColMeta,
-    cell: i => i.getValue() != null
-      ? <span className="font-semibold text-[#C44500] text-xs">{fmtNum(i.getValue(), 0)}</span>
-      : <span className="text-[#C0C1C2]">—</span>,
+    cell: i => {
+      if (hidesSpecialZone(i.row.original.service_name)) return <span className="text-[#C0C1C2]">—</span>
+      return i.getValue() != null
+        ? <span className="font-semibold text-[#C44500] text-xs">{fmtNum(i.getValue(), 0)}</span>
+        : <span className="text-[#C0C1C2]">—</span>
+    },
   }),
 
   // ── GROUP 6: Diff (1 col) ─────────────────────────────────────────────────
@@ -421,7 +433,8 @@ const COLUMNS: ColumnDef<LineSoJoin, any>[] = [
     row => {
       const t = row.dl_calculated_cost ?? row.ems_calculated_cost ?? row.service_fee ?? null
       const b = row.service_fee ?? null
-      return t != null && b != null ? t - b : null
+      const spz = hidesSpecialZone(row.service_name) ? 0 : Number(row.special_zone_rate ?? 0)
+      return t != null && b != null ? Number(b) - Number(t) - spz : null
     },
     {
       id: 'diff',
@@ -553,7 +566,9 @@ export default function LineSoPage() {
       special_zone_rate: arr.reduce((s, i) => s + Number(i.special_zone_rate ?? 0), 0),
       diff: arr.reduce((s, i) => {
         const t = Number(i.dl_calculated_cost ?? i.ems_calculated_cost ?? i.service_fee ?? 0)
-        const b = Number(i.service_fee ?? 0); return s + (t - b)
+        const b = Number(i.service_fee ?? 0)
+        const spz = hidesSpecialZone(i.service_name) ? 0 : Number(i.special_zone_rate ?? 0)
+        return s + (b - t - spz)
       }, 0),
     }
   }, [data])

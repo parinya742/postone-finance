@@ -43,6 +43,8 @@ export default function LineMediaPage() {
   const [search, setSearch] = useState("");
   const [contentType, setContentType] = useState("");
   const [trashed, setTrashed] = useState("without");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [preview, setPreview] = useState<PreviewItem>(null);
 
@@ -57,11 +59,19 @@ export default function LineMediaPage() {
   const resetPage = () => setPage(1);
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineGroupMedia>>({
-    queryKey: ["line-media", search, contentType, trashed, page],
+    queryKey: ["line-media", search, contentType, trashed, dateFrom, dateTo, page],
     queryFn: () =>
       api
         .get("/line-media", {
-          params: { search, content_type: contentType || undefined, trashed, page, per_page: 20 },
+          params: {
+            search,
+            content_type: contentType || undefined,
+            trashed,
+            date_from: dateFrom || undefined,
+            date_to: dateTo || undefined,
+            page,
+            per_page: 20,
+          },
         })
         .then((r) => r.data),
     enabled: can("line-media.view"),
@@ -145,6 +155,7 @@ export default function LineMediaPage() {
           <h1 className="text-2xl font-bold text-slate-800">รายการสื่อ LINE (Media)</h1>
           <p className="text-slate-500 text-sm mt-1">ทั้งหมด {data?.total ?? 0} รายการ</p>
         </div>
+        
         {can("line-media.import") && (
           <button
             onClick={() => setShowImport(true)}
@@ -193,6 +204,33 @@ export default function LineMediaPage() {
           <option value="only">แสดงเฉพาะที่ถูกลบ</option>
           <option value="with">แสดงทั้งหมด</option>
         </select>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); resetPage(); }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="วันที่เริ่มต้น"
+          />
+          <span className="text-slate-400 text-sm">—</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => { setDateTo(e.target.value); resetPage(); }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="วันที่สิ้นสุด"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(""); setDateTo(""); resetPage(); }}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="ล้างตัวกรองวันที่"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\LineGroupMedia;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -39,6 +40,14 @@ class LineGroupMediaController extends Controller
 
         if ($request->filled('group_id')) {
             $query->where('group_id', $request->group_id);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->where('created_at', '>=', Carbon::parse($request->date_from, 'Asia/Bangkok')->startOfDay()->utc());
+        }
+
+        if ($request->filled('date_to')) {
+            $query->where('created_at', '<=', Carbon::parse($request->date_to, 'Asia/Bangkok')->endOfDay()->utc());
         }
 
         $items = $query->orderByDesc('created_at')->paginate($request->integer('per_page', 20));
