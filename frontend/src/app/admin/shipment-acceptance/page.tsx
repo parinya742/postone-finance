@@ -9,10 +9,26 @@ import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 import * as XLSX from 'xlsx'
 
+function parseBuddhistDateStr(d: string): Date | null {
+  const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[T ]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  let year = parseInt(m[3]);
+  if (year < 100) year += 2500;
+  if (year > 2400) year -= 543;
+  if (year < 1900 || year > 2200) return null;
+  const dt = new Date(year, parseInt(m[2]) - 1, parseInt(m[1]), m[4] ? parseInt(m[4]) : 0, m[5] ? parseInt(m[5]) : 0, m[6] ? parseInt(m[6]) : 0);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
 function fmtDate(d: string | null) {
   if (!d) return '—'
-  const dt = new Date(d)
-  if (isNaN(dt.getTime())) return String(d)
+  const normalized = d.includes('T') ? d : d.replace(' ', 'T');
+  let dt = new Date(normalized);
+  if (isNaN(dt.getTime())) {
+    const parsed = parseBuddhistDateStr(d);
+    if (!parsed) return d;
+    dt = parsed;
+  }
   return dt.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
 }
 
@@ -249,7 +265,8 @@ export default function ShipmentAcceptancePage() {
           className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">ทุกประเภทบริการ</option>
-          <option value="EMS">EMS</option>
+          <option value="EMS">EMS (ทั้งหมด)</option>
+          <option value="EMS Jumbo">EMS Jumbo นำจ่าย</option>
           <option value="จดหมาย">จดหมาย</option>
           {/* <option value="พัสดุ">พัสดุ</option>
           <option value="ลงทะเบียน">ลงทะเบียน</option> */}

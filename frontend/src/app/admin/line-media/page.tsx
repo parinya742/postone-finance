@@ -3,10 +3,10 @@
 import api from "@/lib/api";
 import { LineGroupMedia, PaginatedResponse } from "@/lib/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Search, Lock, Image, Film, ExternalLink, Trash2,
-  X, RotateCcw, Upload, User,
+  X, RotateCcw, Upload, User, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import clsx from "clsx";
@@ -34,8 +34,6 @@ function fmtDuration(ms: number | null) {
   return m > 0 ? `${m}:${String(sec).padStart(2, "0")}` : `${sec}s`;
 }
 
-type PreviewItem = LineGroupMedia | null;
-
 export default function LineMediaPage() {
   const { can } = useAuth();
   const qc = useQueryClient();
@@ -46,7 +44,7 @@ export default function LineMediaPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
-  const [preview, setPreview] = useState<PreviewItem>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   // Import state
   const [showImport, setShowImport] = useState(false);
@@ -147,6 +145,22 @@ export default function LineMediaPage() {
   }
 
   const items = data?.data ?? [];
+  const imageItems = items.filter((i) => i.content_type === "image");
+  const previewItem = previewIndex !== null ? imageItems[previewIndex] ?? null : null;
+  const goPrev = () => setPreviewIndex((i) => (i !== null && i > 0 ? i - 1 : i));
+  const goNext = () => setPreviewIndex((i) => (i !== null && i < imageItems.length - 1 ? i + 1 : i));
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (previewIndex === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") goPrev();
+      else if (e.key === "ArrowRight") goNext();
+      else if (e.key === "Escape") setPreviewIndex(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [previewIndex, imageItems.length]);
 
   return (
     <div className="space-y-6">
@@ -271,7 +285,7 @@ export default function LineMediaPage() {
                   {/* Thumbnail */}
                   <td className="px-4 py-3">
                     {item.content_type === "image" ? (
-                      <button onClick={() => setPreview(item)} className="block">
+                      <button onClick={() => setPreviewIndex(imageItems.findIndex((i) => i.id === item.id))} className="block">
                         <img
                           src={item.file_url}
                           alt={item.message_id}
@@ -405,25 +419,47 @@ export default function LineMediaPage() {
       </div>
 
       {/* Image Preview Modal */}
-      {preview && preview.content_type === "image" && (
+      {previewItem && (
         <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-          onClick={() => setPreview(null)}
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setPreviewIndex(null)}
         >
-          <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setPreview(null)}
-              className="absolute -top-10 right-0 text-white/80 hover:text-white"
-            >
-              <X className="w-6 h-6" />
-            </button>
+          {/* Prev button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); goPrev(); }}
+            disabled={previewIndex === 0}
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/25 text-white disabled:opacity-20 transition-colors z-10"
+          >
+            <ChevronLeft className="w-7 h-7" />
+          </button>
+
+          {/* Image container */}
+          <div className="relative max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-white/50 text-xs font-mono">{previewItem.message_id}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-white/60 text-xs">{(previewIndex ?? 0) + 1} / {imageItems.length}</span>
+                <button onClick={() => setPreviewIndex(null)} className="text-white/70 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
             <img
-              src={preview.file_url}
-              alt={preview.message_id}
-              className="w-full max-h-[80vh] object-contain rounded-lg"
+              key={previewItem.id}
+              src={previewItem.file_url}
+              alt={previewItem.message_id}
+              className="w-full max-h-[82vh] object-contain rounded-lg"
             />
-            <p className="mt-2 text-center text-white/60 text-xs font-mono">{preview.message_id}</p>
           </div>
+
+          {/* Next button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); goNext(); }}
+            disabled={previewIndex === imageItems.length - 1}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/25 text-white disabled:opacity-20 transition-colors z-10"
+          >
+            <ChevronRight className="w-7 h-7" />
+          </button>
         </div>
       )}
 

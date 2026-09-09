@@ -121,10 +121,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:line-files.view')->group(function () {
         Route::get('/line-files', [LineGroupFileController::class, 'index']);
         Route::get('/line-extracted', [LineGroupExtractedFileController::class, 'index']);
+        Route::get('/line-files/re-extract', [ThaipostImportController::class, 'previewByDateRange']);
         Route::get('/line-files/{fileId}/notes', [\App\Http\Controllers\Api\LineGroupFileNoteController::class, 'index']);
     });
     Route::middleware('permission:line-files.create')->group(function () {
         Route::post('/line-files/import', [ThaipostImportController::class, 'store']);
+        Route::post('/line-files/re-extract', [ThaipostImportController::class, 'reExtractByDateRange']);
+        Route::post('/line-files/{id}/extract', [ThaipostImportController::class, 'extractFromFile']);
         Route::post('/line-files/{fileId}/notes', [\App\Http\Controllers\Api\LineGroupFileNoteController::class, 'store']);
     });
     Route::middleware('permission:line-files.edit')->group(function () {
@@ -149,6 +152,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // === Thailand Post Acceptance ===
     Route::middleware('permission:thaipost.view')->group(function () {
         Route::get('/thaipost', [ThailandPostAcceptanceController::class, 'index']);
+        Route::get('/thaipost/export', [ThailandPostAcceptanceController::class, 'export']);
         Route::get('/thaipost/{id}', [ThailandPostAcceptanceController::class, 'show']);
     });
 

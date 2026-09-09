@@ -138,6 +138,17 @@ export interface ImportResult {
   errors: string[]
 }
 
+export interface ReExtractResult {
+  message: string
+  total: number
+  processed: number
+  failed: number
+  inserted: number
+  updated: number
+  skipped: number
+  errors: string[]
+}
+
 export interface LineGroupFileNote {
   id: number
   line_group_file_id: number

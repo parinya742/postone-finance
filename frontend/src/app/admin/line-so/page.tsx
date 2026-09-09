@@ -103,13 +103,29 @@ function hidesSpecialZone(serviceName: string | null | undefined) {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
+function parseBuddhistDateStr(d: string): Date | null {
+  const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[T ]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  let year = parseInt(m[3]);
+  if (year < 100) year += 2500;
+  if (year > 2400) year -= 543;
+  if (year < 1900 || year > 2200) return null;
+  const dt = new Date(year, parseInt(m[2]) - 1, parseInt(m[1]), m[4] ? parseInt(m[4]) : 0, m[5] ? parseInt(m[5]) : 0, m[6] ? parseInt(m[6]) : 0);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
 function fmtDate(d: string | null) {
   if (!d) return '—'
-  // Strip time part so "2026-06-29T8:22:05" (missing leading zero) still parses
-  const datePart = d.includes('T') ? d.split('T')[0] : d.split(' ')[0]
-  const [y, m, day] = datePart.split('-').map(Number)
-  if (!y || !m || !day) return d
-  return new Date(y, m - 1, day).toLocaleDateString('th-TH', { dateStyle: 'short' })
+  // Handle ISO format: extract date part to avoid single-digit-hour parse issues
+  if (/^\d{4}-\d{2}-\d{2}/.test(d)) {
+    const datePart = d.split(/[T ]/)[0];
+    const [y, mo, day] = datePart.split('-').map(Number);
+    if (y && mo && day) return new Date(y, mo - 1, day).toLocaleDateString('th-TH', { dateStyle: 'short' });
+  }
+  // Fallback: Thai Buddhist date format ("31/7/69 17:33", "06/08/2569 8:51:55")
+  const parsed = parseBuddhistDateStr(d);
+  if (!parsed) return d;
+  return parsed.toLocaleDateString('th-TH', { dateStyle: 'short' });
 }
 
 function fmtNum(n: number | null, decimals = 2) {
@@ -642,7 +658,8 @@ export default function LineSoPage() {
           className="border border-[#89919A] rounded px-3 py-2 text-sm text-[#32363A] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2] bg-white"
         >
           <option value="">ทุกประเภทบริการ</option>
-          <option value="EMS">EMS</option>
+          <option value="EMS">EMS (ทั้งหมด)</option>
+          <option value="EMS Jumbo">EMS Jumbo นำจ่าย</option>
           <option value="จดหมาย">จดหมาย</option>
         </select>
         <button

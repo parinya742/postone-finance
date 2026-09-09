@@ -1,9 +1,9 @@
 "use client";
 
 import api from "@/lib/api";
-import { LineGroupFile, LineGroupFileNote, PaginatedResponse, ImportResult } from "@/lib/types";
+import { LineGroupFile, LineGroupFileNote, PaginatedResponse, ImportResult, ReExtractResult } from "@/lib/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Search,
   Lock,
@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ToggleLeft,
   ToggleRight,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import clsx from "clsx";
@@ -719,6 +720,354 @@ function ImportModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ---- ReExtractModal ----
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+interface PreviewFile {
+  id: number;
+  original_file_name: string | null;
+  file_extension: string | null;
+  source_type: string | null;
+  created_at: string | null;
+}
+
+function ReExtractModal({ onClose }: { onClose: () => void }) {
+  const [dateFrom, setDateFrom] = useState(todayStr());
+  const [dateTo, setDateTo] = useState(todayStr());
+
+  const [previewFiles, setPreviewFiles] = useState<PreviewFile[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const [extracting, setExtracting] = useState(false);
+  const [result, setResult] = useState<ReExtractResult | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
+  const allChecked = previewFiles.length > 0 && previewFiles.every((f) => selectedIds.has(f.id));
+  const someChecked = previewFiles.some((f) => selectedIds.has(f.id));
+  const headerCheckRef = useRef<HTMLInputElement>(null);
+
+  // Set indeterminate state on the header checkbox
+  useEffect(() => {
+    if (headerCheckRef.current) {
+      headerCheckRef.current.indeterminate = someChecked && !allChecked;
+    }
+  }, [someChecked, allChecked]);
+
+  // Auto-fetch preview whenever dates change; select all on load
+  useEffect(() => {
+    if (!dateFrom || !dateTo) return;
+    const timer = setTimeout(async () => {
+      setPreviewLoading(true);
+      setPreviewError(null);
+      try {
+        const res = await api.get("/line-files/re-extract", {
+          params: { date_from: dateFrom, date_to: dateTo },
+        });
+        const files: PreviewFile[] = res.data.files ?? [];
+        setPreviewFiles(files);
+        setSelectedIds(new Set(files.map((f) => f.id)));
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } } };
+        setPreviewError(e?.response?.data?.message ?? "ไม่สามารถโหลดรายการไฟล์ได้");
+        setPreviewFiles([]);
+        setSelectedIds(new Set());
+      } finally {
+        setPreviewLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [dateFrom, dateTo]);
+
+  const toggleId = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allChecked) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(previewFiles.map((f) => f.id)));
+    }
+  };
+
+  const handleExtract = async () => {
+    setExtracting(true);
+    setResult(null);
+    setExtractError(null);
+    try {
+      const res = await api.post("/line-files/re-extract", {
+        file_ids: Array.from(selectedIds),
+      });
+      setResult(res.data);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setExtractError(e?.response?.data?.message ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <RefreshCw className="w-5 h-5 text-blue-600" />
+            <h2 className="text-base font-bold text-slate-900">
+              Re-extract ข้อมูลจาก Line BOT
+            </h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+          {!result ? (
+            <>
+              {/* Date pickers */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-600">วันที่เริ่มต้น</label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => { setDateFrom(e.target.value); setResult(null); }}
+                    max={dateTo}
+                    disabled={extracting}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-600">วันที่สิ้นสุด</label>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => { setDateTo(e.target.value); setResult(null); }}
+                    min={dateFrom}
+                    max={todayStr()}
+                    disabled={extracting}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              {/* File list */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                {/* List header */}
+                <div className="flex items-center gap-3 px-3.5 py-2.5 bg-slate-50 border-b border-slate-200">
+                  {/* Select-all checkbox */}
+                  <input
+                    ref={headerCheckRef}
+                    type="checkbox"
+                    checked={allChecked}
+                    onChange={toggleAll}
+                    disabled={extracting || previewFiles.length === 0}
+                    className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer disabled:opacity-40 shrink-0"
+                  />
+                  <span className="text-xs font-semibold text-slate-600 flex-1">
+                    ไฟล์ที่พบในช่วงวันที่
+                  </span>
+                  {previewLoading ? (
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <span className="w-3 h-3 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin inline-block" />
+                      กำลังค้นหา...
+                    </span>
+                  ) : (
+                    <span className={clsx(
+                      "px-2 py-0.5 rounded-full text-xs font-bold",
+                      selectedIds.size > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                    )}>
+                      {selectedIds.size}/{previewFiles.length} ไฟล์
+                    </span>
+                  )}
+                </div>
+
+                {/* List body */}
+                {previewError ? (
+                  <div className="px-3.5 py-3 text-xs text-red-600 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {previewError}
+                  </div>
+                ) : previewLoading ? (
+                  <div className="px-3.5 py-5">
+                    <div className="space-y-2">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-3 bg-slate-100 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  </div>
+                ) : previewFiles.length === 0 ? (
+                  <div className="px-3.5 py-6 text-center text-xs text-slate-400">
+                    ไม่พบไฟล์ Excel/ZIP ในช่วงวันที่ที่เลือก
+                  </div>
+                ) : (
+                  <div className="max-h-52 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                    {previewFiles.map((f) => {
+                      const checked = selectedIds.has(f.id);
+                      return (
+                        <label
+                          key={f.id}
+                          className={clsx(
+                            "flex items-center gap-3 px-3.5 py-2.5 cursor-pointer transition-colors select-none",
+                            checked ? "bg-blue-50/60 hover:bg-blue-50" : "hover:bg-slate-50",
+                            extracting && "pointer-events-none opacity-60"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleId(f.id)}
+                            className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer shrink-0"
+                          />
+                          <span className={clsx(
+                            "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0",
+                            EXT_COLORS[f.file_extension?.toLowerCase() ?? ""] ?? "bg-slate-100 text-slate-600"
+                          )}>
+                            {f.file_extension ?? "?"}
+                          </span>
+                          <span className="text-xs text-slate-700 truncate flex-1 min-w-0" title={f.original_file_name ?? ""}>
+                            {f.original_file_name ?? "—"}
+                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {f.source_type && (
+                              <span className={clsx(
+                                "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                                SOURCE_COLORS[f.source_type] ?? "bg-slate-100 text-slate-500"
+                              )}>
+                                {f.source_type === "line_bot" ? "LINE Bot" : "Upload"}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                              {fmtDate(f.created_at)}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Extracting progress */}
+              {extracting && (
+                <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 animate-pulse">
+                  <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="text-sm font-medium text-blue-800">
+                    กำลัง Extract {selectedIds.size} ไฟล์...
+                  </span>
+                </div>
+              )}
+
+              {extractError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <p>{extractError}</p>
+                </div>
+              )}
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                ไฟล์ที่มีบาร์โค้ดซ้ำจะถูก <strong>อัปเดตข้อมูลเดิม</strong> โดยอัตโนมัติ
+              </div>
+            </>
+          ) : (
+            /* Result view */
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-green-600">
+                <CheckCircle className="w-5 h-5 shrink-0" />
+                <p className="font-semibold text-sm">{result.message}</p>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
+                <span>ไฟล์ที่ประมวลผลทั้งหมด</span>
+                <span className="font-bold text-slate-700">{result.total} ไฟล์</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-700">{result.inserted}</p>
+                  <p className="text-xs text-green-600 mt-0.5">เพิ่มใหม่</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-700">{result.updated}</p>
+                  <p className="text-xs text-blue-600 mt-0.5">อัปเดต</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3 text-center border border-slate-200">
+                  <p className="text-2xl font-bold text-slate-500">{result.skipped}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">ข้าม</p>
+                </div>
+              </div>
+
+              {result.failed > 0 && (
+                <div className="flex items-center justify-between text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <span className="text-red-600 font-medium">ไฟล์ที่ล้มเหลว</span>
+                  <span className="font-bold text-red-700">{result.failed} ไฟล์</span>
+                </div>
+              )}
+
+              {result.errors.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-amber-700 flex items-center gap-1 mb-1.5">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    {result.errors.length} รายการที่มีข้อผิดพลาด
+                  </p>
+                  <ul className="text-xs text-amber-600 space-y-0.5 max-h-28 overflow-y-auto custom-scrollbar">
+                    {result.errors.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-5 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+          <button
+            onClick={onClose}
+            disabled={extracting}
+            className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {result ? "ปิด" : "ยกเลิก"}
+          </button>
+          {!result && (
+            <button
+              onClick={handleExtract}
+              disabled={extracting || previewLoading || selectedIds.size === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {extracting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                  กำลังประมวลผล...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  {selectedIds.size > 0 ? `Extract ${selectedIds.size} ไฟล์` : "Extract ข้อมูล"}
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---- NotePanel (inline expanded row) ----
 
 function NotePanel({ fileId, canEdit, canDelete }: { fileId: number; canEdit: boolean; canDelete: boolean }) {
@@ -862,6 +1211,7 @@ export default function LineFilesPage() {
   const [activeFilter, setActiveFilter] = useState("");
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
+  const [showReExtract, setShowReExtract] = useState(false);
   const [expandedNoteFileId, setExpandedNoteFileId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
@@ -916,13 +1266,22 @@ export default function LineFilesPage() {
           </p>
         </div>
         {can("line-files.create") && (
-          <button
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            นำเข้า Files
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowReExtract(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Re-extract
+            </button>
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              นำเข้า Files
+            </button>
+          </div>
         )}
       </div>
 
@@ -1193,6 +1552,7 @@ export default function LineFilesPage() {
       </div>
 
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+      {showReExtract && <ReExtractModal onClose={() => setShowReExtract(false)} />}
     </div>
   );
 }

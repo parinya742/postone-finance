@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LineGroupFile;
 use App\Models\LineGroupExtractedFile;
 use App\Models\ThailandPostAcceptance;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +54,243 @@ class ThaipostImportController extends Controller
         'wallet_phone'     => 'AC',  // index 28
         'sender_name'      => 'AE',  // index 30
     ];
+
+    public function previewByDateRange(Request $request): JsonResponse
+    {
+        $request->validate([
+            'date_from' => 'required|date',
+            'date_to'   => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $from = Carbon::parse($request->date_from, 'Asia/Bangkok')->startOfDay()->utc();
+        $to   = Carbon::parse($request->date_to,   'Asia/Bangkok')->endOfDay()->utc();
+
+        $files = LineGroupFile::whereNotNull('file_url')
+            ->whereIn('file_extension', ['xlsx', 'xls', 'csv', 'zip'])
+            ->whereBetween('created_at', [$from, $to])
+            ->orderByDesc('created_at')
+            ->get(['id', 'original_file_name', 'file_extension', 'source_type', 'created_at']);
+
+        return response()->json([
+            'total' => $files->count(),
+            'files' => $files,
+        ]);
+    }
+
+    public function extractFromFile(int $id): JsonResponse
+    {
+        $lineFile = LineGroupFile::findOrFail($id);
+        $res = $this->downloadAndProcess($lineFile);
+
+        if ($res['success'] ?? false) {
+            AuditLog::record('extract', 'line_group_file', $lineFile->id, $lineFile->original_file_name, [
+                'source_type' => $lineFile->source_type,
+                'inserted'    => $res['inserted'],
+                'updated'     => $res['updated'],
+                'skipped'     => $res['skipped'],
+            ]);
+
+            return response()->json([
+                'message'  => 'Extracted สำเร็จ',
+                'file_id'  => $lineFile->id,
+                'inserted' => $res['inserted'],
+                'updated'  => $res['updated'],
+                'skipped'  => $res['skipped'],
+                'errors'   => $res['errors'] ?? [],
+            ]);
+        }
+
+        return response()->json(['message' => $res['message'] ?? 'นำเข้าไม่สำเร็จ'], 422);
+    }
+
+    public function reExtractByDateRange(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file_ids'   => 'required|array|min:1',
+            'file_ids.*' => 'integer',
+        ]);
+
+        $files = LineGroupFile::whereIn('id', $request->file_ids)
+            ->whereNotNull('file_url')
+            ->get();
+
+        if ($files->isEmpty()) {
+            return response()->json(['message' => 'ไม่พบไฟล์ที่ระบุ'], 422);
+        }
+
+        $totalInserted = $totalUpdated = $totalSkipped = 0;
+        $allErrors = [];
+        $processedCount = $failedCount = 0;
+
+        foreach ($files as $lineFile) {
+            $res = $this->downloadAndProcess($lineFile);
+
+            if ($res['success'] ?? false) {
+                $totalInserted += $res['inserted'] ?? 0;
+                $totalUpdated  += $res['updated']  ?? 0;
+                $totalSkipped  += $res['skipped']  ?? 0;
+                foreach ($res['errors'] ?? [] as $e) {
+                    $allErrors[] = "[{$lineFile->original_file_name}] {$e}";
+                }
+                $processedCount++;
+            } else {
+                $failedCount++;
+                $allErrors[] = "[{$lineFile->original_file_name}] " . ($res['message'] ?? 'ข้อผิดพลาด');
+            }
+        }
+
+        AuditLog::record('re_extract', 'line_group_file', 0, 'batch_re_extract', [
+            'file_ids'  => $request->file_ids,
+            'total'     => $files->count(),
+            'processed' => $processedCount,
+            'failed'    => $failedCount,
+            'inserted'  => $totalInserted,
+            'updated'   => $totalUpdated,
+            'skipped'   => $totalSkipped,
+        ]);
+
+        return response()->json([
+            'message'   => "ประมวลผลสำเร็จ {$processedCount} ไฟล์" . ($failedCount > 0 ? ", ล้มเหลว {$failedCount} ไฟล์" : ""),
+            'total'     => $files->count(),
+            'processed' => $processedCount,
+            'failed'    => $failedCount,
+            'inserted'  => $totalInserted,
+            'updated'   => $totalUpdated,
+            'skipped'   => $totalSkipped,
+            'errors'    => $allErrors,
+        ]);
+    }
+
+    // ─── Shared extract helpers ───────────────────────────────────────────────
+
+    private function downloadAndProcess(LineGroupFile $lineFile): array
+    {
+        if (empty($lineFile->file_url)) {
+            return ['success' => false, 'message' => 'ไม่มี URL สำหรับดาวน์โหลด'];
+        }
+
+        $ext = strtolower(
+            $lineFile->file_extension
+            ?? pathinfo((string) ($lineFile->original_file_name ?? ''), PATHINFO_EXTENSION)
+        );
+
+        $tempPath = storage_path('app/temp-extract-' . uniqid() . '.' . $ext);
+
+        try {
+            try {
+                $parsed  = parse_url($lineFile->file_url);
+                $s3Key   = ltrim((string) ($parsed['path'] ?? ''), '/');
+                $content = Storage::disk('s3')->get($s3Key);
+            } catch (\Throwable) {
+                $content = @file_get_contents($lineFile->file_url);
+                if ($content === false) {
+                    return ['success' => false, 'message' => 'ไม่สามารถดาวน์โหลดไฟล์ได้'];
+                }
+            }
+            file_put_contents($tempPath, $content);
+
+            if ($ext === 'zip') {
+                return $this->processZipExtract($tempPath, $lineFile);
+            }
+
+            try {
+                return DB::connection('n8n')->transaction(fn () => $this->importSingleFile(
+                    $tempPath,
+                    $lineFile->original_file_name ?? basename($lineFile->file_url),
+                    $lineFile->content_type,
+                    $lineFile,
+                    null
+                ));
+            } catch (\Throwable $e) {
+                return ['success' => false, 'message' => $e->getMessage()];
+            }
+        } finally {
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
+    }
+
+    private function processZipExtract(string $tempPath, LineGroupFile $lineFile): array
+    {
+        $tempDir = storage_path('app/temp-zip-' . uniqid());
+        try {
+            $zip = new \ZipArchive();
+            if ($zip->open($tempPath) !== true) {
+                return ['success' => false, 'message' => 'ไม่สามารถเปิดไฟล์ ZIP ได้'];
+            }
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+            $zip->extractTo($tempDir);
+            $zip->close();
+
+            $files = $this->getExcelCsvFilesRecursive($tempDir);
+            if (empty($files)) {
+                return ['success' => false, 'message' => 'ไม่พบไฟล์ Excel ภายใน ZIP'];
+            }
+
+            $totalInserted = $totalUpdated = $totalSkipped = 0;
+            $allErrors = [];
+            $importedFileIds = [];
+
+            foreach ($files as $filePath) {
+                $fileName = basename($filePath);
+                if (str_starts_with($fileName, '._') || str_contains($filePath, '__MACOSX')) {
+                    continue;
+                }
+
+                $fileExt = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+                $extractedFile = LineGroupExtractedFile::create([
+                    'parent_file_id' => $lineFile->id,
+                    'message_id'     => null,
+                    'file_name'      => $fileName,
+                    'file_extension' => $fileExt,
+                    'file_type'      => $this->getMimeTypeFromExtension($fileExt),
+                    's3_url'         => null,
+                    'created_at'     => now(),
+                ]);
+
+                try {
+                    $res = DB::connection('n8n')->transaction(fn () => $this->importSingleFile(
+                        $filePath,
+                        $fileName,
+                        $this->getMimeTypeFromExtension($fileExt),
+                        $lineFile,
+                        $extractedFile
+                    ));
+                } catch (\Throwable $e) {
+                    $res = ['success' => false, 'message' => $e->getMessage()];
+                }
+
+                if ($res['success'] ?? false) {
+                    $totalInserted += $res['inserted'] ?? 0;
+                    $totalUpdated  += $res['updated']  ?? 0;
+                    $totalSkipped  += $res['skipped']  ?? 0;
+                    if (!empty($res['errors'])) {
+                        $allErrors = array_merge($allErrors, $res['errors']);
+                    }
+                    $importedFileIds[] = $extractedFile->id;
+                } else {
+                    $allErrors[] = "ไฟล์ {$fileName}: " . ($res['message'] ?? 'ข้อผิดพลาด');
+                }
+            }
+
+            return [
+                'success'  => true,
+                'file_ids' => $importedFileIds,
+                'inserted' => $totalInserted,
+                'updated'  => $totalUpdated,
+                'skipped'  => $totalSkipped,
+                'errors'   => $allErrors,
+            ];
+        } finally {
+            if (is_dir($tempDir)) {
+                $this->removeDirectory($tempDir);
+            }
+        }
+    }
 
     public function store(Request $request): JsonResponse
     {
@@ -445,16 +683,25 @@ class ThaipostImportController extends Controller
     {
         if ($str === '' || $str === '-') return null;
 
-        // "1/04/2569 15:13:45" — day/month/BE-year time
-        if (preg_match('#(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2}:\d{2}:\d{2})#', $str, $m)) {
+        // "1/04/2569 15:13:45" or "1/04/2569 8:05:00" — 4-digit BE year, with seconds
+        if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})#', $str, $m)) {
             $year = (int) $m[3];
             if ($year > 2400) $year -= 543;
-            return sprintf('%04d-%02d-%02dT%s', $year, (int) $m[2], (int) $m[1], $m[4]);
+            return sprintf('%04d-%02d-%02dT%02d:%02d:%02d', $year, (int)$m[2], (int)$m[1], (int)$m[4], (int)$m[5], (int)$m[6]);
+        }
+
+        // "31/7/69 17:33" or "31/7/2569 17:33" — 2 or 4-digit BE year, no seconds
+        if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{2,4})\s+(\d{1,2}):(\d{2})#', $str, $m)) {
+            $year = (int) $m[3];
+            if ($year < 100) $year += 2500;  // "69" → 2569
+            if ($year > 2400) $year -= 543;
+            return sprintf('%04d-%02d-%02dT%02d:%02d:%02d', $year, (int)$m[2], (int)$m[1], (int)$m[4], (int)$m[5], 0);
         }
 
         // "1/04/2569" — date only
-        if (preg_match('#(\d{1,2})/(\d{1,2})/(\d{4})#', $str, $m)) {
+        if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{2,4})#', $str, $m)) {
             $year = (int) $m[3];
+            if ($year < 100) $year += 2500;
             if ($year > 2400) $year -= 543;
             return sprintf('%04d-%02d-%02d', $year, (int) $m[2], (int) $m[1]);
         }

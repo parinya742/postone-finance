@@ -20,7 +20,7 @@ class LazadaInvoiceController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $q = $this->query()->orderBy('lif.invoice_date', 'desc');
+        $q = $this->query()->orderByRaw("to_date(lif.invoice_date, 'DD Mon YYYY') desc");
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -42,11 +42,11 @@ class LazadaInvoiceController extends Controller
         }
 
         if ($request->filled('start_date')) {
-            $q->where('lif.invoice_date', '>=', $request->start_date);
+            $q->whereRaw("to_date(lif.invoice_date, 'DD Mon YYYY') >= ?", [$request->start_date]);
         }
 
         if ($request->filled('end_date')) {
-            $q->where('lif.invoice_date', '<=', $request->end_date);
+            $q->whereRaw("to_date(lif.invoice_date, 'DD Mon YYYY') <= ?", [$request->end_date]);
         }
 
         return response()->json($q->paginate($request->integer('per_page', 50)));

@@ -4,9 +4,10 @@ import api from "@/lib/api";
 import { ThailandPostAcceptance, PaginatedResponse } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Lock, Truck, Info } from "lucide-react";
+import { Search, Lock, Truck, Info, Download } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import clsx from "clsx";
+import * as XLSX from "xlsx";
 
 const SOURCE_COLORS: Record<string, string> = {
   zip_extracted: "bg-yellow-100 text-yellow-700",
@@ -14,15 +15,27 @@ const SOURCE_COLORS: Record<string, string> = {
   excel_upload: "bg-green-100 text-green-700",
 };
 
+function parseBuddhistDateStr(d: string): Date | null {
+  const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[T ]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  let year = parseInt(m[3]);
+  if (year < 100) year += 2500;
+  if (year > 2400) year -= 543;
+  if (year < 1900 || year > 2200) return null;
+  const dt = new Date(year, parseInt(m[2]) - 1, parseInt(m[1]), m[4] ? parseInt(m[4]) : 0, m[5] ? parseInt(m[5]) : 0, m[6] ? parseInt(m[6]) : 0);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
 function fmtDate(d: string | null) {
   if (!d) return "—";
-  // Normalize space-separated datetime ("2025-05-20 14:43:00") to ISO 8601 for cross-browser support
-  const dt = new Date(d.includes('T') ? d : d.replace(' ', 'T'))
-  if (isNaN(dt.getTime())) return String(d)
-  return dt.toLocaleString("th-TH", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  const normalized = d.includes('T') ? d : d.replace(' ', 'T');
+  let dt = new Date(normalized);
+  if (isNaN(dt.getTime())) {
+    const parsed = parseBuddhistDateStr(d);
+    if (!parsed) return d;
+    dt = parsed;
+  }
+  return dt.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
 }
 
 function fmtNum(n: number | null, decimals = 2) {
@@ -40,8 +53,44 @@ export default function ThaipostPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
 
   const resetPage = () => setPage(1);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await api.get("/thaipost/export", {
+        params: { search: search || undefined, file_source_type: sourceType || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined },
+      });
+      const rows = res.data as ThailandPostAcceptance[];
+      const wsData = rows.map((item) => ({
+        "Barcode": item.barcode ?? "",
+        "หมายเลข TR": item.tr_number ?? "",
+        "วันเวลาที่รับฝาก": fmtDate(item.deposit_datetime),
+        "ผู้ฝากส่ง": item.sender_name ?? "",
+        "ผู้รับ": item.recipient_name ?? "",
+        "เบอร์ผู้รับ": item.recipient_phone ?? "",
+        "ปลายทาง": item.destination ?? "",
+        "รหัสปลายทาง": item.destination_code ?? "",
+        "ชื่อปลายทาง": item.destination_name ?? "",
+        "บริการ": item.service_name ?? "",
+        "น้ำหนัก (g)": item.weight_grams ?? "",
+        "ค่าบริการ": item.service_fee ?? "",
+        "COD": item.cod_amount ?? "",
+        "เบอร์ Wallet": item.wallet_phone ?? "",
+        "ที่ทำการ": item.office_name ?? item.office_code ?? "",
+        "แหล่งข้อมูล": item.file_source_type ?? "",
+        "นำเข้า": fmtDate(item.imported_at),
+      }));
+      const ws = XLSX.utils.json_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "รายการพัสดุ");
+      XLSX.writeFile(wb, `thaipost-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data, isLoading } = useQuery<
     PaginatedResponse<ThailandPostAcceptance>
@@ -85,7 +134,7 @@ export default function ThaipostPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -121,6 +170,14 @@ export default function ThaipostPage() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="ml-auto flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? "กำลัง Export..." : "Export Excel"}
+        </button>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200">

@@ -100,11 +100,11 @@ class ShipmentAcceptanceController extends Controller
         }
 
         if ($request->filled('date_from')) {
-            $query->whereDate('thpa.deposit_datetime', '>=', $request->date_from);
+            $query->whereRaw("LEFT(thpa.deposit_datetime, 10) >= ?", [$request->date_from]);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('thpa.deposit_datetime', '<=', $request->date_to);
+            $query->whereRaw("LEFT(thpa.deposit_datetime, 10) <= ?", [$request->date_to]);
         }
 
         if ($request->filled('service_type')) {
