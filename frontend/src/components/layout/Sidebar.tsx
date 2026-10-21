@@ -7,7 +7,8 @@ import {
   LayoutDashboard, Users, ShieldCheck, KeyRound,
   Settings, ChevronRight, X, PanelLeftClose, PanelLeftOpen,
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown, Image,
-  Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie,
+  Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie, Megaphone, Warehouse,
+  BadgePercent, Banknote, BarChart3,
   History as HistoryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -18,8 +19,9 @@ interface SidebarProps {
   onClose: () => void
 }
 
-type SidebarMode = 'main' | 'ecommerce'
+type SidebarMode = 'main' | 'ecommerce' | 'mt'
 type EcommercePlatform = 'lazada' | 'tiktok' | 'shopee'
+type MtChannel = 'crc' | 'hp-mh' | 'hp-mh-rtv' | 'hp-mh-stock' | 'dh'
 
 const navGroups = [
   {
@@ -134,22 +136,53 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { href: '/admin/shopee/sessions', label: 'จัดการเซสชั่น', icon: Cookie, permission: 'shopee-sessions.view', exact: false },
       { href: '/admin/shopee/session-logs', label: 'Capture Logs', icon: HistoryIcon, permission: 'shopee-sessions.view', exact: false },
 
-      { sectionLabel: 'รายการรายรับ (การเงิน)' },
+      { sectionLabel: 'รายการรายรับ (การเงิน) Income Payout' },
       { href: '/admin/shopee/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'shopee-shops.view', exact: false },
 
-      { sectionLabel: 'รายการออเดอร์' },
+      { sectionLabel: 'รายการออเดอร์ คำสั่งซื้อ' },
       { href: '/admin/shopee/orders', label: 'รายการออเดอร์', icon: ShoppingBag, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/order-files', label: 'ไฟล์ออเดอร์', icon: FileText, permission: 'shopee-shops.view', exact: false },
 
-      { sectionLabel: 'Seller Wallet' },
+      { sectionLabel: 'Seller Wallet Balance' },
       { href: '/admin/shopee/wallet-transactions', label: 'ธุรกรรม Wallet', icon: Wallet, permission: 'shopee-shops.view', exact: false },
       { href: '/admin/shopee/wallet-files', label: 'ไฟล์ Wallet', icon: FolderOpen, permission: 'shopee-shops.view', exact: false },
+
+      { sectionLabel: 'ใบกำกับภาษี (e-Tax)' },
+      { href: '/admin/shopee/etax', label: 'ใบกำกับภาษี', icon: FileArchive, permission: 'shopee-etax.view', exact: false },
+
+      { sectionLabel: 'ค่าใช้จ่ายโฆษณา (Ads)' },
+      { href: '/admin/shopee/ads', label: 'ค่าใช้จ่ายโฆษณา', icon: Megaphone, permission: 'shopee-ads.view', exact: false },
 
       { sectionLabel: 'Sync Logs' },
       { href: '/admin/shopee/sync-logs', label: 'ประวัติการซิงค์', icon: Activity, permission: 'shopee-shops.view', exact: false },
     ],
   },
+}
+
+const mtChannels: Record<MtChannel, { label: string; short: string; items: PlatformItem[] }> = {
+  crc: {
+    label: 'CRC',
+    short: 'CRC',
+    items: [
+      { sectionLabel: 'ข้อมูล CRC' },
+      { href: '/admin/mt/crc/price-compensate', label: 'Price Compensate', icon: BadgePercent, permission: 'crc.view', exact: false },
+      { href: '/admin/mt/crc/remittance', label: 'Remittance', icon: Banknote, permission: 'crc.view', exact: false },
+      { href: '/admin/mt/crc/summary-report', label: 'Summary Report', icon: BarChart3, permission: 'crc.view', exact: false },
+    ],
+  },
+  'hp-mh': { label: 'HP-MH', short: 'HP', items: [] },
+  'hp-mh-rtv': { label: 'HP-MH-RTV', short: 'RTV', items: [] },
+  'hp-mh-stock': { label: 'HP-MH Stock', short: 'STK', items: [] },
+  dh: { label: 'DH', short: 'DH', items: [] },
+}
+
+const mtChannelKeys = Object.keys(mtChannels) as MtChannel[]
+
+const getMtChannelFromPath = (pathname: string): MtChannel | null => {
+  if (!pathname.startsWith('/admin/mt/')) return null
+  const segment = pathname.split('/')[3] as MtChannel
+  return mtChannelKeys.includes(segment) ? segment : null
 }
 
 const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
@@ -167,12 +200,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     pathname.startsWith('/admin/tiktok') ||
     pathname.startsWith('/admin/shopee')
 
-  const [mode, setMode] = useState<SidebarMode>(isEcommercePath ? 'ecommerce' : 'main')
+  const isMtPath = pathname.startsWith('/admin/mt')
+
+  const [mode, setMode] = useState<SidebarMode>(isEcommercePath ? 'ecommerce' : isMtPath ? 'mt' : 'main')
   const [activePlatform, setActivePlatform] = useState<EcommercePlatform>(
     pathname.startsWith('/admin/tiktok') ? 'tiktok'
       : pathname.startsWith('/admin/shopee') ? 'shopee'
         : 'lazada'
   )
+  const [activeMtChannel, setActiveMtChannel] = useState<MtChannel>(getMtChannelFromPath(pathname) ?? 'crc')
 
   useEffect(() => {
     if (pathname.startsWith('/admin/lazada')) {
@@ -184,10 +220,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     } else if (pathname.startsWith('/admin/shopee')) {
       setMode('ecommerce')
       setActivePlatform('shopee')
+    } else if (pathname.startsWith('/admin/mt')) {
+      setMode('mt')
+      const channel = getMtChannelFromPath(pathname)
+      if (channel) setActiveMtChannel(channel)
     }
   }, [pathname])
 
-  const platformItems = ecommercePlatforms[activePlatform].items.filter(
+  const subItems = mode === 'mt' ? mtChannels[activeMtChannel].items : ecommercePlatforms[activePlatform].items
+  const platformItems = subItems.filter(
     (item) => !item.permission || can(item.permission)
   )
 
@@ -270,6 +311,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <ShoppingCart className="w-4 h-4" />
             <span>E-Commerce</span>
           </button>
+          <button
+            onClick={() => setMode('mt')}
+            className={clsx(
+              'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 border-b-2',
+              mode === 'mt'
+                ? 'text-[#0070F2] border-[#0070F2] bg-white'
+                : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
+            )}
+          >
+            <Warehouse className="w-4 h-4" />
+            <span>MT</span>
+          </button>
         </div>
       )}
 
@@ -299,6 +352,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             )}
           >
             <ShoppingCart className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setMode('mt')}
+            title="MT"
+            className={clsx(
+              'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
+              mode === 'mt'
+                ? 'text-[#0070F2] border-[#0070F2]'
+                : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
+            )}
+          >
+            <Warehouse className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -401,11 +466,68 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 ))}
               </div>
             )}
+          </div>
+        )}
 
-            {/* Sub-items */}
+        {/* ── MT mode ── */}
+        {mode === 'mt' && (
+          <div>
+            {!collapsed && (
+              <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
+                Report MT
+              </p>
+            )}
+
+            {/* Channel tabs */}
+            {!collapsed ? (
+              <div className="grid grid-cols-3 gap-1 mb-3 mx-1">
+                {mtChannelKeys.map((channel) => (
+                  <button
+                    key={channel}
+                    onClick={() => setActiveMtChannel(channel)}
+                    className={clsx(
+                      'py-2 px-1 text-xs font-semibold rounded border transition-colors duration-150 whitespace-nowrap',
+                      activeMtChannel === channel
+                        ? 'bg-[#0070F2] text-white border-[#0070F2]'
+                        : 'bg-white text-[#6A6D70] border-[#E8E8E8] hover:bg-[#F5F5F5] hover:text-[#32363A]'
+                    )}
+                  >
+                    {mtChannels[channel].label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-0.5 mb-2">
+                {mtChannelKeys.map((channel) => (
+                  <button
+                    key={channel}
+                    onClick={() => setActiveMtChannel(channel)}
+                    title={mtChannels[channel].label}
+                    className={clsx(
+                      'w-full flex justify-center py-2 text-[10px] font-bold rounded transition-colors duration-150 border-l-2',
+                      activeMtChannel === channel
+                        ? 'bg-[#EBF5FE] text-[#0070F2] border-[#0070F2]'
+                        : 'text-[#6A6D70] border-transparent hover:bg-[#F5F5F5] hover:text-[#32363A]'
+                    )}
+                  >
+                    {mtChannels[channel].short}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Sub-items (E-Commerce / MT) ── */}
+        {mode !== 'main' && (
+          <div>
             <div className="space-y-0.5">
               {platformItems.filter(item => !item.sectionLabel).length === 0 ? (
-                !collapsed && <p className="px-3 py-2 text-xs text-[#6A6D70]">ไม่มีสิทธิ์เข้าถึง</p>
+                !collapsed && (
+                  <p className="px-3 py-2 text-xs text-[#6A6D70]">
+                    {subItems.length === 0 ? 'ยังไม่มีเมนู' : 'ไม่มีสิทธิ์เข้าถึง'}
+                  </p>
+                )
               ) : (
                 platformItems.map((item, idx) => {
                   if (item.sectionLabel) {

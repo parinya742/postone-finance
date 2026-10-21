@@ -898,6 +898,75 @@ export interface ShopeeIncomeSyncLog {
   created_at: string | null
 }
 
+export interface ShopeeEtaxFile {
+  id: number
+  shop_id: string | null
+  shop_name: string | null
+  range_from: string | null
+  range_to: string | null
+  file_name: string | null
+  file_size: number | null
+  pdf_count: number | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ShopeeEtaxDocument {
+  id: number
+  file_id: number
+  shop_id: string | null
+  provider: string | null
+  document_type: string | null
+  document_no: string | null
+  doc_date: string | null
+  file_name: string | null
+  file_size: number | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ShopeeAdsBillingFile {
+  id: number
+  shop_id: string | null
+  shop_name: string | null
+  range_from: string | null
+  range_to: string | null
+  file_name: string | null
+  file_size: number | null
+  row_count: number | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ShopeeAdsTransaction {
+  id: number
+  file_id: number
+  shop_id: string | null
+  txn_date: string | null
+  txn_time: string | null
+  txn_type: string | null
+  amount: string | number
+  remark: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ShopeeAdsTransactionRow extends ShopeeAdsTransaction {
+  shop_name: string | null
+  file_name: string | null
+  file_range_from: string | null
+  file_range_to: string | null
+}
+
 export interface ThailandPostAcceptance {
   id: number
   source_file: string | null
@@ -926,4 +995,116 @@ export interface ThailandPostAcceptance {
   sender_name: string | null
   file_source_type: string | null
   message_id: string | null
+}
+
+// ── MT / CRC ──────────────────────────────────────────────────────────────────
+// Postgres numeric columns arrive as strings
+
+type Num = string | number | null
+
+export interface CrcPaginatedResponse<T, K extends string> extends PaginatedResponse<T> {
+  totals: Record<K, Num>
+}
+
+export interface CrcPriceCompensateFile {
+  id: number
+  run_id: string | null
+  start_date: string | null
+  end_date: string | null
+  file_name: string | null
+  file_size: number | null
+  row_count: number | null
+  downloaded_at: string | null
+}
+
+export interface CrcPriceCompensate {
+  id: number
+  file_id: number
+  promotion_no: string | null
+  promotion_name: string | null
+  promotion_type: string | null
+  promotion_type_name: string | null
+  promotion_start_date: string | null
+  promotion_end_date: string | null
+  supplier_code: string | null
+  supplier_name: string | null
+  sub_dept: string | null
+  sub_dept_name: string | null
+  brand: string | null
+  store_code: string | null
+  store_name: string | null
+  sku: string | null
+  product_name: string | null
+  ticket_pos: string | null
+  sales_date: string | null
+  cps_qty: Num
+  cps_amount_per_qty: Num
+  cps_amount: Num
+}
+
+export interface CrcRemittanceFile {
+  id: number
+  run_id: string | null
+  file_name: string | null
+  file_size: number | null
+  cheque_count: number | null
+  row_count: number | null
+  downloaded_at: string | null
+}
+
+export interface CrcRemittance {
+  id: number
+  file_id: number
+  rnum: string | null
+  rdate: string | null
+  cheque_date: string | null
+  cheque_number: string | null
+  bank_account_number: string | null
+  bank_account_name: string | null
+  bank_name: string | null
+  invoice_number: string | null
+  amount: Num
+  discount_taken: Num
+  amount_due: Num
+  invoice_date: string | null
+  grt_number: string | null
+  description: string | null
+  grand_total: Num
+  branch_name: string | null
+}
+
+export interface CrcSummaryReportFile {
+  id: number
+  run_id: string | null
+  report_type: 'MONTHLY' | 'DAILY' | string | null
+  report_month: string | null
+  report_date: string | null
+  last_update: string | null
+  vendor: string | null
+  file_name: string | null
+  file_size: number | null
+  row_count: number | null
+  downloaded_at: string | null
+}
+
+export interface CrcSummaryReport {
+  id: number
+  file_id: number
+  report_month?: string | null
+  report_date?: string | null
+  store_code: string | null
+  store_name: string | null
+  cat: string | null
+  sub_cat: string | null
+  brand: string | null
+  sku: string | null
+  barcode: string | null
+  description: string | null
+  product_type: string | null
+  sales_amount: Num
+  sales_qty: Num
+  stock_on_hand: Num
+  stock_on_order: Num
+  last_sold_date: string | null
+  last_receive_date: string | null
 }

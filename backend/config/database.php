@@ -127,6 +127,18 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // CRC (n8n_database, schema crc) — DATABASE_URL_CRC; query string ("?options=...") is stripped
+        // because Laravel would map it to PDO options, so search_path is set explicitly instead.
+        'crc' => [
+            'driver' => 'pgsql',
+            'url' => strtok((string) env('DATABASE_URL_CRC', ''), '?') ?: null,
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'crc',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

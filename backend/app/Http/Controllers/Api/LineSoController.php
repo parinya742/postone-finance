@@ -26,6 +26,7 @@ class LineSoController extends Controller
         '20' => 'MT',
         '70010' => 'YP',
         '70370' => 'YP',
+        '70379' => 'YP',
     ];
 
     public function index(Request $request): JsonResponse
@@ -293,17 +294,21 @@ class LineSoController extends Controller
         }
 
         if ($request->boolean('no_iscode') || $request->filled('area')) {
-            $activePiNos = $query->clone()
-                ->whereNotNull('ps.pi_number')
-                ->pluck('ps.pi_number')
+            // เดิมโค้ดนี้ clone query ที่ join 5 ตาราง (พร้อม subquery คำนวณค่าส่ง EMS/จดหมายต่อแถว)
+            // แล้วรัน pluck() แยก 3 รอบ (pi_number, fi_number, di_number) = สแกนข้อมูลชุดเดียวกันซ้ำ 3 ครั้ง
+            // รวมเป็น query เดียว พร้อมตัด select เหลือแค่ 3 คอลัมน์ที่ใช้จริง และลบ orderBy ที่ไม่จำเป็นสำหรับการ pluck ทิ้ง
+            $activeRows = $query->clone()
+                ->reorder()
+                ->select(['ps.pi_number', 'ps.fi_number', 'ps.di_number'])
+                ->get();
+
+            $activePiNos = $activeRows->pluck('pi_number')
                 ->unique()
                 ->filter()
                 ->values()
                 ->all();
 
-            $activeFiNos = $query->clone()
-                ->whereNotNull('ps.fi_number')
-                ->pluck('ps.fi_number')
+            $activeFiNos = $activeRows->pluck('fi_number')
                 ->unique()
                 ->filter()
                 ->values()
@@ -311,9 +316,7 @@ class LineSoController extends Controller
 
             $mergedActivePiNos = array_unique(array_merge($activePiNos, $activeFiNos));
 
-            $activeDiNos = $query->clone()
-                ->whereNotNull('ps.di_number')
-                ->pluck('ps.di_number')
+            $activeDiNos = $activeRows->pluck('di_number')
                 ->unique()
                 ->filter()
                 ->values()

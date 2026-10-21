@@ -23,6 +23,9 @@ use App\Http\Controllers\Api\PostoneSessionController;
 use App\Http\Controllers\Api\PostoneShipmentController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\ShipmentAcceptanceController;
+use App\Http\Controllers\Api\ShopeeAdsController;
+use App\Http\Controllers\Api\ShopeeEtaxController;
+use App\Http\Controllers\Api\CrcController;
 use App\Http\Controllers\Api\ShopeeIncomeSyncLogController;
 use App\Http\Controllers\Api\ShopeeOrderFileController;
 use App\Http\Controllers\Api\ShopeeOrderItemController;
@@ -288,6 +291,33 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/shopee/sessions/{id}/trigger-capture', [ShopeeSessionController::class, 'triggerCapture']);
     });
     Route::middleware('permission:shopee-sessions.delete')->delete('/shopee/sessions/{id}', [ShopeeSessionController::class, 'destroy']);
+
+    // === Shopee e-Tax (Tax Invoices) ===
+    Route::middleware('permission:shopee-etax.view')->group(function () {
+        Route::get('/shopee/etax-files', [ShopeeEtaxController::class, 'index']);
+        Route::get('/shopee/etax-files/{fileId}/documents', [ShopeeEtaxController::class, 'documents']);
+    });
+
+    // === Shopee Ads (ค่าใช้จ่ายโฆษณา) ===
+    Route::middleware('permission:shopee-ads.view')->group(function () {
+        Route::get('/shopee/ads-files', [ShopeeAdsController::class, 'index']);
+        Route::get('/shopee/ads-files/{fileId}/transactions', [ShopeeAdsController::class, 'transactions']);
+        Route::get('/shopee/ads-transactions', [ShopeeAdsController::class, 'allTransactions']);
+    });
+
+    // === MT — CRC ===
+    Route::middleware('permission:crc.view')->prefix('crc')->group(function () {
+        Route::get('/price-compensate-files', [CrcController::class, 'priceCompensateFiles']);
+        Route::get('/price-compensate', [CrcController::class, 'priceCompensate']);
+        Route::get('/remittance-files', [CrcController::class, 'remittanceFiles']);
+        Route::get('/remittance', [CrcController::class, 'remittance']);
+        Route::get('/summary-report-files', [CrcController::class, 'summaryReportFiles']);
+        Route::get('/summary-report', [CrcController::class, 'summaryReport']);
+        Route::get('/summary-report-daily', [CrcController::class, 'summaryReportDaily']);
+        Route::get('/files/{type}/{id}/download', [CrcController::class, 'download'])
+            ->whereIn('type', ['price-compensate', 'remittance', 'summary-report'])
+            ->whereNumber('id');
+    });
 
     // === User Preferences ===
     Route::get('/user-preferences/{key}', [UserPreferenceController::class, 'show'])->where('key', '[a-z0-9._-]+');
