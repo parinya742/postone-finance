@@ -125,6 +125,13 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { sectionLabel: 'รายการรายรับ (การเงิน)' },
       { href: '/admin/tiktok/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'tiktok-shops.view', exact: false },
       { href: '/admin/tiktok/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'tiktok-shops.view', exact: false },
+
+      { sectionLabel: 'จัดการคำสั่งซื้อ' },
+      { href: '/admin/tiktok/orders', label: 'รายการคำสั่งซื้อ', icon: ShoppingBag, permission: 'tiktok-shops.view', exact: false },
+      { href: '/admin/tiktok/order-files', label: 'ไฟล์คำสั่งซื้อ', icon: FileText, permission: 'tiktok-shops.view', exact: false },
+
+      { sectionLabel: 'การเงิน / เอกสารทางภาษี' },
+      { href: '/admin/tiktok/tax-invoices', label: 'เอกสารทางภาษี', icon: FileArchive, permission: 'tiktok-shops.view', exact: false },
     ],
   },
   shopee: {

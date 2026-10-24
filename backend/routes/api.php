@@ -43,7 +43,9 @@ use App\Http\Controllers\Api\SoHeadController;
 use App\Http\Controllers\Api\SpecialPostalZoneController;
 use App\Http\Controllers\Api\ThailandPostAcceptanceController;
 use App\Http\Controllers\Api\ThaipostImportController;
+use App\Http\Controllers\Api\TikTokOrderController;
 use App\Http\Controllers\Api\TikTokShopController;
+use App\Http\Controllers\Api\TikTokTaxInvoiceController;
 use App\Http\Controllers\Api\TikTokTransactionController;
 use App\Http\Controllers\Api\TikTokTransactionFileController;
 use App\Http\Controllers\Api\UserController;
@@ -247,6 +249,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/tiktok/shops/{id}/auth-url', [TikTokShopController::class, 'getAuthUrl']);
         Route::get('/tiktok/transactions', [TikTokTransactionController::class, 'index']);
         Route::get('/tiktok/files', [TikTokTransactionFileController::class, 'index']);
+        Route::get('/tiktok/orders', [TikTokOrderController::class, 'index']);
+        Route::get('/tiktok/order-statuses', [TikTokOrderController::class, 'statuses']);
+        Route::get('/tiktok/order-files', [TikTokOrderController::class, 'files']);
+        Route::get('/tiktok/tax-invoices', [TikTokTaxInvoiceController::class, 'index']);
+        Route::get('/tiktok/tax-invoices/{fileId}/documents', [TikTokTaxInvoiceController::class, 'documents'])->whereNumber('fileId');
+        Route::get('/tiktok/tax-invoice-types', [TikTokTaxInvoiceController::class, 'types']);
+        Route::get('/tiktok/tax-invoice-documents/{id}/download', [TikTokTaxInvoiceController::class, 'documentDownload'])->whereNumber('id');
     });
     Route::middleware('permission:tiktok-shops.create')->post('/tiktok/shops', [TikTokShopController::class, 'store']);
     Route::middleware('permission:tiktok-shops.edit')->group(function () {

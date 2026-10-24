@@ -664,6 +664,112 @@ export interface TikTokTransactionFile {
   created_at: string | null
 }
 
+export interface TikTokOrderLine {
+  id: number
+  file_id: number | null
+  shop_code: string
+  shop_name: string | null
+  order_id: string
+  sku_id: string
+  line_seq: number
+  order_status: string | null
+  order_substatus: string | null
+  cancel_return_type: string | null
+  seller_sku: string | null
+  product_name: string | null
+  variation: string | null
+  quantity: number | null
+  return_quantity: number | null
+  unit_original_price: Num
+  subtotal_before_discount: Num
+  platform_discount: Num
+  seller_discount: Num
+  subtotal_after_discount: Num
+  shipping_fee_after_discount: Num
+  original_shipping_fee: Num
+  shipping_fee_seller_discount: Num
+  shipping_fee_platform_discount: Num
+  payment_platform_discount: Num
+  taxes: Num
+  order_amount: Num
+  order_refund_amount: Num
+  created_time: string | null
+  paid_time: string | null
+  rts_time: string | null
+  shipped_time: string | null
+  delivered_time: string | null
+  cancelled_time: string | null
+  cancel_by: string | null
+  cancel_reason: string | null
+  fulfillment_type: string | null
+  warehouse_name: string | null
+  tracking_id: string | null
+  delivery_option: string | null
+  shipping_provider: string | null
+  payment_method: string | null
+  product_category: string | null
+  package_id: string | null
+  order_channel: string | null
+  creator_handle: string | null
+  updated_at: string | null
+}
+
+export interface TikTokOrderExportFile {
+  id: number
+  shop_code: string
+  shop_name: string | null
+  range_from: string | null
+  range_to: string | null
+  file_name: string | null
+  file_size: number | null
+  sha256: string | null
+  order_count: number | null
+  row_count: number | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface TikTokTaxInvoiceDocument {
+  id: number
+  file_id: number | null
+  shop_code: string
+  invoice_type: string | null
+  document_no: string
+  period_from: string | null
+  period_to: string | null
+  file_name: string | null
+  file_size: number | null
+  sha256: string | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface TikTokTaxInvoiceFile {
+  id: number
+  shop_code: string
+  shop_name: string | null
+  document_count: number
+  invoice_type: string | null
+  period_from: string | null
+  period_to: string | null
+  part_no: number | null
+  file_name: string | null
+  source_file_name: string | null
+  file_size: number | null
+  sha256: string | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
 export interface ShopeeShop {
   shop_id: string
   shop_name: string | null
