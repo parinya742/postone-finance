@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\LazadaInvoiceController;
 use App\Http\Controllers\Api\LazadaSessionController;
 use App\Http\Controllers\Api\LazadaSessionLogController;
 use App\Http\Controllers\Api\LazadaShopController;
+use App\Http\Controllers\Api\LazadaSvcController;
 use App\Http\Controllers\Api\LazadaTransactionController;
 use App\Http\Controllers\Api\LazadaTransactionFileController;
 use App\Http\Controllers\Api\LazadaTransactionWorkController;
@@ -215,6 +216,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/lazada/transactions-work/smart-undo', [LazadaTransactionWorkController::class, 'smartUndo']);
         Route::post('/lazada/transactions-work/sync-customers', [LazadaTransactionWorkController::class, 'syncCustomers']);
         Route::get('/lazada/files', [LazadaTransactionFileController::class, 'index']);
+        Route::get('/lazada/svc-transactions', [LazadaSvcController::class, 'index']);
+        Route::get('/lazada/svc-options', [LazadaSvcController::class, 'options']);
+        Route::get('/lazada/svc-files', [LazadaSvcController::class, 'files']);
     });
     Route::middleware('permission:lazada-shops.create')->post('/lazada/shops', [LazadaShopController::class, 'store']);
     Route::middleware('permission:lazada-shops.edit')->group(function () {

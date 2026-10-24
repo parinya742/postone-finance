@@ -440,6 +440,64 @@ export interface LazadaTransactionWork extends LazadaTransaction {
   docudate: string | null
 }
 
+export interface LazadaSvcTransaction {
+  id: number
+  seller_key: string
+  shop_name: string | null
+  statement_id: string
+  credit_transaction_time: string | null
+  order_create_time: string | null
+  business_type: string | null
+  operation: string | null
+  amount: Num
+  currency: string | null
+  program: string | null
+  objective: string | null
+  remarks: string | null
+  order_number: string | null
+  order_line_id: string | null
+  promotion_id: string | null
+  export_file_id: number | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface LazadaSvcSummary {
+  by_operation: { operation: string | null; count: number; amount: Num }[]
+  net: number
+}
+
+export interface LazadaSvcOptions {
+  operations: string[]
+  programs: string[]
+  objectives: string[]
+  business_types: string[]
+}
+
+export interface LazadaSvcExportFile {
+  id: number
+  seller_key: string
+  shop_name: string | null
+  seller_id: string | null
+  date_from: string | null
+  date_to: string | null
+  lazada_task_id: number | null
+  file_name: string | null
+  lazada_filename: string | null
+  file_size: number | null
+  status: string | null
+  row_count: number | null
+  total_count: number | null
+  error: string | null
+  s3_bucket: string | null
+  s3_key: string | null
+  s3_url: string | null
+  tx_count: number
+  tx_amount: Num
+  created_at: string | null
+  parsed_at: string | null
+}
+
 export interface LazadaTransactionFile {
   id: number
   shop_name: string

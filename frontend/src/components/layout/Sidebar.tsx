@@ -111,6 +111,10 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { href: '/admin/lazada/transactions-work/history', label: 'ประวัติการจัดการธุรกรรม', icon: HistoryIcon, permission: 'lazada-shops.view', exact: false },
       { href: '/admin/lazada/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'lazada-shops.view', exact: false },
 
+      { sectionLabel: 'เครื่องมือโปรโมทสินค้า' },
+      { href: '/admin/lazada/promotion', label: 'รายการโปรโมทสินค้า', icon: Megaphone, permission: 'lazada-shops.view', exact: true },
+      { href: '/admin/lazada/promotion-files', label: 'ไฟล์โปรโมทสินค้า', icon: FolderOpen, permission: 'lazada-shops.view', exact: false },
+
       { sectionLabel: 'รายการใบแจ้งหนี้' },
       { href: '/admin/lazada/invoices', label: 'ใบแจ้งหนี้', icon: FileText, permission: 'lazada-invoices.view', exact: false },
     ],
