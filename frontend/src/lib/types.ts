@@ -1108,3 +1108,100 @@ export interface CrcSummaryReport {
   last_sold_date: string | null
   last_receive_date: string | null
 }
+
+// ── MT / HP-MH ────────────────────────────────────────────────────────────────
+
+export interface HpmhCorrespondenceFile {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  file_name: string | null
+  file_size: number | null
+  row_count: number | null
+  downloaded_at: string | null
+}
+
+export type HpmhAttachmentType = 'COUPON' | 'LEAFLET' | 'PDF'
+
+export interface HpmhCorrespondence {
+  id: number
+  vendor_no: string
+  content_item_id: string
+  content_id: string | null
+  content_name: string | null
+  subject: string | null
+  main_detail: string | null
+  effective_date_from: string | null
+  effective_date_to: string | null
+  new_date_from: string | null
+  new_date_to: string | null
+  attachment: string | null
+  has_attachment: boolean | null
+  first_seen_at: string | null
+  last_seen_at: string | null
+  attachment_id: number | null
+  attachment_status: string | null
+  attachment_type: HpmhAttachmentType | string | null
+  parse_status: string | null
+  parsed_rows: number | null
+  attachment_size: number | null
+}
+
+export interface HpmhCoupon {
+  id: number
+  vendor_no: string
+  content_item_id: string
+  subject: string | null
+  row_no: number | null
+  promotion_group: string | null
+  promotion_code: string | null
+  promotion_name: string | null
+  vd: string | null
+  vendor_code_name: string | null
+  ar_no: string | null
+  mch: string | null
+  sale_date: string | null
+  store_code: string | null
+  ticket: string | null
+  article_no: string | null
+  article_name: string | null
+  qty: Num
+  net_price: Num
+  coupon_amount: Num
+  coupon_count: Num
+  invoice_no: string | null
+}
+
+export interface HpmhLeaflet {
+  id: number
+  vendor_no: string
+  content_item_id: string
+  subject: string | null
+  row_no: number | null
+  vendor_code: string | null
+  invoice_no: string | null
+  billing_date: string | null
+  store_code: string | null
+  store_name: string | null
+  channel_code: string | null
+  channel_name: string | null
+  sales_channel: string | null
+  ticket_no: string | null
+  sales_document: string | null
+  article_no: string | null
+  article_name: string | null
+  mch3: string | null
+  vendor_name: string | null
+  brand: string | null
+  discount_reason_code: string | null
+  discount_reason: string | null
+  qty_unit: string | null
+  billing_qty: Num
+  billing_amount: Num
+  billing_amount_before_discount: Num
+  discount_pct: Num
+  discount_total: Num
+  leaflet_disc: Num
+  leaflet_disc_vat: Num
+  remark: string | null
+}

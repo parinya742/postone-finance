@@ -8,7 +8,7 @@ import {
   Settings, ChevronRight, X, PanelLeftClose, PanelLeftOpen,
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown, Image,
   Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie, Megaphone, Warehouse,
-  BadgePercent, Banknote, BarChart3,
+  BadgePercent, Banknote, BarChart3, Mail, Ticket, Newspaper,
   History as HistoryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -171,7 +171,16 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
       { href: '/admin/mt/crc/summary-report', label: 'Summary Report', icon: BarChart3, permission: 'crc.view', exact: false },
     ],
   },
-  'hp-mh': { label: 'HP-MH', short: 'HP', items: [] },
+  'hp-mh': {
+    label: 'HP-MH',
+    short: 'HP',
+    items: [
+      { sectionLabel: 'Correspondence' },
+      { href: '/admin/mt/hp-mh/correspondence', label: 'หนังสือ Correspondence', icon: Mail, permission: 'hpmh.view', exact: false },
+      { href: '/admin/mt/hp-mh/coupons', label: 'Vendor Coupon', icon: Ticket, permission: 'hpmh.view', exact: false },
+      { href: '/admin/mt/hp-mh/leaflets', label: 'ชดเชย Leaflet', icon: Newspaper, permission: 'hpmh.view', exact: false },
+    ],
+  },
   'hp-mh-rtv': { label: 'HP-MH-RTV', short: 'RTV', items: [] },
   'hp-mh-stock': { label: 'HP-MH Stock', short: 'STK', items: [] },
   dh: { label: 'DH', short: 'DH', items: [] },

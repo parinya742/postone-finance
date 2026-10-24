@@ -45,11 +45,13 @@ export function useDebounced<T>(value: T, delay = 400) {
 
 // ── Layout blocks ─────────────────────────────────────────────────────────────
 
-export function CrcHeader({ crumb, title, right }: { crumb: string; title: string; right?: React.ReactNode }) {
+export function CrcHeader({ section = 'CRC', crumb, title, right }: {
+  section?: string; crumb: string; title: string; right?: React.ReactNode
+}) {
   return (
     <div className="bg-white border border-[#D9D9D9] px-4 py-2.5 flex items-center justify-between">
       <div>
-        <p className="text-[10px] text-[#6A6D70] uppercase tracking-wide">MT / CRC / {crumb}</p>
+        <p className="text-[10px] text-[#6A6D70] uppercase tracking-wide">MT / {section} / {crumb}</p>
         <h1 className="text-sm font-semibold text-[#32363A] leading-tight">{title}</h1>
       </div>
       {right && <span className="text-xs text-[#6A6D70]">{right}</span>}
@@ -234,16 +236,19 @@ export function TextCell({ value, max = 200, mono, muted }: {
   )
 }
 
-export function CrcDownloadButton({ type, id }: {
-  type: 'price-compensate' | 'remittance' | 'summary-report'
+export function CrcDownloadButton({ type, id, base = '/crc', title = 'ดาวน์โหลดไฟล์ต้นฉบับ' }: {
+  type: string
   id: number
+  /** API prefix of the report module, e.g. '/crc' or '/hpmh' */
+  base?: string
+  title?: string
 }) {
   const [loading, setLoading] = useState(false)
 
   const download = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get<{ url: string }>(`/crc/files/${type}/${id}/download`)
+      const { data } = await api.get<{ url: string }>(`${base}/files/${type}/${id}/download`)
       window.open(data.url, '_blank', 'noopener')
     } catch {
       alert('ไม่สามารถดาวน์โหลดไฟล์ได้')
@@ -256,7 +261,7 @@ export function CrcDownloadButton({ type, id }: {
     <button
       onClick={download}
       disabled={loading}
-      title="ดาวน์โหลดไฟล์ต้นฉบับ"
+      title={title}
       className="inline-flex items-center justify-center w-6 h-6 rounded text-[#6A6D70] hover:text-[#0070F2] hover:bg-[#EBF5FB] transition-colors disabled:opacity-50"
     >
       {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}

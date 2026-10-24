@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\ShipmentAcceptanceController;
 use App\Http\Controllers\Api\ShopeeAdsController;
 use App\Http\Controllers\Api\ShopeeEtaxController;
 use App\Http\Controllers\Api\CrcController;
+use App\Http\Controllers\Api\HpmhController;
 use App\Http\Controllers\Api\ShopeeIncomeSyncLogController;
 use App\Http\Controllers\Api\ShopeeOrderFileController;
 use App\Http\Controllers\Api\ShopeeOrderItemController;
@@ -316,6 +317,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/summary-report-daily', [CrcController::class, 'summaryReportDaily']);
         Route::get('/files/{type}/{id}/download', [CrcController::class, 'download'])
             ->whereIn('type', ['price-compensate', 'remittance', 'summary-report'])
+            ->whereNumber('id');
+    });
+
+    // === MT — HP-MH ===
+    Route::middleware('permission:hpmh.view')->prefix('hpmh')->group(function () {
+        Route::get('/correspondence-files', [HpmhController::class, 'correspondenceFiles']);
+        Route::get('/correspondence', [HpmhController::class, 'correspondence']);
+        Route::get('/coupons', [HpmhController::class, 'coupons']);
+        Route::get('/leaflets', [HpmhController::class, 'leaflets']);
+        Route::get('/files/{type}/{id}/download', [HpmhController::class, 'download'])
+            ->whereIn('type', ['correspondence', 'attachment'])
             ->whereNumber('id');
     });
 

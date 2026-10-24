@@ -139,6 +139,17 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // HP-MH (n8n_database, schema hpmh) — DATABASE_URL_HPMH; same query-string handling as crc
+        'hpmh' => [
+            'driver' => 'pgsql',
+            'url' => strtok((string) env('DATABASE_URL_HPMH', ''), '?') ?: null,
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'hpmh',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

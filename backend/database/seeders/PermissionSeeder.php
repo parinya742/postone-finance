@@ -30,6 +30,7 @@ class PermissionSeeder extends Seeder
             'shopee-etax'            => ['view'],
             'shopee-ads'             => ['view'],
             'crc'                    => ['view'],
+            'hpmh'                   => ['view'],
         ];
 
         $labelMap = [
