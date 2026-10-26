@@ -8,7 +8,7 @@ import {
   Settings, ChevronRight, X, PanelLeftClose, PanelLeftOpen,
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown, Image,
   Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie, Megaphone, Warehouse,
-  BadgePercent, Banknote, BarChart3, Mail, Ticket, Newspaper,
+  BadgePercent, Banknote, BarChart3, Mail, Ticket, Newspaper, Undo2, Boxes,
   History as HistoryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -182,6 +182,8 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
       { href: '/admin/mt/crc/price-compensate', label: 'Price Compensate', icon: BadgePercent, permission: 'crc-price-compensate.view', exact: false },
       { href: '/admin/mt/crc/remittance', label: 'Remittance', icon: Banknote, permission: 'crc-remittance.view', exact: false },
       { href: '/admin/mt/crc/summary-report', label: 'Summary Report', icon: BarChart3, permission: 'crc-summary-report.view', exact: false },
+      { sectionLabel: 'ระบบ' },
+      { href: '/admin/mt/crc/audit-logs', label: 'ประวัติการทำงาน', icon: HistoryIcon, permission: 'crc-audit-logs.view', exact: false },
     ],
   },
   'hp-mh': {
@@ -201,6 +203,8 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
           { href: '/admin/mt/hp-mh/compensate', label: 'ชดเชยราคา (Compensate)', icon: BadgePercent, permission: 'hpmh-compensate.view', exact: false },
           { sectionLabel: 'ยอดขาย' },
           { href: '/admin/mt/hp-mh/sales-export', label: 'Sales Export', icon: ShoppingCart, permission: 'hpmh-sales-export.view', exact: false },
+          { sectionLabel: 'ระบบ' },
+          { href: '/admin/mt/hp-mh/audit-logs/3263', label: 'ประวัติการทำงาน', icon: HistoryIcon, permission: 'hpmh-audit-logs.view', exact: false },
         ],
       },
       {
@@ -210,13 +214,50 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
           { sectionLabel: 'บัญชีและการเงิน' },
           { href: '/admin/mt/hp-mh/pas', label: 'ชำระเงินหลังการขาย (PAS)', icon: Wallet, permission: 'hpmh-pas.view', exact: false },
           { href: '/admin/mt/hp-mh/receipts', label: 'ใบเสร็จรับเงิน', icon: Receipt, permission: 'hpmh-receipts.view', exact: false },
+          { sectionLabel: 'ระบบ' },
+          { href: '/admin/mt/hp-mh/audit-logs/501447', label: 'ประวัติการทำงาน', icon: HistoryIcon, permission: 'hpmh-audit-logs.view', exact: false },
         ],
       },
     ],
   },
-  'hp-mh-rtv': { label: 'HP-MH-RTV', short: 'RTV', items: [] },
-  'hp-mh-stock': { label: 'HP-MH Stock', short: 'STK', items: [] },
-  dh: { label: 'DH', short: 'DH', items: [] },
+  'hp-mh-rtv': {
+    label: 'HP-MH-RTV',
+    short: 'RTV',
+    items: [],
+    subTabs: [
+      {
+        key: '501447',
+        label: 'Vendor No: 501447',
+        items: [
+          { sectionLabel: 'คืนสินค้า' },
+          { href: '/admin/mt/hp-mh-rtv/return-slips', label: 'ใบคืนสินค้า (Return Slip)', icon: Undo2, permission: 'hpmh-rtv-return-slips.view', exact: false },
+        ],
+      },
+    ],
+  },
+  'hp-mh-stock': {
+    label: 'HP-MH Stock',
+    short: 'STK',
+    items: [],
+    subTabs: [
+      {
+        key: '501447',
+        label: 'Vendor No: 501447',
+        items: [
+          { sectionLabel: 'สต็อกสินค้า' },
+          { href: '/admin/mt/hp-mh-stock/inventory', label: 'สต็อกคงเหลือ (Inventory)', icon: Boxes, permission: 'hpmh-stock-inventory.view', exact: false },
+        ],
+      },
+    ],
+  },
+  dh: {
+    label: 'DH',
+    short: 'DH',
+    items: [
+      { sectionLabel: 'ยอดขาย' },
+      { href: '/admin/mt/dh/sales-report', label: 'รายงานยอดขาย (Sales Report)', icon: ShoppingCart, permission: 'dh-sales-report.view', exact: false },
+    ],
+  },
 }
 
 const mtChannelKeys = Object.keys(mtChannels) as MtChannel[]

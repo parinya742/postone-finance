@@ -2,9 +2,11 @@
 
 import api from '@/lib/api'
 import React, { useEffect, useState } from 'react'
-import { Download, Loader2, X } from 'lucide-react'
+import { Download, History, Loader2, X } from 'lucide-react'
 import clsx from 'clsx'
-import { TH, TD, ErpPagination } from '@/components/erp'
+import { TH, TD, ErpPagination, StatusBadge, SapInput, inputCls } from '@/components/erp'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import type { MtAuditLog, PaginatedResponse } from '@/lib/types'
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -236,11 +238,13 @@ export function TextCell({ value, max = 200, mono, muted }: {
   )
 }
 
-export function CrcDownloadButton({ type, id, base = '/crc', title = 'ดาวน์โหลดไฟล์ต้นฉบับ' }: {
-  type: string
-  id: number
+export function CrcDownloadButton({ type, id, base = '/crc', path, title = 'ดาวน์โหลดไฟล์ต้นฉบับ' }: {
+  type?: string
+  id?: number
   /** API prefix of the report module, e.g. '/crc' or '/hpmh' */
   base?: string
+  /** Full API path of the download endpoint — overrides base/type/id for modules with another URL shape */
+  path?: string
   title?: string
 }) {
   const [loading, setLoading] = useState(false)
@@ -248,7 +252,7 @@ export function CrcDownloadButton({ type, id, base = '/crc', title = 'ดาว�
   const download = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get<{ url: string }>(`${base}/files/${type}/${id}/download`)
+      const { data } = await api.get<{ url: string }>(path ?? `${base}/files/${type}/${id}/download`)
       window.open(data.url, '_blank', 'noopener')
     } catch {
       alert('ไม่สามารถดาวน์โหลดไฟล์ได้')
@@ -277,5 +281,117 @@ export function ViewDataButton({ onClick }: { onClick: () => void }) {
     >
       ดูข้อมูล
     </button>
+  )
+}
+
+// ── Scraper run log (audit_log) ───────────────────────────────────────────────
+
+const AUDIT_STATUS_COLORS: Record<string, string> = {
+  SUCCESS: 'bg-[#F1FAF4] text-[#107E3E] border-[#107E3E]/40',
+  FAILED:  'bg-[#FFEBEB] text-[#BB0000] border-[#BB0000]/40',
+  ERROR:   'bg-[#FFEBEB] text-[#BB0000] border-[#BB0000]/40',
+  RUNNING: 'bg-[#EBF5FE] text-[#0070F2] border-[#0070F2]/40',
+  SKIPPED: 'bg-[#F5F5F5] text-[#6A6D70] border-[#D9D9D9]',
+}
+
+function fmtDuration(ms: number | null) {
+  if (ms == null) return '—'
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`
+}
+
+/** audit_log of an n8n scraper schema, served at `${base}/audit-logs` (+ `${base}/audit-log-topics`). */
+export function MtAuditLogTable({ base, queryKey, params }: {
+  base: string
+  queryKey: string
+  /** Fixed query params, e.g. { vendor_no } — vendor-less runs (login, ...) are still included */
+  params?: Record<string, string>
+}) {
+  const [status, setStatus] = useState('')
+  const [topic, setTopic] = useState('')
+  const [search, setSearch] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [page, setPage] = useState(1)
+  const debouncedSearch = useDebounced(search)
+
+  const { data: topics } = useQuery<string[]>({
+    queryKey: [queryKey, 'audit-log-topics'],
+    queryFn: () => api.get(`${base}/audit-log-topics`).then(r => r.data),
+  })
+
+  const { data, isLoading } = useQuery<PaginatedResponse<MtAuditLog>>({
+    queryKey: [queryKey, 'audit-logs', params, status, topic, debouncedSearch, startDate, endDate, page],
+    queryFn: () => api.get(`${base}/audit-logs`, {
+      params: {
+        ...params,
+        status: status || undefined,
+        topic: topic || undefined,
+        search: debouncedSearch || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        page,
+        per_page: 50,
+      },
+    }).then(r => r.data),
+    placeholderData: keepPreviousData,
+  })
+
+  const hasFilter = !!(status || topic || search || startDate || endDate)
+  const resetFilters = () => { setStatus(''); setTopic(''); setSearch(''); setStartDate(''); setEndDate(''); setPage(1) }
+
+  const columns: CrcColumn<MtAuditLog>[] = [
+    { key: 'started_at', header: 'เริ่มเมื่อ', w: '130px', render: l => <span className="text-[#6A6D70] whitespace-nowrap">{fmtDateTime(l.started_at)}</span> },
+    { key: 'topic', header: 'Topic', w: '140px', render: l => <span className="font-mono text-[10px]">{l.topic ?? '—'}</span> },
+    { key: 'step', header: 'Step', w: '220px', render: l => <TextCell value={l.step} max={220} mono /> },
+    { key: 'status', header: 'สถานะ', w: '80px', align: 'center', render: l => <StatusBadge value={l.status} colorMap={AUDIT_STATUS_COLORS} /> },
+    { key: 'message', header: 'ข้อความ', w: '420px', render: l => (
+      <>
+        <TextCell value={l.message} max={420} />
+        {l.error_detail && <span className="block text-[10px] text-[#BB0000] truncate" style={{ maxWidth: 420 }} title={l.error_detail}>{l.error_detail}</span>}
+      </>
+    ) },
+    { key: 'duration_ms', header: 'ใช้เวลา', w: '70px', align: 'right', render: l => <span className="tabular-nums text-[#6A6D70]">{fmtDuration(l.duration_ms)}</span> },
+  ]
+
+  return (
+    <>
+      <CrcFilterBar hasFilter={hasFilter} onReset={resetFilters}>
+        <SapInput label="ค้นหา">
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            placeholder="ข้อความ, Step, Error..."
+            className={`${inputCls} w-72`}
+          />
+        </SapInput>
+        <SapInput label="สถานะ">
+          <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }} className={`${inputCls} pr-7 min-w-[120px]`}>
+            <option value="">ทั้งหมด</option>
+            {Object.keys(AUDIT_STATUS_COLORS).map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </SapInput>
+        <SapInput label="Topic">
+          <select value={topic} onChange={e => { setTopic(e.target.value); setPage(1) }} className={`${inputCls} pr-7 min-w-[160px]`}>
+            <option value="">ทั้งหมด</option>
+            {topics?.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </SapInput>
+        <SapInput label="วันที่ ตั้งแต่">
+          <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1) }} className={inputCls} />
+        </SapInput>
+        <SapInput label="ถึง">
+          <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1) }} className={inputCls} />
+        </SapInput>
+      </CrcFilterBar>
+      <CrcTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        page={page}
+        setPage={setPage}
+        emptyText="ยังไม่มีประวัติการทำงาน"
+        emptyIcon={<History className="w-8 h-8" />}
+      />
+    </>
   )
 }

@@ -165,6 +165,18 @@ class CrcController extends Controller
         );
     }
 
+    // ── Scraper run log ─────────────────────────────────────────────────────
+
+    public function auditLogs(Request $request): JsonResponse
+    {
+        return $this->auditLogResponse($this->db()->table('audit_log'), $request);
+    }
+
+    public function auditLogTopics(): JsonResponse
+    {
+        return $this->auditLogTopicsResponse($this->db()->table('audit_log'));
+    }
+
     // ── File download (S3 pre-signed URL) ───────────────────────────────────
 
     public function download(Request $request): JsonResponse

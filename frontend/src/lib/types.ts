@@ -1618,3 +1618,166 @@ export interface HpmhSalesExport {
   cr_date: string | null
   csv_file_name: string | null
 }
+
+// ── MT — shared scraper run log (audit_log in hpmh_rtv / hpmh_stock / DH) ────
+
+export interface MtAuditLog {
+  id: number
+  run_id: string | null
+  topic: string | null
+  step: string | null
+  status: string | null
+  message: string | null
+  error_detail: string | null
+  metadata: string | Record<string, unknown> | null
+  started_at: string | null
+  finished_at: string | null
+  duration_ms: number | null
+}
+
+// ── MT — HP-MH RTV: Return Slip ──────────────────────────────────────────────
+
+export interface HpmhRtvReturnSlip {
+  id: number
+  vendor_no: string | null
+  article_doc_no: string | null
+  site: string | null
+  site_code: string | null
+  movement_type: string | null
+  gr_date: string | null
+  quantity: Num
+  amount: Num
+  created_by: string | null
+  read_time: string | null
+  file_id: number | null
+  updated_at: string | null
+  /** return_slip_document (PDF) matched by article_doc_no + fiscal year */
+  doc_id: number | null
+  doc_file_name: string | null
+  doc_file_size: number | null
+}
+
+export interface HpmhRtvFile {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  file_kind: 'EXCEL' | 'ZIP' | string | null
+  gr_date_from: string | null
+  gr_date_to: string | null
+  file_name: string | null
+  source_file_name: string | null
+  file_size: number | null
+  row_count: number | null
+  created_at: string | null
+  slip_count: number
+  pdf_count: number
+}
+
+// ── MT — HP-MH Stock: Inventory Export ───────────────────────────────────────
+
+export interface HpmhStockInventory {
+  id: number
+  file_id: number
+  csv_id: number | null
+  vendor_no: string | null
+  period_type: string | null
+  stock_date: string | null
+  mch3: string | null
+  mch2_desc: string | null
+  mch1_desc: string | null
+  art_no: string | null
+  art_desc: string | null
+  art_ean: string | null
+  vd_art_no: string | null
+  vd_art_desc: string | null
+  site_no: string | null
+  site_name: string | null
+  onhand_qty: Num
+  onhand_value: Num
+  stock_ur_qty: Num
+  stock_ur_value: Num
+  rtv_qty: Num
+  rtv_value: Num
+  show_vd_qty: Num
+  show_vd_value: Num
+  show_hp_qty: Num
+  show_hp_value: Num
+  unit: string | null
+  last_receive_date: string | null
+  last_billing_date: string | null
+  non_move_day: number | null
+  non_move_type: string | null
+  min_target_stock: Num
+  avg_sale_qty_8w: Num
+  avg_sale_amt_8w: Num
+  coverage_day: Num
+  info_code: string | null
+  stock_available_qty: Num
+  stock_available_value: Num
+}
+
+export interface HpmhStockFile {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  stock_date: string | null
+  file_name: string | null
+  source_file_name: string | null
+  csv_count: number | null
+  file_size: number | null
+  row_count: number | null
+  total_onhand_qty: Num
+  total_onhand_value: Num
+  downloaded_at: string | null
+}
+
+export interface HpmhStockCsv {
+  id: number
+  file_id: number
+  entry_name: string | null
+  csv_file_name: string | null
+  file_size: number | null
+  stock_date: string | null
+  row_count: number | null
+  total_onhand_qty: Num
+  total_onhand_value: Num
+  created_at: string | null
+}
+
+// ── MT — DH: Sales Report ────────────────────────────────────────────────────
+
+export interface DhSalesReport {
+  id: number
+  file_id: number
+  vendor_no: string | null
+  report_date: string | null
+  article_no: string | null
+  article_name: string | null
+  branch_name: string | null
+  qty: Num
+}
+
+export interface DhSalesReportBranch {
+  id: number
+  file_id: number
+  vendor_no: string | null
+  report_date: string | null
+  branch_name: string | null
+  qty: Num
+  sales_value: Num
+}
+
+export interface DhSalesReportFile {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  report_date: string | null
+  file_name: string | null
+  source_file_name: string | null
+  file_size: number | null
+  product_count: number | null
+  row_count: number | null
+  total_qty: Num
+  total_value: Num
+  downloaded_at: string | null
+}

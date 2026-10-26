@@ -67,6 +67,33 @@ trait QueriesReportTables
         return response()->json($page);
     }
 
+    /** Scraper run log (audit_log table shared by the n8n scraper schemas), newest first. */
+    protected function auditLogResponse(Builder $q, Request $request): JsonResponse
+    {
+        $q->select('id', 'run_id', 'topic', 'step', 'status', 'message', 'error_detail', 'metadata',
+            'started_at', 'finished_at', 'duration_ms');
+
+        foreach (['status', 'topic'] as $col) {
+            if ($request->filled($col)) {
+                $q->where($col, $request->input($col));
+            }
+        }
+        // Runs that are not vendor-specific (login, ...) carry no vendor_no and are kept for every vendor
+        if ($request->filled('vendor_no')) {
+            $q->where(fn ($w) => $w->whereRaw("metadata->>'vendor_no' = ?", [$request->vendor_no])
+                ->orWhereRaw("metadata->>'vendor_no' IS NULL"));
+        }
+        $this->applyDateRange($q, $request, 'started_at');
+        $this->applySearch($q, $request, ['message', 'error_detail', 'step']);
+
+        return response()->json($q->orderByDesc('started_at')->orderByDesc('id')->paginate($this->perPage($request)));
+    }
+
+    protected function auditLogTopicsResponse(Builder $q): JsonResponse
+    {
+        return response()->json($q->whereNotNull('topic')->distinct()->orderBy('topic')->pluck('topic'));
+    }
+
     /** S3 disk for a scraper file row — rows may live in a bucket other than the default one. */
     protected function s3Disk(?string $bucket): Filesystem
     {

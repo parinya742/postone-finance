@@ -65,6 +65,7 @@ class PermissionSeeder extends Seeder
             'crc-price-compensate' => ['view'],
             'crc-remittance'       => ['view'],
             'crc-summary-report'   => ['view'],
+            'crc-audit-logs'       => ['view'],
 
             // === MT — HP-MH ===
             'hpmh-correspondence' => ['view'],
@@ -72,6 +73,12 @@ class PermissionSeeder extends Seeder
             'hpmh-leaflets'       => ['view'],
             'hpmh-compensate'     => ['view'],
             'hpmh-sales-export'   => ['view'],
+            'hpmh-audit-logs'     => ['view'],
+
+            // === MT — HP-MH RTV / HP-MH Stock / DH ===
+            'hpmh-rtv-return-slips' => ['view'],
+            'hpmh-stock-inventory'  => ['view'],
+            'dh-sales-report'       => ['view'],
             'hpmh-pas'            => ['view'],
             'hpmh-receipts'       => ['view'],
         ];

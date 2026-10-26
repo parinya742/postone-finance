@@ -150,6 +150,39 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // HP-MH RTV (n8n_database, schema hpmh_rtv) — same database as hpmh, override with its own URL if it moves
+        'hpmh_rtv' => [
+            'driver' => 'pgsql',
+            'url' => strtok((string) env('DATABASE_URL_HPMH_RTV', env('DATABASE_URL_HPMH', '')), '?') ?: null,
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'hpmh_rtv',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
+        // HP-MH Stock (n8n_database, schema hpmh_stock) — same database as hpmh, override with its own URL if it moves
+        'hpmh_stock' => [
+            'driver' => 'pgsql',
+            'url' => strtok((string) env('DATABASE_URL_HPMH_STOCK', env('DATABASE_URL_HPMH', '')), '?') ?: null,
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'hpmh_stock',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
+        // DH (n8n_database, schema DH) — same database as hpmh, override with its own URL if it moves
+        'dh' => [
+            'driver' => 'pgsql',
+            'url' => strtok((string) env('DATABASE_URL_DH', env('DATABASE_URL_HPMH', '')), '?') ?: null,
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'DH',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

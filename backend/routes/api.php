@@ -27,7 +27,10 @@ use App\Http\Controllers\Api\ShipmentAcceptanceController;
 use App\Http\Controllers\Api\ShopeeAdsController;
 use App\Http\Controllers\Api\ShopeeEtaxController;
 use App\Http\Controllers\Api\CrcController;
+use App\Http\Controllers\Api\DhController;
 use App\Http\Controllers\Api\HpmhController;
+use App\Http\Controllers\Api\HpmhRtvController;
+use App\Http\Controllers\Api\HpmhStockController;
 use App\Http\Controllers\Api\ShopeeIncomeSyncLogController;
 use App\Http\Controllers\Api\ShopeeOrderFileController;
 use App\Http\Controllers\Api\ShopeeOrderItemController;
@@ -339,6 +342,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // === MT — CRC ===
     Route::prefix('crc')->group(function () {
+        Route::middleware('permission:crc-audit-logs.view')->group(function () {
+            Route::get('/audit-logs', [CrcController::class, 'auditLogs']);
+            Route::get('/audit-log-topics', [CrcController::class, 'auditLogTopics']);
+        });
         Route::middleware('permission:crc-price-compensate.view')->group(function () {
             Route::get('/price-compensate-files', [CrcController::class, 'priceCompensateFiles']);
             Route::get('/price-compensate', [CrcController::class, 'priceCompensate']);
@@ -362,6 +369,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // === MT — HP-MH ===
     Route::prefix('hpmh')->group(function () {
+        Route::middleware('permission:hpmh-audit-logs.view')->group(function () {
+            Route::get('/audit-logs', [HpmhController::class, 'auditLogs']);
+            Route::get('/audit-log-topics', [HpmhController::class, 'auditLogTopics']);
+        });
         // Correspondence documents are also used as reference options by the Coupon / Leaflet pages
         Route::middleware('permission:hpmh-correspondence.view,hpmh-coupons.view,hpmh-leaflets.view')->group(function () {
             Route::get('/correspondence', [HpmhController::class, 'correspondence']);
@@ -413,6 +424,39 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/files/receipt-excel/{id}/download', [HpmhController::class, 'download'])
                 ->defaults('type', 'receipt-excel')->whereNumber('id');
         });
+    });
+
+    // === MT — HP-MH RTV ===
+    Route::middleware('permission:hpmh-rtv-return-slips.view')->prefix('hpmh-rtv')->group(function () {
+        Route::get('/return-slips', [HpmhRtvController::class, 'returnSlips']);
+        Route::get('/options', [HpmhRtvController::class, 'options']);
+        Route::get('/files', [HpmhRtvController::class, 'files']);
+        Route::get('/audit-logs', [HpmhRtvController::class, 'auditLogs']);
+        Route::get('/audit-log-topics', [HpmhRtvController::class, 'auditLogTopics']);
+        Route::get('/files/{id}/download', [HpmhRtvController::class, 'downloadFile'])->whereNumber('id');
+        Route::get('/documents/{id}/download', [HpmhRtvController::class, 'downloadDocument'])->whereNumber('id');
+    });
+
+    // === MT — HP-MH Stock ===
+    Route::middleware('permission:hpmh-stock-inventory.view')->prefix('hpmh-stock')->group(function () {
+        Route::get('/inventory', [HpmhStockController::class, 'inventory']);
+        Route::get('/options', [HpmhStockController::class, 'options']);
+        Route::get('/files', [HpmhStockController::class, 'files']);
+        Route::get('/files/{fileId}/csvs', [HpmhStockController::class, 'fileCsvs'])->whereNumber('fileId');
+        Route::get('/audit-logs', [HpmhStockController::class, 'auditLogs']);
+        Route::get('/audit-log-topics', [HpmhStockController::class, 'auditLogTopics']);
+        Route::get('/files/{id}/download', [HpmhStockController::class, 'downloadFile'])->whereNumber('id');
+    });
+
+    // === MT — DH ===
+    Route::middleware('permission:dh-sales-report.view')->prefix('dh')->group(function () {
+        Route::get('/sales-report', [DhController::class, 'salesReport']);
+        Route::get('/branches', [DhController::class, 'branches']);
+        Route::get('/options', [DhController::class, 'options']);
+        Route::get('/files', [DhController::class, 'files']);
+        Route::get('/audit-logs', [DhController::class, 'auditLogs']);
+        Route::get('/audit-log-topics', [DhController::class, 'auditLogTopics']);
+        Route::get('/files/{id}/download', [DhController::class, 'downloadFile'])->whereNumber('id');
     });
 
     // === User Preferences ===
