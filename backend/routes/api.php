@@ -372,6 +372,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('permission:hpmh-correspondence.view')->get('/correspondence-files', [HpmhController::class, 'correspondenceFiles']);
         Route::middleware('permission:hpmh-coupons.view')->get('/coupons', [HpmhController::class, 'coupons']);
         Route::middleware('permission:hpmh-leaflets.view')->get('/leaflets', [HpmhController::class, 'leaflets']);
+
+        // Vendor 501447 — บัญชีและการเงิน
+        Route::middleware('permission:hpmh-pas.view')->group(function () {
+            Route::get('/pas-files', [HpmhController::class, 'pasFiles']);
+            Route::get('/pas', [HpmhController::class, 'pas']);
+            Route::get('/pas-options', [HpmhController::class, 'pasOptions']);
+            Route::get('/files/pas/{id}/download', [HpmhController::class, 'download'])
+                ->defaults('type', 'pas')->whereNumber('id');
+        });
+        Route::middleware('permission:hpmh-receipts.view')->group(function () {
+            Route::get('/receipt-files', [HpmhController::class, 'receiptFiles']);
+            Route::get('/receipt-files/{fileId}/rows', [HpmhController::class, 'receiptFileRows'])->whereNumber('fileId');
+            Route::get('/receipt-fiscal-years', [HpmhController::class, 'receiptFiscalYears']);
+            Route::get('/files/receipt/{id}/download', [HpmhController::class, 'download'])
+                ->defaults('type', 'receipt')->whereNumber('id');
+            Route::get('/files/receipt-excel/{id}/download', [HpmhController::class, 'download'])
+                ->defaults('type', 'receipt-excel')->whereNumber('id');
+        });
     });
 
     // === User Preferences ===

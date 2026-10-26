@@ -1369,3 +1369,103 @@ export interface HpmhLeaflet {
   leaflet_disc_vat: Num
   remark: string | null
 }
+
+// ── MT — HP-MH Vendor 501447: PAS / Receipt ──────────────────────────────────
+
+export interface HpmhPasFile {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  period: string | null
+  file_name: string | null
+  file_size: number | null
+  row_count: number | null
+  total_qty: Num
+  total_sales_amount: Num
+  report_updated_at: string | null
+  downloaded_at: string | null
+}
+
+export interface HpmhPas {
+  id: number
+  file_id: number
+  vendor_no: string | null
+  period: string | null
+  row_no: number | null
+  sales_office: string | null
+  article_no: string | null
+  article_desc: string | null
+  billing_doc: string | null
+  delivery_number: string | null
+  physical_del_date: string | null
+  qty: Num
+  uom: string | null
+  normal_price: Num
+  prom_price: Num
+  sales_amount: Num
+  cost_of_info: Num
+  normal_cost_per_unit: Num
+  normal_cost: Num
+  cost_amount: Num
+  vat: Num
+  vendor_absorb_promo_discount: Num
+  vendor_leaflet: Num
+  acc_doc_or_po_no: string | null
+  net_paid: Num
+  gp_pct: Num
+  net_gp_pct: Num
+  noted_no: string | null
+  cogs_inc: string | null
+  clearing_doc: string | null
+  vendor_invoice_no: string | null
+  supply_site: string | null
+  shippoint: string | null
+  distribution_channel: string | null
+}
+
+export interface HpmhReceiptFile {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  fiscal_year: number | null
+  file_name: string | null
+  source_file_name: string | null
+  file_size: number | null
+  row_count: number | null
+  downloaded_at: string | null
+  /** newest file of its fiscal year */
+  is_latest: boolean
+  /** excel rows that have a downloaded receipt PDF */
+  pdf_count: number
+}
+
+/** receipt_excel_row + its matching receipt_document (doc_* columns, null when no PDF yet) */
+export interface HpmhReceiptRow {
+  id: number
+  file_id: number
+  vendor_no: string | null
+  fiscal_year: number | null
+  row_no: number | null
+  payment_doc: string | null
+  payment_date: string | null
+  have_email: string | null
+  company: string | null
+  vendor_print_at: string | null
+  created_at: string | null
+  doc_id: number | null
+  doc_doc_no: string | null
+  doc_posting_date: string | null
+  doc_doc_type: string | null
+  doc_comp_code: string | null
+  doc_customer_no: string | null
+  doc_email: string | null
+  doc_sap_path: string | null
+  doc_vendor_print_at: string | null
+  doc_status: string | null
+  doc_file_name: string | null
+  doc_source_file_name: string | null
+  doc_file_size: number | null
+  doc_error: string | null
+  doc_downloaded_at: string | null
+  doc_updated_at: string | null
+}

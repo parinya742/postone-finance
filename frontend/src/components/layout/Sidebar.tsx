@@ -171,7 +171,9 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
   },
 }
 
-const mtChannels: Record<MtChannel, { label: string; short: string; items: PlatformItem[] }> = {
+type MtSubTab = { key: string; label: string; items: PlatformItem[] }
+
+const mtChannels: Record<MtChannel, { label: string; short: string; items: PlatformItem[]; subTabs?: MtSubTab[] }> = {
   crc: {
     label: 'CRC',
     short: 'CRC',
@@ -185,11 +187,27 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
   'hp-mh': {
     label: 'HP-MH',
     short: 'HP',
-    items: [
-      { sectionLabel: 'Correspondence' },
-      { href: '/admin/mt/hp-mh/correspondence', label: 'หนังสือ Correspondence', icon: Mail, permission: 'hpmh-correspondence.view', exact: false },
-      { href: '/admin/mt/hp-mh/coupons', label: 'Vendor Coupon', icon: Ticket, permission: 'hpmh-coupons.view', exact: false },
-      { href: '/admin/mt/hp-mh/leaflets', label: 'ชดเชย Leaflet', icon: Newspaper, permission: 'hpmh-leaflets.view', exact: false },
+    items: [],
+    subTabs: [
+      {
+        key: '3263',
+        label: 'Vendor No: 3263',
+        items: [
+          { sectionLabel: 'Correspondence' },
+          { href: '/admin/mt/hp-mh/correspondence', label: 'หนังสือ Correspondence', icon: Mail, permission: 'hpmh-correspondence.view', exact: false },
+          { href: '/admin/mt/hp-mh/coupons', label: 'Vendor Coupon', icon: Ticket, permission: 'hpmh-coupons.view', exact: false },
+          { href: '/admin/mt/hp-mh/leaflets', label: 'ชดเชย Leaflet', icon: Newspaper, permission: 'hpmh-leaflets.view', exact: false },
+        ],
+      },
+      {
+        key: '501447',
+        label: 'Vendor No: 501447',
+        items: [
+          { sectionLabel: 'บัญชีและการเงิน' },
+          { href: '/admin/mt/hp-mh/pas', label: 'ชำระเงินหลังการขาย (PAS)', icon: Wallet, permission: 'hpmh-pas.view', exact: false },
+          { href: '/admin/mt/hp-mh/receipts', label: 'ใบเสร็จรับเงิน', icon: Receipt, permission: 'hpmh-receipts.view', exact: false },
+        ],
+      },
     ],
   },
   'hp-mh-rtv': { label: 'HP-MH-RTV', short: 'RTV', items: [] },
@@ -203,6 +221,16 @@ const getMtChannelFromPath = (pathname: string): MtChannel | null => {
   if (!pathname.startsWith('/admin/mt/')) return null
   const segment = pathname.split('/')[3] as MtChannel
   return mtChannelKeys.includes(segment) ? segment : null
+}
+
+// Sub-tab whose menu contains the current path (falls back to the first sub-tab)
+const getMtSubTabFromPath = (channel: MtChannel, pathname: string): string | null => {
+  const subTabs = mtChannels[channel].subTabs
+  if (!subTabs) return null
+  const match = subTabs.find(tab =>
+    tab.items.some(item => item.href && (pathname === item.href || pathname.startsWith(item.href + '/')))
+  )
+  return (match ?? subTabs[0]).key
 }
 
 const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
@@ -229,6 +257,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         : 'lazada'
   )
   const [activeMtChannel, setActiveMtChannel] = useState<MtChannel>(getMtChannelFromPath(pathname) ?? 'crc')
+  const [activeMtSubTab, setActiveMtSubTab] = useState<Partial<Record<MtChannel, string>>>(() => {
+    const channel = getMtChannelFromPath(pathname)
+    const subTab = channel ? getMtSubTabFromPath(channel, pathname) : null
+    return channel && subTab ? { [channel]: subTab } : {}
+  })
 
   useEffect(() => {
     if (pathname.startsWith('/admin/lazada')) {
@@ -243,11 +276,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     } else if (pathname.startsWith('/admin/mt')) {
       setMode('mt')
       const channel = getMtChannelFromPath(pathname)
-      if (channel) setActiveMtChannel(channel)
+      if (channel) {
+        setActiveMtChannel(channel)
+        const subTab = getMtSubTabFromPath(channel, pathname)
+        if (subTab) setActiveMtSubTab(prev => ({ ...prev, [channel]: subTab }))
+      }
     }
   }, [pathname])
 
-  const subItems = mode === 'mt' ? mtChannels[activeMtChannel].items : ecommercePlatforms[activePlatform].items
+  const mtSubTabs = mtChannels[activeMtChannel].subTabs
+  const currentMtSubTab = mtSubTabs?.find(tab => tab.key === activeMtSubTab[activeMtChannel]) ?? mtSubTabs?.[0]
+  const subItems = mode === 'mt'
+    ? (currentMtSubTab?.items ?? mtChannels[activeMtChannel].items)
+    : ecommercePlatforms[activePlatform].items
   const platformItems = subItems.filter(
     (item) => !item.permission || can(item.permission)
   )
@@ -531,6 +572,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     )}
                   >
                     {mtChannels[channel].short}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Vendor sub-tabs (channels that define subTabs) */}
+            {mtSubTabs && !collapsed && (
+              <div className="flex gap-1 mb-3 mx-1 border-b border-[#E8E8E8]">
+                {mtSubTabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveMtSubTab(prev => ({ ...prev, [activeMtChannel]: tab.key }))}
+                    className={clsx(
+                      'flex-1 py-1.5 px-1 text-[11px] font-semibold border-b-2 -mb-px transition-colors duration-150 whitespace-nowrap',
+                      currentMtSubTab?.key === tab.key
+                        ? 'text-[#0070F2] border-[#0070F2]'
+                        : 'text-[#6A6D70] border-transparent hover:text-[#32363A]'
+                    )}
+                  >
+                    {tab.label}
                   </button>
                 ))}
               </div>

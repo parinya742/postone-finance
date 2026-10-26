@@ -24,6 +24,8 @@ interface PdfViewerProps {
   subtitle?: string
   /** URL the browser can render inline (application/pdf, no attachment disposition). */
   src: string | null
+  /** Show the busy indicator while the src is still being resolved (e.g. fetching a pre-signed URL). */
+  loading?: boolean
   /** Download handler; the button is hidden when omitted (showDownloadButton=false). */
   onDownload?: () => void | Promise<void>
   /** Optional previous/next navigation when the viewer is opened from a list. */
@@ -88,7 +90,7 @@ function PdfFrame({ src, title }: { src: string; title: string }) {
 const btnStandard =
   'h-9 px-4 text-sm font-medium rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 
-export default function PdfViewer({ open, onClose, title, subtitle, src, onDownload, nav }: PdfViewerProps) {
+export default function PdfViewer({ open, onClose, title, subtitle, src, loading, onDownload, nav }: PdfViewerProps) {
   const [downloading, setDownloading] = useState(false)
 
   const handleDownload = onDownload
@@ -164,7 +166,13 @@ export default function PdfViewer({ open, onClose, title, subtitle, src, onDownl
 
           {/* Content */}
           <div className="flex-1 min-h-0 bg-[#F7F7F7]">
-            {src ? <PdfFrame key={src} src={src} title={title} /> : <ErrorState onDownload={handleDownload} />}
+            {loading ? (
+              <div className="flex items-center justify-center h-full"><BusyIndicator /></div>
+            ) : src ? (
+              <PdfFrame key={src} src={src} title={title} />
+            ) : (
+              <ErrorState onDownload={handleDownload} />
+            )}
           </div>
 
           {/* Footer */}

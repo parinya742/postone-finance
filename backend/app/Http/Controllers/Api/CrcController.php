@@ -167,8 +167,12 @@ class CrcController extends Controller
 
     // ── File download (S3 pre-signed URL) ───────────────────────────────────
 
-    public function download(string $type, int $id): JsonResponse
+    public function download(Request $request): JsonResponse
     {
+        // Read by name: routes that fix the type via ->defaults() would otherwise shift positional args
+        $type = $request->route('type');
+        $id = (int) $request->route('id');
+
         $file = $this->db()->table(self::FILE_TABLES[$type])
             ->select('file_name', 's3_bucket', 's3_key')
             ->find($id);

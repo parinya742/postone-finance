@@ -66,8 +66,11 @@ trait QueriesReportTables
         return response()->json($page);
     }
 
-    /** Pre-signed S3 download link for a scraper file row (file_name, s3_bucket, s3_key). */
-    protected function s3DownloadResponse(?object $file): JsonResponse
+    /**
+     * Pre-signed S3 link for a scraper file row (file_name, s3_bucket, s3_key).
+     * $inline = true lets the browser render it (e.g. a PDF in an iframe) instead of downloading.
+     */
+    protected function s3DownloadResponse(?object $file, bool $inline = false): JsonResponse
     {
         if (! $file || ! $file->s3_key) {
             return response()->json(['message' => 'ไม่พบไฟล์'], 404);
@@ -77,9 +80,11 @@ trait QueriesReportTables
             ? Storage::build(array_merge(config('filesystems.disks.s3'), ['bucket' => $file->s3_bucket]))
             : Storage::disk('s3');
 
-        $url = $disk->temporaryUrl($file->s3_key, now()->addMinutes(10), [
-            'ResponseContentDisposition' => 'attachment; filename="' . $file->file_name . '"',
-        ]);
+        $options = ['ResponseContentDisposition' => ($inline ? 'inline' : 'attachment') . '; filename="' . $file->file_name . '"'];
+        if ($inline && str_ends_with(strtolower($file->file_name ?? ''), '.pdf')) {
+            $options['ResponseContentType'] = 'application/pdf';
+        }
+        $url = $disk->temporaryUrl($file->s3_key, now()->addMinutes(10), $options);
 
         return response()->json(['url' => $url, 'file_name' => $file->file_name]);
     }
