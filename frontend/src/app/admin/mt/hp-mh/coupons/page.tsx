@@ -46,7 +46,7 @@ const COLUMNS: CrcColumn<HpmhCoupon>[] = [
 
 function HpmhCouponsContent() {
   const { can } = useAuth()
-  const allowed = can('hpmh.view')
+  const allowed = can('hpmh-coupons.view')
   const searchParams = useSearchParams()
 
   const [search, setSearch] = useState('')

@@ -441,10 +441,10 @@ export default function ShopeeSyncLogsPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<ShopeeShop>>({
     queryKey: ['shopee-shops-all'],
     queryFn: () => api.get('/shopee/shops', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-sync-logs.view'),
   })
 
-  if (!can('shopee-shops.view')) {
+  if (!can('shopee-sync-logs.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-[#6A6D70]">
         <Lock className="w-12 h-12 mb-3" />

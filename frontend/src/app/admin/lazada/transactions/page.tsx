@@ -180,7 +180,7 @@ export default function LazadaTransactionsPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<LazadaShop>>({
     queryKey: ['lazada-shops-all'],
     queryFn: () => api.get('/lazada/shops', { params: { per_page: 100, is_active: true } }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-transactions.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<LazadaTransaction>>({
@@ -194,7 +194,7 @@ export default function LazadaTransactionsPage() {
         paid_status: paidStatus || undefined,
       },
     }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-transactions.view'),
   })
 
   // ── Export ────────────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ export default function LazadaTransactionsPage() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  if (!can('lazada-shops.view')) return <ErpNoAccess />
+  if (!can('lazada-transactions.view')) return <ErpNoAccess />
 
   const items = data?.data ?? []
   const shops = shopsData?.data ?? []

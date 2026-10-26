@@ -33,7 +33,7 @@ export default function TikTokFilesPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<TikTokShop>>({
     queryKey: ['tiktok-shops-all'],
     queryFn: () => api.get('/tiktok/shops', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('tiktok-shops.view'),
+    enabled: can('tiktok-files.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<TikTokTransactionFile>>({
@@ -42,10 +42,10 @@ export default function TikTokFilesPage() {
       api.get('/tiktok/files', {
         params: { search, page, per_page: 20, shop_name: shopName || undefined },
       }).then((r) => r.data),
-    enabled: can('tiktok-shops.view'),
+    enabled: can('tiktok-files.view'),
   })
 
-  if (!can('tiktok-shops.view')) {
+  if (!can('tiktok-files.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <Lock className="w-12 h-12 mb-3" />

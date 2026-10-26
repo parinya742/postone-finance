@@ -27,7 +27,7 @@ export default function ShopeeWalletFilesPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<ShopeeShop>>({
     queryKey: ['shopee-shops-all'],
     queryFn: () => api.get('/shopee/shops', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-wallet-files.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<ShopeeWalletFile>>({
@@ -42,10 +42,10 @@ export default function ShopeeWalletFilesPage() {
           end_date: endDate || undefined,
         },
       }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-wallet-files.view'),
   })
 
-  if (!can('shopee-shops.view')) {
+  if (!can('shopee-wallet-files.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <Lock className="w-12 h-12 mb-3" />

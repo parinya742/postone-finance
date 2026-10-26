@@ -202,7 +202,7 @@ export default function TikTokTransactionsPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<TikTokShop>>({
     queryKey: ['tiktok-shops-all'],
     queryFn: () => api.get('/tiktok/shops', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('tiktok-shops.view'),
+    enabled: can('tiktok-transactions.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<TikTokTransaction>>({
@@ -220,10 +220,10 @@ export default function TikTokTransactionsPage() {
           payment_status: paymentStatus || undefined,
         },
       }).then((r) => r.data),
-    enabled: can('tiktok-shops.view'),
+    enabled: can('tiktok-transactions.view'),
   })
 
-  if (!can('tiktok-shops.view')) {
+  if (!can('tiktok-transactions.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <Lock className="w-12 h-12 mb-3" />

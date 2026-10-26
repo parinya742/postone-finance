@@ -48,7 +48,7 @@ export default function ShopeeWalletTransactionsPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<ShopeeShop>>({
     queryKey: ['shopee-shops-all'],
     queryFn: () => api.get('/shopee/shops', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-wallet-transactions.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<ShopeeWalletTransaction>>({
@@ -66,10 +66,10 @@ export default function ShopeeWalletTransactionsPage() {
           money_flow: moneyFlow || undefined,
         },
       }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-wallet-transactions.view'),
   })
 
-  if (!can('shopee-shops.view')) {
+  if (!can('shopee-wallet-transactions.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <Lock className="w-12 h-12 mb-3" />

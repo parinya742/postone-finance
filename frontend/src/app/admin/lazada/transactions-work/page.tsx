@@ -355,7 +355,7 @@ export default function LazadaTransactionsWorkPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<LazadaShop>>({
     queryKey: ['lazada-shops-all'],
     queryFn: () => api.get('/lazada/shops', { params: { per_page: 100, is_active: true } }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-transactions-work.view'),
   })
 
   const { data: prefData } = useQuery<{ value: { hidden: string[] } | null }>({
@@ -391,7 +391,7 @@ export default function LazadaTransactionsWorkPage() {
         di_status: diStatus || undefined,
       },
     }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-transactions-work.view'),
   })
 
   // ── TanStack Table ────────────────────────────────────────────────────────
@@ -555,7 +555,7 @@ export default function LazadaTransactionsWorkPage() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  if (!can('lazada-shops.view')) return <ErpNoAccess />
+  if (!can('lazada-transactions-work.view')) return <ErpNoAccess />
 
   const allPageIds     = items.map(i => i.id)
   const selectedOnPage = allPageIds.filter(id => selectedIds.has(id))
@@ -615,6 +615,7 @@ export default function LazadaTransactionsWorkPage() {
             onReset={resetCols}
             saving={savePrefMutation.isPending}
           />
+          {can('lazada-transactions-work.edit') && (
           <button
             onClick={handleSyncCustomers}
             disabled={syncing}
@@ -624,6 +625,7 @@ export default function LazadaTransactionsWorkPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'กำลัง Sync...' : 'Re-sync Cust'}
           </button>
+          )}
           <button
             onClick={handleExport}
             disabled={exporting}
@@ -832,6 +834,7 @@ export default function LazadaTransactionsWorkPage() {
                 <span className="text-xs font-semibold text-[#0070F2] bg-[#EBF5FB] border border-[#0070F2]/30 px-2 py-1 rounded-sm">
                   {selectedIds.size.toLocaleString('th-TH')} รายการที่เลือก
                 </span>
+                {can('lazada-transactions-work.edit') && (<>
                 <div className="w-px h-5 bg-[#D9D9D9]" />
                 <input
                   type="date"
@@ -862,6 +865,7 @@ export default function LazadaTransactionsWorkPage() {
                 >
                   ล้างวันที่โอน
                 </button>
+                </>)}
                 <button
                   onClick={() => { setSelectedIds(new Set()); setAllFilterSelected(false) }}
                   className="flex items-center gap-1 h-7 px-2 text-xs text-[#6A6D70] hover:text-[#32363A] transition-colors"

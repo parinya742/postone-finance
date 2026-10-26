@@ -85,6 +85,7 @@ interface TransferPayload {
 // ── Log Row ───────────────────────────────────────────────────────────────────
 
 function LogRow({ log }: { log: AuditLog }) {
+  const { can } = useAuth()
   const qc = useQueryClient()
   const [open, setOpen]               = useState(false)
   const [smartReDateValue, setSmartReDate] = useState('')
@@ -238,7 +239,7 @@ function LogRow({ log }: { log: AuditLog }) {
             )}
 
             {/* Actions Grid */}
-            {ids.length > 0 && (
+            {ids.length > 0 && can('lazada-transactions-work.edit') && (
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
 
                 {/* ── Zone A: Smart (Safe) ──────────────────────── */}
@@ -460,10 +461,10 @@ export default function TransactionWorkHistoryPage() {
       api.get('/audit-logs', {
         params: { target_type: 'lazada_transactions_work', per_page: 30, page },
       }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-transactions-work.view'),
   })
 
-  if (!can('lazada-shops.view')) {
+  if (!can('lazada-transactions-work.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-[#6A6D70]">
         <Lock className="w-10 h-10 mb-3 text-[#D9D9D9]" />

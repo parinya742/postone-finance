@@ -166,7 +166,7 @@ export default function ShopeeTransactionsPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<ShopeeShop>>({
     queryKey: ['shopee-shops-all'],
     queryFn: () => api.get('/shopee/shops', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-transactions.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<ShopeeTransaction>>({
@@ -183,10 +183,10 @@ export default function ShopeeTransactionsPage() {
           payment_method: paymentMethod || undefined,
         },
       }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-transactions.view'),
   })
 
-  if (!can('shopee-shops.view')) {
+  if (!can('shopee-transactions.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <Lock className="w-12 h-12 mb-3" />

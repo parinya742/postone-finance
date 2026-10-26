@@ -72,7 +72,7 @@ const FILE_COLUMNS: CrcColumn<HpmhCorrespondenceFile>[] = [
 
 export default function HpmhCorrespondencePage() {
   const { can } = useAuth()
-  const allowed = can('hpmh.view')
+  const allowed = can('hpmh-correspondence.view')
   const [view, setView] = useState<View>('list')
 
   const [search, setSearch] = useState('')

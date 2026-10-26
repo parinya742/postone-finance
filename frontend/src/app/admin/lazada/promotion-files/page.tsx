@@ -53,7 +53,7 @@ export default function LazadaPromotionFilesPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<LazadaShop>>({
     queryKey: ['lazada-shops-all'],
     queryFn: () => api.get('/lazada/shops', { params: { per_page: 100, is_active: true } }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-promotion-files.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<LazadaSvcExportFile>>({
@@ -65,10 +65,10 @@ export default function LazadaPromotionFilesPage() {
         has_rows: hasRows ? 1 : undefined,
       },
     }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-promotion-files.view'),
   })
 
-  if (!can('lazada-shops.view')) return <ErpNoAccess />
+  if (!can('lazada-promotion-files.view')) return <ErpNoAccess />
 
   const items     = data?.data ?? []
   const shops     = shopsData?.data ?? []

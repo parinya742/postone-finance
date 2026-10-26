@@ -118,19 +118,19 @@ function LazadaPromotionContent() {
   const { data: shopsData } = useQuery<PaginatedResponse<LazadaShop>>({
     queryKey: ['lazada-shops-all'],
     queryFn: () => api.get('/lazada/shops', { params: { per_page: 100, is_active: true } }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-promotion.view'),
   })
 
   const { data: options } = useQuery<LazadaSvcOptions>({
     queryKey: ['lazada-svc-options'],
     queryFn: () => api.get('/lazada/svc-options').then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-promotion.view'),
   })
 
   const { data, isLoading } = useQuery<SvcResponse>({
     queryKey: ['lazada-svc-transactions', page, filterParams],
     queryFn: () => api.get('/lazada/svc-transactions', { params: { ...filterParams, page, per_page: 50 } }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-promotion.view'),
   })
 
   // ── Export ────────────────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ function LazadaPromotionContent() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  if (!can('lazada-shops.view')) return <ErpNoAccess />
+  if (!can('lazada-promotion.view')) return <ErpNoAccess />
 
   const items = data?.data ?? []
   const shops = shopsData?.data ?? []

@@ -205,21 +205,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/master-banks', [MasterBankController::class, 'index']);
 
     // === Lazada ===
+    // Shop list is also used as a filter dropdown by every Lazada data page
+    Route::middleware('permission:lazada-shops.view,lazada-transactions.view,lazada-transactions-work.view,lazada-files.view,lazada-promotion.view,lazada-promotion-files.view')
+        ->get('/lazada/shops', [LazadaShopController::class, 'index']);
     Route::middleware('permission:lazada-shops.view')->group(function () {
-        Route::get('/lazada/shops', [LazadaShopController::class, 'index']);
         Route::get('/lazada/auth-config', [LazadaShopController::class, 'authConfig']);
         Route::get('/lazada/shops/{id}/auth-url', [LazadaShopController::class, 'getAuthUrl']);
-        Route::get('/lazada/transactions', [LazadaTransactionController::class, 'index']);
+    });
+    Route::middleware('permission:lazada-transactions.view')->get('/lazada/transactions', [LazadaTransactionController::class, 'index']);
+    Route::middleware('permission:lazada-transactions-work.view')->group(function () {
         Route::get('/lazada/transactions-work', [LazadaTransactionWorkController::class, 'index']);
         Route::get('/lazada/transactions-work/ids', [LazadaTransactionWorkController::class, 'ids']);
+    });
+    Route::middleware('permission:lazada-transactions-work.edit')->group(function () {
         Route::patch('/lazada/transactions-work/bulk-transfer', [LazadaTransactionWorkController::class, 'bulkTransfer']);
         Route::post('/lazada/transactions-work/smart-undo', [LazadaTransactionWorkController::class, 'smartUndo']);
         Route::post('/lazada/transactions-work/sync-customers', [LazadaTransactionWorkController::class, 'syncCustomers']);
-        Route::get('/lazada/files', [LazadaTransactionFileController::class, 'index']);
+    });
+    Route::middleware('permission:lazada-files.view')->get('/lazada/files', [LazadaTransactionFileController::class, 'index']);
+    Route::middleware('permission:lazada-promotion.view')->group(function () {
         Route::get('/lazada/svc-transactions', [LazadaSvcController::class, 'index']);
         Route::get('/lazada/svc-options', [LazadaSvcController::class, 'options']);
-        Route::get('/lazada/svc-files', [LazadaSvcController::class, 'files']);
     });
+    Route::middleware('permission:lazada-promotion-files.view')->get('/lazada/svc-files', [LazadaSvcController::class, 'files']);
     Route::middleware('permission:lazada-shops.create')->post('/lazada/shops', [LazadaShopController::class, 'store']);
     Route::middleware('permission:lazada-shops.edit')->group(function () {
         Route::put('/lazada/shops/{id}', [LazadaShopController::class, 'update']);
@@ -247,15 +255,21 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // === TikTok ===
+    // Shop list is also used as a filter dropdown by every TikTok data page
+    Route::middleware('permission:tiktok-shops.view,tiktok-transactions.view,tiktok-files.view,tiktok-orders.view,tiktok-order-files.view,tiktok-tax-invoices.view')
+        ->get('/tiktok/shops', [TikTokShopController::class, 'index']);
     Route::middleware('permission:tiktok-shops.view')->group(function () {
-        Route::get('/tiktok/shops', [TikTokShopController::class, 'index']);
         Route::get('/tiktok/auth-config', [TikTokShopController::class, 'authConfig']);
         Route::get('/tiktok/shops/{id}/auth-url', [TikTokShopController::class, 'getAuthUrl']);
-        Route::get('/tiktok/transactions', [TikTokTransactionController::class, 'index']);
-        Route::get('/tiktok/files', [TikTokTransactionFileController::class, 'index']);
+    });
+    Route::middleware('permission:tiktok-transactions.view')->get('/tiktok/transactions', [TikTokTransactionController::class, 'index']);
+    Route::middleware('permission:tiktok-files.view')->get('/tiktok/files', [TikTokTransactionFileController::class, 'index']);
+    Route::middleware('permission:tiktok-orders.view')->group(function () {
         Route::get('/tiktok/orders', [TikTokOrderController::class, 'index']);
         Route::get('/tiktok/order-statuses', [TikTokOrderController::class, 'statuses']);
-        Route::get('/tiktok/order-files', [TikTokOrderController::class, 'files']);
+    });
+    Route::middleware('permission:tiktok-order-files.view')->get('/tiktok/order-files', [TikTokOrderController::class, 'files']);
+    Route::middleware('permission:tiktok-tax-invoices.view')->group(function () {
         Route::get('/tiktok/tax-invoices', [TikTokTaxInvoiceController::class, 'index']);
         Route::get('/tiktok/tax-invoices/{fileId}/documents', [TikTokTaxInvoiceController::class, 'documents'])->whereNumber('fileId');
         Route::get('/tiktok/tax-invoice-types', [TikTokTaxInvoiceController::class, 'types']);
@@ -271,16 +285,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:tiktok-shops.delete')->delete('/tiktok/shops/{id}', [TikTokShopController::class, 'destroy']);
 
     // === Shopee ===
+    // Shop list is also used as a filter dropdown by every Shopee data page
+    Route::middleware('permission:shopee-shops.view,shopee-transactions.view,shopee-files.view,shopee-orders.view,shopee-order-files.view,shopee-wallet-transactions.view,shopee-wallet-files.view,shopee-etax.view,shopee-ads.view,shopee-sync-logs.view')
+        ->get('/shopee/shops', [ShopeeShopController::class, 'index']);
     Route::middleware('permission:shopee-shops.view')->group(function () {
-        Route::get('/shopee/shops', [ShopeeShopController::class, 'index']);
         Route::get('/shopee/auth-config', [ShopeeShopController::class, 'authConfig']);
         Route::get('/shopee/shops/{shopId}/auth-url', [ShopeeShopController::class, 'getAuthUrl']);
-        Route::get('/shopee/transactions', [ShopeeTransactionController::class, 'index']);
-        Route::get('/shopee/files', [ShopeeTransactionFileController::class, 'index']);
-        Route::get('/shopee/orders', [ShopeeOrderItemController::class, 'index']);
-        Route::get('/shopee/order-files', [ShopeeOrderFileController::class, 'index']);
-        Route::get('/shopee/wallet-transactions', [ShopeeWalletTransactionController::class, 'index']);
-        Route::get('/shopee/wallet-files', [ShopeeWalletFileController::class, 'index']);
+    });
+    Route::middleware('permission:shopee-transactions.view')->get('/shopee/transactions', [ShopeeTransactionController::class, 'index']);
+    Route::middleware('permission:shopee-files.view')->get('/shopee/files', [ShopeeTransactionFileController::class, 'index']);
+    Route::middleware('permission:shopee-orders.view')->get('/shopee/orders', [ShopeeOrderItemController::class, 'index']);
+    Route::middleware('permission:shopee-order-files.view')->get('/shopee/order-files', [ShopeeOrderFileController::class, 'index']);
+    Route::middleware('permission:shopee-wallet-transactions.view')->get('/shopee/wallet-transactions', [ShopeeWalletTransactionController::class, 'index']);
+    Route::middleware('permission:shopee-wallet-files.view')->get('/shopee/wallet-files', [ShopeeWalletFileController::class, 'index']);
+    Route::middleware('permission:shopee-sync-logs.view')->group(function () {
         Route::get('/shopee/wallet-sync-logs', [ShopeeWalletSyncLogController::class, 'index']);
         Route::get('/shopee/order-sync-logs', [ShopeeOrderSyncLogController::class, 'index']);
         Route::get('/shopee/income-sync-logs', [ShopeeIncomeSyncLogController::class, 'index']);
@@ -320,28 +338,40 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // === MT — CRC ===
-    Route::middleware('permission:crc.view')->prefix('crc')->group(function () {
-        Route::get('/price-compensate-files', [CrcController::class, 'priceCompensateFiles']);
-        Route::get('/price-compensate', [CrcController::class, 'priceCompensate']);
-        Route::get('/remittance-files', [CrcController::class, 'remittanceFiles']);
-        Route::get('/remittance', [CrcController::class, 'remittance']);
-        Route::get('/summary-report-files', [CrcController::class, 'summaryReportFiles']);
-        Route::get('/summary-report', [CrcController::class, 'summaryReport']);
-        Route::get('/summary-report-daily', [CrcController::class, 'summaryReportDaily']);
-        Route::get('/files/{type}/{id}/download', [CrcController::class, 'download'])
-            ->whereIn('type', ['price-compensate', 'remittance', 'summary-report'])
-            ->whereNumber('id');
+    Route::prefix('crc')->group(function () {
+        Route::middleware('permission:crc-price-compensate.view')->group(function () {
+            Route::get('/price-compensate-files', [CrcController::class, 'priceCompensateFiles']);
+            Route::get('/price-compensate', [CrcController::class, 'priceCompensate']);
+            Route::get('/files/price-compensate/{id}/download', [CrcController::class, 'download'])
+                ->defaults('type', 'price-compensate')->whereNumber('id');
+        });
+        Route::middleware('permission:crc-remittance.view')->group(function () {
+            Route::get('/remittance-files', [CrcController::class, 'remittanceFiles']);
+            Route::get('/remittance', [CrcController::class, 'remittance']);
+            Route::get('/files/remittance/{id}/download', [CrcController::class, 'download'])
+                ->defaults('type', 'remittance')->whereNumber('id');
+        });
+        Route::middleware('permission:crc-summary-report.view')->group(function () {
+            Route::get('/summary-report-files', [CrcController::class, 'summaryReportFiles']);
+            Route::get('/summary-report', [CrcController::class, 'summaryReport']);
+            Route::get('/summary-report-daily', [CrcController::class, 'summaryReportDaily']);
+            Route::get('/files/summary-report/{id}/download', [CrcController::class, 'download'])
+                ->defaults('type', 'summary-report')->whereNumber('id');
+        });
     });
 
     // === MT — HP-MH ===
-    Route::middleware('permission:hpmh.view')->prefix('hpmh')->group(function () {
-        Route::get('/correspondence-files', [HpmhController::class, 'correspondenceFiles']);
-        Route::get('/correspondence', [HpmhController::class, 'correspondence']);
-        Route::get('/coupons', [HpmhController::class, 'coupons']);
-        Route::get('/leaflets', [HpmhController::class, 'leaflets']);
-        Route::get('/files/{type}/{id}/download', [HpmhController::class, 'download'])
-            ->whereIn('type', ['correspondence', 'attachment'])
-            ->whereNumber('id');
+    Route::prefix('hpmh')->group(function () {
+        // Correspondence documents are also used as reference options by the Coupon / Leaflet pages
+        Route::middleware('permission:hpmh-correspondence.view,hpmh-coupons.view,hpmh-leaflets.view')->group(function () {
+            Route::get('/correspondence', [HpmhController::class, 'correspondence']);
+            Route::get('/files/{type}/{id}/download', [HpmhController::class, 'download'])
+                ->whereIn('type', ['correspondence', 'attachment'])
+                ->whereNumber('id');
+        });
+        Route::middleware('permission:hpmh-correspondence.view')->get('/correspondence-files', [HpmhController::class, 'correspondenceFiles']);
+        Route::middleware('permission:hpmh-coupons.view')->get('/coupons', [HpmhController::class, 'coupons']);
+        Route::middleware('permission:hpmh-leaflets.view')->get('/leaflets', [HpmhController::class, 'leaflets']);
     });
 
     // === User Preferences ===

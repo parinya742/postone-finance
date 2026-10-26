@@ -46,7 +46,7 @@ const DATA_COLUMNS: CrcColumn<CrcRemittance>[] = [
 
 export default function CrcRemittancePage() {
   const { can } = useAuth()
-  const allowed = can('crc.view')
+  const allowed = can('crc-remittance.view')
   const [view, setView] = useState<View>('data')
 
   // ── Data filters ── (fileId null = not chosen yet → latest file, '' = all files)

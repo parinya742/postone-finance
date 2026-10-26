@@ -56,7 +56,7 @@ const DAILY_COLUMNS: CrcColumn<CrcSummaryReport>[] = [
 
 export default function CrcSummaryReportPage() {
   const { can } = useAuth()
-  const allowed = can('crc.view')
+  const allowed = can('crc-summary-report.view')
   const [view, setView] = useState<View>('monthly')
 
   // ── Shared item filters ──

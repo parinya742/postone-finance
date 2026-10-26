@@ -57,7 +57,7 @@ const COLUMNS: CrcColumn<HpmhLeaflet>[] = [
 
 function HpmhLeafletsContent() {
   const { can } = useAuth()
-  const allowed = can('hpmh.view')
+  const allowed = can('hpmh-leaflets.view')
   const searchParams = useSearchParams()
 
   const [search, setSearch] = useState('')

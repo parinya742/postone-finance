@@ -204,13 +204,13 @@ export default function TikTokTaxInvoicesPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<TikTokShop>>({
     queryKey: ['tiktok-shops-all'],
     queryFn: () => api.get('/tiktok/shops', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('tiktok-shops.view'),
+    enabled: can('tiktok-tax-invoices.view'),
   })
 
   const { data: types } = useQuery<string[]>({
     queryKey: ['tiktok-tax-invoice-types'],
     queryFn: () => api.get('/tiktok/tax-invoice-types').then((r) => r.data),
-    enabled: can('tiktok-shops.view'),
+    enabled: can('tiktok-tax-invoices.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<TikTokTaxInvoiceFile>>({
@@ -227,10 +227,10 @@ export default function TikTokTaxInvoicesPage() {
           period_to: periodTo || undefined,
         },
       }).then((r) => r.data),
-    enabled: can('tiktok-shops.view'),
+    enabled: can('tiktok-tax-invoices.view'),
   })
 
-  if (!can('tiktok-shops.view')) {
+  if (!can('tiktok-tax-invoices.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <Lock className="w-12 h-12 mb-3" />

@@ -47,7 +47,7 @@ const DATA_COLUMNS: CrcColumn<CrcPriceCompensate>[] = [
 
 export default function CrcPriceCompensatePage() {
   const { can } = useAuth()
-  const allowed = can('crc.view')
+  const allowed = can('crc-price-compensate.view')
   const [view, setView] = useState<View>('data')
 
   // ── Data filters ──

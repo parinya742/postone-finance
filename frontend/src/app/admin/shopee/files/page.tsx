@@ -31,7 +31,7 @@ export default function ShopeeFilesPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<ShopeeShop>>({
     queryKey: ['shopee-shops-all'],
     queryFn: () => api.get('/shopee/shops', { params: { per_page: 100 } }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-files.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<ShopeeTransactionFile>>({
@@ -40,10 +40,10 @@ export default function ShopeeFilesPage() {
       api.get('/shopee/files', {
         params: { search, page, per_page: 20, shop_name: shopName || undefined },
       }).then((r) => r.data),
-    enabled: can('shopee-shops.view'),
+    enabled: can('shopee-files.view'),
   })
 
-  if (!can('shopee-shops.view')) {
+  if (!can('shopee-files.view')) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <Lock className="w-12 h-12 mb-3" />

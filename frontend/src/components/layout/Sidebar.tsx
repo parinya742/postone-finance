@@ -106,14 +106,14 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { href: '/admin/lazada/session-logs', label: 'Capture Logs', icon: HistoryIcon, permission: 'lazada-sessions.view', exact: false },
 
       { sectionLabel: 'รายการรายรับ (การเงิน)' },
-      { href: '/admin/lazada/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: false },
-      { href: '/admin/lazada/transactions-work', label: 'จัดการธุรกรรม', icon: Receipt, permission: 'lazada-shops.view', exact: true },
-      { href: '/admin/lazada/transactions-work/history', label: 'ประวัติการจัดการธุรกรรม', icon: HistoryIcon, permission: 'lazada-shops.view', exact: false },
-      { href: '/admin/lazada/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'lazada-shops.view', exact: false },
+      { href: '/admin/lazada/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'lazada-transactions.view', exact: false },
+      { href: '/admin/lazada/transactions-work', label: 'จัดการธุรกรรม', icon: Receipt, permission: 'lazada-transactions-work.view', exact: true },
+      { href: '/admin/lazada/transactions-work/history', label: 'ประวัติการจัดการธุรกรรม', icon: HistoryIcon, permission: 'lazada-transactions-work.view', exact: false },
+      { href: '/admin/lazada/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'lazada-files.view', exact: false },
 
       { sectionLabel: 'เครื่องมือโปรโมทสินค้า' },
-      { href: '/admin/lazada/promotion', label: 'รายการโปรโมทสินค้า', icon: Megaphone, permission: 'lazada-shops.view', exact: true },
-      { href: '/admin/lazada/promotion-files', label: 'ไฟล์โปรโมทสินค้า', icon: FolderOpen, permission: 'lazada-shops.view', exact: false },
+      { href: '/admin/lazada/promotion', label: 'รายการโปรโมทสินค้า', icon: Megaphone, permission: 'lazada-promotion.view', exact: true },
+      { href: '/admin/lazada/promotion-files', label: 'ไฟล์โปรโมทสินค้า', icon: FolderOpen, permission: 'lazada-promotion-files.view', exact: false },
 
       { sectionLabel: 'รายการใบแจ้งหนี้' },
       { href: '/admin/lazada/invoices', label: 'ใบแจ้งหนี้', icon: FileText, permission: 'lazada-invoices.view', exact: false },
@@ -127,15 +127,15 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { href: '/admin/tiktok/shops', label: 'จัดการร้านค้า', icon: Store, permission: 'tiktok-shops.view', exact: false },
 
       { sectionLabel: 'รายการรายรับ (การเงิน)' },
-      { href: '/admin/tiktok/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'tiktok-shops.view', exact: false },
-      { href: '/admin/tiktok/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'tiktok-shops.view', exact: false },
+      { href: '/admin/tiktok/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'tiktok-transactions.view', exact: false },
+      { href: '/admin/tiktok/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'tiktok-files.view', exact: false },
 
       { sectionLabel: 'จัดการคำสั่งซื้อ' },
-      { href: '/admin/tiktok/orders', label: 'รายการคำสั่งซื้อ', icon: ShoppingBag, permission: 'tiktok-shops.view', exact: false },
-      { href: '/admin/tiktok/order-files', label: 'ไฟล์คำสั่งซื้อ', icon: FileText, permission: 'tiktok-shops.view', exact: false },
+      { href: '/admin/tiktok/orders', label: 'รายการคำสั่งซื้อ', icon: ShoppingBag, permission: 'tiktok-orders.view', exact: false },
+      { href: '/admin/tiktok/order-files', label: 'ไฟล์คำสั่งซื้อ', icon: FileText, permission: 'tiktok-order-files.view', exact: false },
 
       { sectionLabel: 'การเงิน / เอกสารทางภาษี' },
-      { href: '/admin/tiktok/tax-invoices', label: 'เอกสารทางภาษี', icon: FileArchive, permission: 'tiktok-shops.view', exact: false },
+      { href: '/admin/tiktok/tax-invoices', label: 'เอกสารทางภาษี', icon: FileArchive, permission: 'tiktok-tax-invoices.view', exact: false },
     ],
   },
   shopee: {
@@ -148,16 +148,16 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { href: '/admin/shopee/session-logs', label: 'Capture Logs', icon: HistoryIcon, permission: 'shopee-sessions.view', exact: false },
 
       { sectionLabel: 'รายการรายรับ (การเงิน) Income Payout' },
-      { href: '/admin/shopee/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'shopee-shops.view', exact: false },
-      { href: '/admin/shopee/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'shopee-shops.view', exact: false },
+      { href: '/admin/shopee/transactions', label: 'รายการธุรกรรม', icon: Receipt, permission: 'shopee-transactions.view', exact: false },
+      { href: '/admin/shopee/files', label: 'ไฟล์ส่งออก', icon: FileSpreadsheet, permission: 'shopee-files.view', exact: false },
 
       { sectionLabel: 'รายการออเดอร์ คำสั่งซื้อ' },
-      { href: '/admin/shopee/orders', label: 'รายการออเดอร์', icon: ShoppingBag, permission: 'shopee-shops.view', exact: false },
-      { href: '/admin/shopee/order-files', label: 'ไฟล์ออเดอร์', icon: FileText, permission: 'shopee-shops.view', exact: false },
+      { href: '/admin/shopee/orders', label: 'รายการออเดอร์', icon: ShoppingBag, permission: 'shopee-orders.view', exact: false },
+      { href: '/admin/shopee/order-files', label: 'ไฟล์ออเดอร์', icon: FileText, permission: 'shopee-order-files.view', exact: false },
 
       { sectionLabel: 'Seller Wallet Balance' },
-      { href: '/admin/shopee/wallet-transactions', label: 'ธุรกรรม Wallet', icon: Wallet, permission: 'shopee-shops.view', exact: false },
-      { href: '/admin/shopee/wallet-files', label: 'ไฟล์ Wallet', icon: FolderOpen, permission: 'shopee-shops.view', exact: false },
+      { href: '/admin/shopee/wallet-transactions', label: 'ธุรกรรม Wallet', icon: Wallet, permission: 'shopee-wallet-transactions.view', exact: false },
+      { href: '/admin/shopee/wallet-files', label: 'ไฟล์ Wallet', icon: FolderOpen, permission: 'shopee-wallet-files.view', exact: false },
 
       { sectionLabel: 'ใบกำกับภาษี (e-Tax)' },
       { href: '/admin/shopee/etax', label: 'ใบกำกับภาษี', icon: FileArchive, permission: 'shopee-etax.view', exact: false },
@@ -166,7 +166,7 @@ const ecommercePlatforms: Record<EcommercePlatform, { label: string; short: stri
       { href: '/admin/shopee/ads', label: 'ค่าใช้จ่ายโฆษณา', icon: Megaphone, permission: 'shopee-ads.view', exact: false },
 
       { sectionLabel: 'Sync Logs' },
-      { href: '/admin/shopee/sync-logs', label: 'ประวัติการซิงค์', icon: Activity, permission: 'shopee-shops.view', exact: false },
+      { href: '/admin/shopee/sync-logs', label: 'ประวัติการซิงค์', icon: Activity, permission: 'shopee-sync-logs.view', exact: false },
     ],
   },
 }
@@ -177,9 +177,9 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
     short: 'CRC',
     items: [
       { sectionLabel: 'ข้อมูล CRC' },
-      { href: '/admin/mt/crc/price-compensate', label: 'Price Compensate', icon: BadgePercent, permission: 'crc.view', exact: false },
-      { href: '/admin/mt/crc/remittance', label: 'Remittance', icon: Banknote, permission: 'crc.view', exact: false },
-      { href: '/admin/mt/crc/summary-report', label: 'Summary Report', icon: BarChart3, permission: 'crc.view', exact: false },
+      { href: '/admin/mt/crc/price-compensate', label: 'Price Compensate', icon: BadgePercent, permission: 'crc-price-compensate.view', exact: false },
+      { href: '/admin/mt/crc/remittance', label: 'Remittance', icon: Banknote, permission: 'crc-remittance.view', exact: false },
+      { href: '/admin/mt/crc/summary-report', label: 'Summary Report', icon: BarChart3, permission: 'crc-summary-report.view', exact: false },
     ],
   },
   'hp-mh': {
@@ -187,9 +187,9 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
     short: 'HP',
     items: [
       { sectionLabel: 'Correspondence' },
-      { href: '/admin/mt/hp-mh/correspondence', label: 'หนังสือ Correspondence', icon: Mail, permission: 'hpmh.view', exact: false },
-      { href: '/admin/mt/hp-mh/coupons', label: 'Vendor Coupon', icon: Ticket, permission: 'hpmh.view', exact: false },
-      { href: '/admin/mt/hp-mh/leaflets', label: 'ชดเชย Leaflet', icon: Newspaper, permission: 'hpmh.view', exact: false },
+      { href: '/admin/mt/hp-mh/correspondence', label: 'หนังสือ Correspondence', icon: Mail, permission: 'hpmh-correspondence.view', exact: false },
+      { href: '/admin/mt/hp-mh/coupons', label: 'Vendor Coupon', icon: Ticket, permission: 'hpmh-coupons.view', exact: false },
+      { href: '/admin/mt/hp-mh/leaflets', label: 'ชดเชย Leaflet', icon: Newspaper, permission: 'hpmh-leaflets.view', exact: false },
     ],
   },
   'hp-mh-rtv': { label: 'HP-MH-RTV', short: 'RTV', items: [] },

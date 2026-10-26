@@ -50,7 +50,7 @@ export default function LazadaFilesPage() {
   const { data: shopsData } = useQuery<PaginatedResponse<LazadaShop>>({
     queryKey: ['lazada-shops-all'],
     queryFn: () => api.get('/lazada/shops', { params: { per_page: 100 } }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-files.view'),
   })
 
   const { data, isLoading } = useQuery<PaginatedResponse<LazadaTransactionFile>>({
@@ -58,10 +58,10 @@ export default function LazadaFilesPage() {
     queryFn: () => api.get('/lazada/files', {
       params: { search: search || undefined, page, per_page: 20, shop_name: shopName || undefined },
     }).then(r => r.data),
-    enabled: can('lazada-shops.view'),
+    enabled: can('lazada-files.view'),
   })
 
-  if (!can('lazada-shops.view')) return <ErpNoAccess />
+  if (!can('lazada-files.view')) return <ErpNoAccess />
 
   const items     = data?.data ?? []
   const shops     = shopsData?.data ?? []
