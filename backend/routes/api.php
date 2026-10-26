@@ -398,6 +398,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/receipt-files', [HpmhController::class, 'receiptFiles']);
             Route::get('/receipt-files/{fileId}/rows', [HpmhController::class, 'receiptFileRows'])->whereNumber('fileId');
             Route::get('/receipt-fiscal-years', [HpmhController::class, 'receiptFiscalYears']);
+            Route::get('/receipt-documents/{id}/extract', [HpmhController::class, 'receiptExtract'])->whereNumber('id');
             Route::get('/files/receipt/{id}/download', [HpmhController::class, 'download'])
                 ->defaults('type', 'receipt')->whereNumber('id');
             Route::get('/files/receipt-excel/{id}/download', [HpmhController::class, 'download'])

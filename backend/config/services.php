@@ -28,6 +28,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Python used to run scripts/pdf/* (needs the packages in scripts/pdf/requirements.txt)
+    'pdf_extract' => [
+        'python' => env('PDF_PYTHON_BIN', 'python'),
+        'timeout' => (int) env('PDF_EXTRACT_TIMEOUT', 60),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

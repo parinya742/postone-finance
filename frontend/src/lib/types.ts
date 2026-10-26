@@ -1541,3 +1541,36 @@ export interface HpmhCompensateSaleItem {
   return_compensate_amt: Num
   return_document: string | null
 }
+
+/** Line items read out of a receipt PDF (pdfplumber) */
+export interface HpmhReceiptExtractItem {
+  kind: 'invoice' | 'credit_note'
+  no: number
+  invoice_no: string | null
+  ref_type: string
+  ref_no: string
+  /** negative for credit notes */
+  amount: number
+  page: number
+}
+
+export interface HpmhReceiptExtract {
+  document_id: number
+  file_name: string | null
+  doc_type: string | null
+  doc_no: string | null
+  doc_date: string | null
+  pages: number
+  items: HpmhReceiptExtractItem[]
+  items_count: number
+  invoice_count: number
+  invoice_sum: number
+  credit_note_count: number
+  credit_note_sum: number
+  items_sum: number
+  withholding_rate: number | null
+  withholding_tax: number | null
+  total: number | null
+  warnings: string[]
+  extracted_at: string
+}

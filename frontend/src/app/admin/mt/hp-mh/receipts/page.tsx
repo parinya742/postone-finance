@@ -1,11 +1,14 @@
 'use client'
 
 import api from '@/lib/api'
-import { HpmhReceiptFile, HpmhReceiptRow, PaginatedResponse } from '@/lib/types'
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { HpmhReceiptExtract, HpmhReceiptFile, HpmhReceiptRow, PaginatedResponse } from '@/lib/types'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { Fragment, useState } from 'react'
 import clsx from 'clsx'
-import { Search, FileSpreadsheet, ChevronRight, ChevronDown, Loader2, FileText, Eye } from 'lucide-react'
+import {
+  Search, FileSpreadsheet, ChevronRight, ChevronDown, Loader2, FileText, Eye, TableProperties, AlertTriangle, CheckCircle2,
+} from 'lucide-react'
 import PdfViewer from '@/components/ui/PdfViewer'
 import { useAuth } from '@/context/AuthContext'
 import { fmtDate, StatusBadge, SapInput, inputCls, ErpNoAccess, ErpPagination } from '@/components/erp'
@@ -53,9 +56,151 @@ function ViewPdfButton({ onClick }: { onClick: () => void }) {
   )
 }
 
+// ── Table read out of the receipt PDF (pdfplumber, cached on the server) ─────
+
+function ReceiptExtractTable({ docId }: { docId: number }) {
+  const queryClient = useQueryClient()
+  const [refreshing, setRefreshing] = useState(false)
+  const queryKey = ['hpmh-receipt-extract', docId]
+
+  const { data, isLoading, error } = useQuery<HpmhReceiptExtract>({
+    queryKey,
+    queryFn: () => api.get(`/hpmh/receipt-documents/${docId}/extract`).then(r => r.data),
+    staleTime: Infinity,
+    retry: false,
+  })
+
+  const reExtract = async () => {
+    setRefreshing(true)
+    try {
+      const { data: fresh } = await api.get(`/hpmh/receipt-documents/${docId}/extract`, { params: { refresh: 1 } })
+      queryClient.setQueryData(queryKey, fresh)
+    } catch {
+      alert('อ่านข้อมูลจาก PDF ใหม่ไม่สำเร็จ')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 px-1 py-3 text-xs text-[#6A6D70]">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" /> กำลังอ่านข้อมูลจาก PDF...
+      </div>
+    )
+  }
+  if (error || !data) {
+    const msg = isAxiosError(error) ? (error.response?.data?.error ?? error.response?.data?.message) : null
+    return <p className="px-1 py-3 text-xs text-[#BB0000]">อ่านข้อมูลจาก PDF ไม่สำเร็จ{msg ? `: ${msg}` : ''}</p>
+  }
+
+  const balanced = data.total != null && Math.abs(data.items_sum - data.total) < 0.01
+
+  return (
+    <div className="mt-3 border border-[#E5E5E5] rounded-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E5E5]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+          <span className="font-semibold text-[#32363A]">ข้อมูลในเอกสาร</span>
+          <span className="text-[#6A6D70]">
+            Invoice {fmtNum(data.invoice_count)} รายการ
+            {data.credit_note_count > 0 && <> · Credit note {fmtNum(data.credit_note_count)} รายการ</>}
+            {' '}· {data.pages} หน้า
+          </span>
+          {data.warnings.length === 0 && balanced ? (
+            <span className="inline-flex items-center gap-1 text-[#107E3E]">
+              <CheckCircle2 className="w-3 h-3" /> ผลรวมตรงกับยอดในเอกสาร
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[#E9730C]" title={data.warnings.join('\n')}>
+              <AlertTriangle className="w-3 h-3" /> {data.warnings[0] ?? 'ผลรวมไม่ตรงกับยอดในเอกสาร'}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={reExtract}
+          disabled={refreshing}
+          title={`อ่านล่าสุดเมื่อ ${fmtDateTime(data.extracted_at)}`}
+          className="text-[10px] text-[#0070F2] hover:underline disabled:opacity-50"
+        >
+          {refreshing ? 'กำลังอ่านใหม่...' : 'อ่าน PDF ใหม่'}
+        </button>
+      </div>
+
+      <div className="max-h-[420px] overflow-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-[#F2F4F7] border-b border-[#D9D9D9]">
+              <th className={clsx(thCls, 'w-14 text-center')}>ลำดับ</th>
+              <th className={thCls}>ประเภท</th>
+              <th className={thCls}>เลขที่ Invoice</th>
+              <th className={clsx(thCls, 'text-center')}>Ref Type</th>
+              <th className={thCls}>เลขอ้างอิง</th>
+              <th className={clsx(thCls, 'text-right')}>จำนวนเงิน</th>
+              <th className={clsx(thCls, 'w-14 text-center')}>หน้า</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.items.length === 0 ? (
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-[#6A6D70]">ไม่พบรายการในเอกสาร</td></tr>
+            ) : data.items.map(i => (
+              <tr key={`${i.kind}-${i.no}`} className="border-b border-[#EBEBEB] hover:bg-[#F9FAFB]">
+                <td className={clsx(tdCls, 'text-center text-[#6A6D70] tabular-nums')}>{i.no}</td>
+                <td className={tdCls}>
+                  {i.kind === 'credit_note'
+                    ? <span className="text-[10px] font-semibold text-[#BB0000]">Credit note</span>
+                    : <span className="text-[10px] text-[#32363A]">Invoice</span>}
+                </td>
+                <td className={tdCls}><span className="font-mono text-[10px] text-[#0064D9]">{i.invoice_no ?? '—'}</span></td>
+                <td className={clsx(tdCls, 'text-center font-mono text-[10px]')}>{i.ref_type}</td>
+                <td className={tdCls}><span className="font-mono text-[10px]">{i.ref_no}</span></td>
+                <td className={clsx(tdCls, 'text-right font-mono tabular-nums', i.amount < 0 && 'text-[#BB0000]')}>
+                  {fmtNum(i.amount, 2)}
+                </td>
+                <td className={clsx(tdCls, 'text-center text-[#6A6D70] tabular-nums')}>{i.page}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="sticky bottom-0">
+            {data.credit_note_count > 0 && (
+              <>
+                <tr className="bg-[#F9FAFB] border-t border-[#D9D9D9]">
+                  <td className={tdCls} colSpan={5}><span className="text-[10px] text-[#6A6D70]">รวม Invoice</span></td>
+                  <td className={clsx(tdCls, 'text-right font-mono tabular-nums')}>{fmtNum(data.invoice_sum, 2)}</td>
+                  <td className={tdCls} />
+                </tr>
+                <tr className="bg-[#F9FAFB]">
+                  <td className={tdCls} colSpan={5}><span className="text-[10px] text-[#6A6D70]">รวม Credit note</span></td>
+                  <td className={clsx(tdCls, 'text-right font-mono tabular-nums text-[#BB0000]')}>{fmtNum(data.credit_note_sum, 2)}</td>
+                  <td className={tdCls} />
+                </tr>
+              </>
+            )}
+            <tr className="bg-[#F2F4F7] border-t-2 border-[#D9D9D9] font-semibold">
+              <td className={tdCls} colSpan={5}><span className="text-[10px] uppercase text-[#6A6D70]">ยอดรวม (ตามเอกสาร)</span></td>
+              <td className={clsx(tdCls, 'text-right font-mono tabular-nums')}>{data.total != null ? fmtNum(data.total, 2) : '—'}</td>
+              <td className={tdCls} />
+            </tr>
+            {data.withholding_tax != null && (
+              <tr className="bg-[#F2F4F7]">
+                <td className={tdCls} colSpan={5}>
+                  <span className="text-[10px] text-[#6A6D70]">ภาษีหัก ณ ที่จ่าย 40(8) {data.withholding_rate ?? ''}%</span>
+                </td>
+                <td className={clsx(tdCls, 'text-right font-mono tabular-nums')}>{fmtNum(data.withholding_tax, 2)}</td>
+                <td className={tdCls} />
+              </tr>
+            )}
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ── Level 3: receipt PDF (receipt_document) of one excel row ─────────────────
 
 function DocumentDetail({ row, onView }: { row: HpmhReceiptRow; onView: () => void }) {
+  const [showData, setShowData] = useState(false)
+
   if (!row.doc_id) {
     return <p className="px-4 py-3 text-xs text-[#BB0000]">ยังไม่มีไฟล์ใบเสร็จ PDF ของ Payment Doc นี้</p>
   }
@@ -85,6 +230,17 @@ function DocumentDetail({ row, onView }: { row: HpmhReceiptRow; onView: () => vo
         </span>
         <div className="flex items-center gap-1">
           <button
+            onClick={() => setShowData(v => !v)}
+            className={clsx(
+              'inline-flex items-center gap-1 h-6 px-2 text-[10px] font-semibold border rounded transition-colors',
+              showData
+                ? 'text-white bg-[#0070F2] border-[#0070F2] hover:bg-[#0064D9]'
+                : 'text-[#0070F2] border-[#0070F2]/40 hover:bg-[#EBF5FE]',
+            )}
+          >
+            <TableProperties className="w-3 h-3" /> {showData ? 'ซ่อนข้อมูล' : 'ดูข้อมูลในเอกสาร'}
+          </button>
+          <button
             onClick={onView}
             className="inline-flex items-center gap-1 h-6 px-2 text-[10px] font-semibold text-[#0070F2] border border-[#0070F2]/40 rounded hover:bg-[#EBF5FE] transition-colors"
           >
@@ -102,6 +258,7 @@ function DocumentDetail({ row, onView }: { row: HpmhReceiptRow; onView: () => vo
         ))}
       </dl>
       {row.doc_error && <p className="mt-2 text-[11px] text-[#BB0000]">Error: {row.doc_error}</p>}
+      {showData && <ReceiptExtractTable docId={row.doc_id} />}
     </div>
   )
 }

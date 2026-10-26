@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,6 +67,14 @@ trait QueriesReportTables
         return response()->json($page);
     }
 
+    /** S3 disk for a scraper file row — rows may live in a bucket other than the default one. */
+    protected function s3Disk(?string $bucket): Filesystem
+    {
+        return $bucket && $bucket !== config('filesystems.disks.s3.bucket')
+            ? Storage::build(array_merge(config('filesystems.disks.s3'), ['bucket' => $bucket]))
+            : Storage::disk('s3');
+    }
+
     /**
      * Pre-signed S3 link for a scraper file row (file_name, s3_bucket, s3_key).
      * $inline = true lets the browser render it (e.g. a PDF in an iframe) instead of downloading.
@@ -76,9 +85,7 @@ trait QueriesReportTables
             return response()->json(['message' => 'ไม่พบไฟล์'], 404);
         }
 
-        $disk = $file->s3_bucket && $file->s3_bucket !== config('filesystems.disks.s3.bucket')
-            ? Storage::build(array_merge(config('filesystems.disks.s3'), ['bucket' => $file->s3_bucket]))
-            : Storage::disk('s3');
+        $disk = $this->s3Disk($file->s3_bucket);
 
         $options = ['ResponseContentDisposition' => ($inline ? 'inline' : 'attachment') . '; filename="' . $file->file_name . '"'];
         if ($inline && str_ends_with(strtolower($file->file_name ?? ''), '.pdf')) {

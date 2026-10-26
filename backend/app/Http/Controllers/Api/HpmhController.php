@@ -7,7 +7,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Process;
 
 /**
  * MT — HP-MH (HomePro / MegaHome) correspondence data (connection "hpmh", schema hpmh),
@@ -265,6 +267,64 @@ class HpmhController extends Controller
             ->get();
 
         return response()->json($rows);
+    }
+
+    /**
+     * Line items read out of a receipt PDF with pdfplumber (scripts/pdf/extract_hpmh_receipt.py).
+     * Cached per S3 object, so each PDF is parsed once; ?refresh=1 re-parses.
+     */
+    public function receiptExtract(Request $request, int $id): JsonResponse
+    {
+        $doc = $this->db()->table('receipt_document')
+            ->select('id', 'doc_no', 'fiscal_year', 'file_name', 's3_bucket', 's3_key')
+            ->find($id);
+        if (! $doc || ! $doc->s3_key) {
+            return response()->json(['message' => 'ไม่พบไฟล์ใบเสร็จ'], 404);
+        }
+
+        $cacheKey = 'hpmh:receipt-extract:v1:' . md5($doc->s3_bucket . '/' . $doc->s3_key);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $result = Cache::get($cacheKey);
+        if ($result === null) {
+            $result = $this->runReceiptExtractor($doc);
+            if (isset($result['error'])) {
+                return response()->json(['message' => 'อ่านข้อมูลจาก PDF ไม่สำเร็จ', 'error' => $result['error']], 422);
+            }
+            $result['extracted_at'] = now()->toIso8601String();
+            Cache::forever($cacheKey, $result);
+        }
+
+        return response()->json(['document_id' => $doc->id, 'file_name' => $doc->file_name] + $result);
+    }
+
+    private function runReceiptExtractor(object $doc): array
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'hpmh_receipt_') . '.pdf';
+        try {
+            file_put_contents($tmp, $this->s3Disk($doc->s3_bucket)->get($doc->s3_key));
+
+            $process = Process::timeout(config('services.pdf_extract.timeout'))
+                ->env(['PYTHONIOENCODING' => 'utf-8'])
+                ->run([
+                    config('services.pdf_extract.python'),
+                    base_path('scripts/pdf/extract_hpmh_receipt.py'),
+                    $tmp,
+                ]);
+
+            $json = json_decode($process->output(), true);
+            if (! is_array($json)) {
+                return ['error' => trim($process->errorOutput()) ?: 'ตัวอ่าน PDF ไม่ส่งผลลัพธ์กลับมา'];
+            }
+
+            return $json;
+        } catch (\Throwable $e) {
+            return ['error' => $e->getMessage()];
+        } finally {
+            @unlink($tmp);
+        }
     }
 
     public function receiptFiscalYears(Request $request): JsonResponse
