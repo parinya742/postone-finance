@@ -373,6 +373,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('permission:hpmh-coupons.view')->get('/coupons', [HpmhController::class, 'coupons']);
         Route::middleware('permission:hpmh-leaflets.view')->get('/leaflets', [HpmhController::class, 'leaflets']);
 
+        // Vendor 3263 — Compensate (file → compensate → document → sale item)
+        Route::middleware('permission:hpmh-compensate.view')->group(function () {
+            Route::get('/compensate-files', [HpmhController::class, 'compensateFiles']);
+            Route::get('/compensate-files/{fileId}/compensates', [HpmhController::class, 'compensates'])->whereNumber('fileId');
+            Route::get('/compensate-documents', [HpmhController::class, 'compensateDocuments']);
+            Route::get('/compensate-documents/{documentId}/sale-items', [HpmhController::class, 'compensateSaleItems'])->whereNumber('documentId');
+            Route::get('/compensate-types', [HpmhController::class, 'compensateTypes']);
+            Route::get('/files/compensate/{id}/download', [HpmhController::class, 'download'])
+                ->defaults('type', 'compensate')->whereNumber('id');
+            Route::get('/files/compensate-document/{id}/download', [HpmhController::class, 'download'])
+                ->defaults('type', 'compensate-document')->whereNumber('id');
+        });
+
         // Vendor 501447 — บัญชีและการเงิน
         Route::middleware('permission:hpmh-pas.view')->group(function () {
             Route::get('/pas-files', [HpmhController::class, 'pasFiles']);

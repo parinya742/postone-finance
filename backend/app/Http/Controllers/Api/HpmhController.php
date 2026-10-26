@@ -26,6 +26,8 @@ class HpmhController extends Controller
         'pas'            => 'pas_file',
         'receipt'        => 'receipt_document',
         'receipt-excel'  => 'receipt_file',
+        'compensate'          => 'compensate_file',
+        'compensate-document' => 'compensate_document',
     ];
 
     private function db()
@@ -273,6 +275,83 @@ class HpmhController extends Controller
             ->filter()->unique()->sortDesc()->values();
 
         return response()->json(['fiscal_years' => $years]);
+    }
+
+    // ── Compensate (ชดเชยราคา) — file → compensate → document → sale item ────
+
+    public function compensateFiles(Request $request): JsonResponse
+    {
+        $q = $this->db()->table('compensate_file as f')
+            ->select('f.id', 'f.run_id', 'f.vendor_no', 'f.com_type', 'f.file_name', 'f.source_file_name',
+                'f.file_size', 'f.row_count', 'f.downloaded_at')
+            // compensate rows are upserted by com_id and re-pointed to the newest file that contains them
+            ->selectRaw('(SELECT COUNT(*) FROM compensate c WHERE c.file_id = f.id) as compensate_count');
+
+        $this->applyVendor($q, $request, 'f.vendor_no');
+        if ($request->filled('com_type')) {
+            $q->where('f.com_type', $request->com_type);
+        }
+        $this->applySearch($q, $request, ['f.file_name', 'f.source_file_name']);
+
+        return response()->json($q->orderByDesc('f.downloaded_at')->paginate($this->perPage($request)));
+    }
+
+    public function compensates(Request $request, int $fileId): JsonResponse
+    {
+        $q = $this->db()->table('compensate as c')
+            ->leftJoin('compensate_document as d', function ($j) {
+                $j->on('d.vendor_no', '=', 'c.vendor_no')->on('d.com_id', '=', 'c.com_id');
+            })
+            ->where('c.file_id', $fileId)
+            ->select('c.*', 'd.id as doc_id', 'd.status as doc_status', 'd.row_count as doc_row_count');
+
+        $this->applySearch($q, $request, ['c.com_id', 'c.reference', 'c.reason', 'c.acc_doc_year', 'c.com_group_no']);
+
+        return $this->paginateWithTotals(
+            $q, $request,
+            ['total_amount' => 'c.total_amount'],
+            ['c.start_date' => 'desc', 'c.com_id' => 'desc']
+        );
+    }
+
+    public function compensateDocuments(Request $request): JsonResponse
+    {
+        $request->validate(['com_id' => 'required|string']);
+
+        $q = $this->db()->table('compensate_document')
+            ->select('id', 'run_id', 'vendor_no', 'com_id', 'status', 'total_amount', 'row_count', 'file_name',
+                'source_file_name', 'file_size', 'error', 'downloaded_at', 'updated_at')
+            ->where('com_id', $request->com_id);
+        $this->applyVendor($q, $request, 'vendor_no');
+
+        return response()->json($q->orderByDesc('downloaded_at')->get());
+    }
+
+    public function compensateSaleItems(Request $request, int $documentId): JsonResponse
+    {
+        $q = $this->db()->table('compensate_sale_item as i')->select('i.*')->where('i.document_id', $documentId);
+
+        $this->applyDateRange($q, $request, 'i.billing_date');
+        $this->applySearch($q, $request, ['i.article', 'i.article_desc', 'i.store', 'i.billing_no', 'i.return_document']);
+
+        return $this->paginateWithTotals(
+            $q, $request,
+            [
+                'billing_qty'           => 'i.billing_qty',
+                'total_compensate_amt'  => 'i.total_compensate_amt',
+                'return_compensate_amt' => 'i.return_compensate_amt',
+            ],
+            ['i.row_no' => 'asc']
+        );
+    }
+
+    public function compensateTypes(Request $request): JsonResponse
+    {
+        $types = $this->db()->table('compensate_file')
+            ->when($request->filled('vendor_no'), fn ($q) => $q->where('vendor_no', $request->vendor_no))
+            ->whereNotNull('com_type')->distinct()->orderBy('com_type')->pluck('com_type');
+
+        return response()->json($types);
     }
 
     // ── File download (S3 pre-signed URL) ───────────────────────────────────

@@ -1469,3 +1469,75 @@ export interface HpmhReceiptRow {
   doc_downloaded_at: string | null
   doc_updated_at: string | null
 }
+
+// ── MT — HP-MH Vendor 3263: Compensate (file → compensate → document → sale item) ──
+
+export interface HpmhCompensateFile {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  com_type: string | null
+  file_name: string | null
+  source_file_name: string | null
+  file_size: number | null
+  row_count: number | null
+  downloaded_at: string | null
+  /** compensate rows currently pointing at this file (rows move to the newest file on re-download) */
+  compensate_count: number
+}
+
+export interface HpmhCompensate {
+  id: number
+  file_id: number
+  vendor_no: string | null
+  com_type: string | null
+  com_id: string | null
+  start_date: string | null
+  end_date: string | null
+  reference: string | null
+  reason: string | null
+  acc_doc_year: string | null
+  total_amount: Num
+  status: string | null
+  com_group_no: string | null
+  promotion_date: string | null
+  updated_at: string | null
+  doc_id: number | null
+  doc_status: string | null
+  doc_row_count: number | null
+}
+
+export interface HpmhCompensateDocument {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  com_id: string | null
+  status: string | null
+  total_amount: Num
+  row_count: number | null
+  file_name: string | null
+  source_file_name: string | null
+  file_size: number | null
+  error: string | null
+  downloaded_at: string | null
+  updated_at: string | null
+}
+
+export interface HpmhCompensateSaleItem {
+  id: number
+  document_id: number
+  vendor_no: string | null
+  com_id: string | null
+  row_no: number | null
+  article: string | null
+  article_desc: string | null
+  store: string | null
+  billing_date: string | null
+  billing_no: string | null
+  billing_item: string | null
+  billing_qty: Num
+  compensate_amt_per_unit: Num
+  total_compensate_amt: Num
+  return_compensate_amt: Num
+  return_document: string | null
+}

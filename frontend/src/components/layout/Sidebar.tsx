@@ -197,6 +197,8 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
           { href: '/admin/mt/hp-mh/correspondence', label: 'หนังสือ Correspondence', icon: Mail, permission: 'hpmh-correspondence.view', exact: false },
           { href: '/admin/mt/hp-mh/coupons', label: 'Vendor Coupon', icon: Ticket, permission: 'hpmh-coupons.view', exact: false },
           { href: '/admin/mt/hp-mh/leaflets', label: 'ชดเชย Leaflet', icon: Newspaper, permission: 'hpmh-leaflets.view', exact: false },
+          { sectionLabel: 'บัญชีและการเงิน' },
+          { href: '/admin/mt/hp-mh/compensate', label: 'ชดเชยราคา (Compensate)', icon: BadgePercent, permission: 'hpmh-compensate.view', exact: false },
         ],
       },
       {
