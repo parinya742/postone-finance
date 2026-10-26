@@ -71,6 +71,7 @@ class PermissionSeeder extends Seeder
             'hpmh-coupons'        => ['view'],
             'hpmh-leaflets'       => ['view'],
             'hpmh-compensate'     => ['view'],
+            'hpmh-sales-export'   => ['view'],
             'hpmh-pas'            => ['view'],
             'hpmh-receipts'       => ['view'],
         ];

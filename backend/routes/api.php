@@ -386,6 +386,15 @@ Route::middleware('auth:sanctum')->group(function () {
                 ->defaults('type', 'compensate-document')->whereNumber('id');
         });
 
+        // Vendor 3263 — Sales Export
+        Route::middleware('permission:hpmh-sales-export.view')->group(function () {
+            Route::get('/sales-export', [HpmhController::class, 'salesExport']);
+            Route::get('/sales-export-files', [HpmhController::class, 'salesExportFiles']);
+            Route::get('/sales-export-options', [HpmhController::class, 'salesExportOptions']);
+            Route::get('/files/sales-export/{id}/download', [HpmhController::class, 'download'])
+                ->defaults('type', 'sales-export')->whereNumber('id');
+        });
+
         // Vendor 501447 — บัญชีและการเงิน
         Route::middleware('permission:hpmh-pas.view')->group(function () {
             Route::get('/pas-files', [HpmhController::class, 'pasFiles']);

@@ -1574,3 +1574,47 @@ export interface HpmhReceiptExtract {
   warnings: string[]
   extracted_at: string
 }
+
+// ── MT — HP-MH Vendor 3263: Sales Export ─────────────────────────────────────
+
+export interface HpmhSalesExportFile {
+  id: number
+  run_id: string | null
+  vendor_no: string | null
+  date_from: string | null
+  date_to: string | null
+  file_name: string | null
+  source_file_name: string | null
+  csv_file_name: string | null
+  csv_count: number | null
+  file_size: number | null
+  row_count: number | null
+  total_qty: Num
+  total_value: Num
+  downloaded_at: string | null
+  /** rows currently owned by this file (a re-download replaces the period's rows) */
+  sales_count: number
+}
+
+export interface HpmhSalesExport {
+  id: number
+  file_id: number
+  vendor_no: string | null
+  period_type: string | null
+  period_date: string | null
+  site_no: string | null
+  site_name: string | null
+  item_no: number | null
+  mch3: string | null
+  mch2_desc: string | null
+  mch1_desc: string | null
+  art_no: string | null
+  art_desc: string | null
+  art_ean: string | null
+  vd_art_no: string | null
+  vd_art_desc: string | null
+  qty: Num
+  value: Num
+  cr_date: string | null
+  csv_file_name: string | null
+}

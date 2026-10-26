@@ -30,6 +30,7 @@ class HpmhController extends Controller
         'receipt-excel'  => 'receipt_file',
         'compensate'          => 'compensate_file',
         'compensate-document' => 'compensate_document',
+        'sales-export'        => 'sales_export_file',
     ];
 
     private function db()
@@ -412,6 +413,59 @@ class HpmhController extends Controller
             ->whereNotNull('com_type')->distinct()->orderBy('com_type')->pluck('com_type');
 
         return response()->json($types);
+    }
+
+    // ── Sales Export (ยอดขายรายวันตามสาขา/สินค้า) ──────────────────────────────
+
+    public function salesExportFiles(Request $request): JsonResponse
+    {
+        $q = $this->db()->table('sales_export_file as f')
+            ->select('f.id', 'f.run_id', 'f.vendor_no', 'f.date_from', 'f.date_to', 'f.file_name', 'f.source_file_name',
+                'f.csv_file_name', 'f.csv_count', 'f.file_size', 'f.row_count', 'f.total_qty', 'f.total_value', 'f.downloaded_at')
+            // a re-download replaces the period's rows, so older files may no longer own any
+            ->selectRaw('(SELECT COUNT(*) FROM sales_export s WHERE s.file_id = f.id) as sales_count');
+
+        $this->applyVendor($q, $request, 'f.vendor_no');
+        $this->applySearch($q, $request, ['f.file_name', 'f.source_file_name', 'f.csv_file_name']);
+
+        return response()->json($q->orderByDesc('f.date_from')->orderByDesc('f.downloaded_at')->paginate($this->perPage($request)));
+    }
+
+    public function salesExport(Request $request): JsonResponse
+    {
+        $q = $this->db()->table('sales_export as s')->select('s.*');
+
+        $this->applyVendor($q, $request, 's.vendor_no');
+        if ($request->filled('file_id')) {
+            $q->where('s.file_id', $request->integer('file_id'));
+        }
+        foreach (['site_no', 'mch3', 'period_type'] as $col) {
+            if ($request->filled($col)) {
+                $q->where("s.{$col}", $request->input($col));
+            }
+        }
+        $this->applyDateRange($q, $request, 's.period_date');
+        $this->applySearch($q, $request, [
+            's.art_no', 's.art_desc', 's.art_ean', 's.vd_art_no', 's.vd_art_desc', 's.site_name', 's.mch2_desc', 's.mch1_desc',
+        ]);
+
+        return $this->paginateWithTotals(
+            $q, $request,
+            ['qty' => 's.qty', 'value' => 's.value'],
+            ['s.period_date' => 'desc', 's.site_no' => 'asc', 's.item_no' => 'asc']
+        );
+    }
+
+    public function salesExportOptions(Request $request): JsonResponse
+    {
+        $base = fn () => $this->db()->table('sales_export')
+            ->when($request->filled('vendor_no'), fn ($q) => $q->where('vendor_no', $request->vendor_no));
+
+        return response()->json([
+            'sites' => $base()->select('site_no', 'site_name')->whereNotNull('site_no')->distinct()->orderBy('site_no')->get(),
+            'mch3' => $base()->select('mch3', 'mch2_desc')->whereNotNull('mch3')->distinct()->orderBy('mch3')->get(),
+            'period_types' => $base()->whereNotNull('period_type')->distinct()->orderBy('period_type')->pluck('period_type'),
+        ]);
     }
 
     // ── File download (S3 pre-signed URL) ───────────────────────────────────
