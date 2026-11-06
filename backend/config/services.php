@@ -41,4 +41,12 @@ return [
         ],
     ],
 
+    // Other → ติดตามงาน PC: only these LINE groups are shown (orders, messages, VRM export line_orders).
+    // Comma-separated; override with PC_TRACKING_LINE_GROUP_IDS in .env.
+    'pc_tracking' => [
+        'line_group_ids' => array_values(array_filter(array_map('trim', explode(',',
+            (string) env('PC_TRACKING_LINE_GROUP_IDS', 'C337bd99549edaa35626a62625913b7b4')
+        )))),
+    ],
+
 ];

@@ -10,6 +10,13 @@ interface HeaderProps {
 }
 
 const pageTitles: Record<string, string> = {
+  '/admin/other/pc-tracking/order-messages': 'ติดตามงาน PC — รายการคำสั่งซื้อ',
+  '/admin/other/pc-tracking/messages': 'ติดตามงาน PC — ข้อความ LINE',
+  '/admin/other/pc-tracking/users': 'ติดตามงาน PC — ผู้ใช้ LINE',
+  '/admin/other/pc-tracking/vrm-pivot': 'ติดตามงาน PC — ยอดขาย VRM (Pivot)',
+  '/admin/other/pc-tracking/vrm-batches': 'ติดตามงาน PC — ประวัติการนำเข้า VRM',
+  '/admin/other/pc-tracking/groups': 'ติดตามงาน PC — กลุ่ม LINE',
+  '/admin/other/pc-tracking/channels': 'ติดตามงาน PC — LINE Channel',
   '/admin': 'Dashboard',
 
   '/admin/users': 'จัดการผู้ใช้งาน',
@@ -28,8 +35,10 @@ const pageTitles: Record<string, string> = {
   '/admin/thaipost': 'รายการพัสดุไฟล์บริการ',
   '/admin/shipment-acceptance': 'เปรียบเทียบข้อมูลไปรษณีย์',
 
-  '/admin/so-head': 'ข้อมูล SO',
-  '/admin/line-so': 'ตรวจสอบข้อมูลไปรษณีย์',
+  '/admin/so-head': 'ข้อมูล SO (Base เก่า)',
+  '/admin/so-documents': 'เอกสาร SO / OO / IO',
+  '/admin/line-so': 'ตรวจสอบข้อมูลไปรษณีย์ (Base เก่า)',
+  '/admin/line-so-replication': 'ตรวจสอบข้อมูลไปรษณีย์ (Replication)',
 
   '/admin/special-postal-zones': 'จัดการไปรษณีย์พื้นที่พิเศษ',
   '/admin/ems-rates': 'อัตราค่าบริการ EMS',

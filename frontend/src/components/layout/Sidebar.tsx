@@ -9,7 +9,7 @@ import {
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown, Image,
   Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie, Megaphone, Warehouse,
   BadgePercent, Banknote, BarChart3, Mail, Ticket, Newspaper, Undo2, Boxes,
-  History as HistoryIcon,
+  History as HistoryIcon, Layers, MessageSquare, UsersRound, Radio, ClipboardList,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
@@ -19,9 +19,10 @@ interface SidebarProps {
   onClose: () => void
 }
 
-type SidebarMode = 'main' | 'ecommerce' | 'mt'
+type SidebarMode = 'main' | 'ecommerce' | 'mt' | 'other'
 type EcommercePlatform = 'lazada' | 'tiktok' | 'shopee'
 type MtChannel = 'crc' | 'hp-mh' | 'hp-mh-rtv' | 'hp-mh-stock' | 'dh'
+type OtherChannel = 'pc-tracking'
 
 const navGroups = [
   {
@@ -61,8 +62,10 @@ const navGroups = [
   {
     label: 'ISCODE',
     items: [
-      { href: '/admin/so-head', label: 'ข้อมูล SO', icon: Database, permission: 'iscode.view', exact: false },
-      { href: '/admin/line-so', label: 'เปรียบเทียบข้อมูลไฟล์บริการ', icon: BarChart2, permission: 'line-so.view', exact: false },
+      { href: '/admin/so-head', label: 'ข้อมูล SO (Base เก่า)', icon: Database, permission: 'iscode.view', exact: false },
+      { href: '/admin/so-documents', label: 'เอกสาร SO / OO / IO', icon: FileText, permission: 'iscode.view', exact: false },
+      { href: '/admin/line-so', label: 'เปรียบเทียบข้อมูลไฟล์บริการ (Base เก่า)', icon: BarChart2, permission: 'line-so.view', exact: false },
+      { href: '/admin/line-so-replication', label: 'เปรียบเทียบข้อมูลไฟล์บริการ (Replication)', icon: BarChart2, permission: 'line-so.view', exact: false },
     ],
   },
   {
@@ -262,6 +265,34 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
 
 const mtChannelKeys = Object.keys(mtChannels) as MtChannel[]
 
+// ── Other tab ── (data from the EDI database)
+const otherChannels: Record<OtherChannel, { label: string; short: string; items: PlatformItem[] }> = {
+  'pc-tracking': {
+    label: 'ติดตามงาน PC',
+    short: 'PC',
+    items: [
+      { sectionLabel: 'คำสั่งซื้อจาก LINE' },
+      { href: '/admin/other/pc-tracking/order-messages', label: 'รายการคำสั่งซื้อ', icon: ClipboardList, permission: 'pc-line-orders.view', exact: false },
+      { href: '/admin/other/pc-tracking/messages', label: 'ข้อความ LINE', icon: MessageSquare, permission: 'pc-line-messages.view', exact: false },
+      { sectionLabel: 'ยอดขาย VRM (HomePro)' },
+      { href: '/admin/other/pc-tracking/vrm-pivot', label: 'ยอดขาย VRM (Pivot)', icon: BarChart3, permission: 'pc-vrm-sales.view', exact: false },
+      { href: '/admin/other/pc-tracking/vrm-batches', label: 'ประวัติการนำเข้า VRM', icon: HistoryIcon, permission: 'pc-vrm-batches.view', exact: false },
+      { sectionLabel: 'ข้อมูล LINE' },
+      { href: '/admin/other/pc-tracking/users', label: 'ผู้ใช้ LINE', icon: Users, permission: 'pc-line-settings.view', exact: false },
+      { href: '/admin/other/pc-tracking/groups', label: 'กลุ่ม LINE', icon: UsersRound, permission: 'pc-line-settings.view', exact: false },
+      { href: '/admin/other/pc-tracking/channels', label: 'LINE Channel', icon: Radio, permission: 'pc-line-settings.view', exact: false },
+    ],
+  },
+}
+
+const otherChannelKeys = Object.keys(otherChannels) as OtherChannel[]
+
+const getOtherChannelFromPath = (pathname: string): OtherChannel | null => {
+  if (!pathname.startsWith('/admin/other/')) return null
+  const segment = pathname.split('/')[3] as OtherChannel
+  return otherChannelKeys.includes(segment) ? segment : null
+}
+
 const getMtChannelFromPath = (pathname: string): MtChannel | null => {
   if (!pathname.startsWith('/admin/mt/')) return null
   const segment = pathname.split('/')[3] as MtChannel
@@ -294,8 +325,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     pathname.startsWith('/admin/shopee')
 
   const isMtPath = pathname.startsWith('/admin/mt')
+  const isOtherPath = pathname.startsWith('/admin/other')
 
-  const [mode, setMode] = useState<SidebarMode>(isEcommercePath ? 'ecommerce' : isMtPath ? 'mt' : 'main')
+  const [mode, setMode] = useState<SidebarMode>(
+    isEcommercePath ? 'ecommerce' : isMtPath ? 'mt' : isOtherPath ? 'other' : 'main'
+  )
+  const [activeOtherChannel, setActiveOtherChannel] = useState<OtherChannel>(getOtherChannelFromPath(pathname) ?? 'pc-tracking')
   const [activePlatform, setActivePlatform] = useState<EcommercePlatform>(
     pathname.startsWith('/admin/tiktok') ? 'tiktok'
       : pathname.startsWith('/admin/shopee') ? 'shopee'
@@ -326,6 +361,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         const subTab = getMtSubTabFromPath(channel, pathname)
         if (subTab) setActiveMtSubTab(prev => ({ ...prev, [channel]: subTab }))
       }
+    } else if (pathname.startsWith('/admin/other')) {
+      setMode('other')
+      const channel = getOtherChannelFromPath(pathname)
+      if (channel) setActiveOtherChannel(channel)
     }
   }, [pathname])
 
@@ -333,7 +372,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const currentMtSubTab = mtSubTabs?.find(tab => tab.key === activeMtSubTab[activeMtChannel]) ?? mtSubTabs?.[0]
   const subItems = mode === 'mt'
     ? (currentMtSubTab?.items ?? mtChannels[activeMtChannel].items)
-    : ecommercePlatforms[activePlatform].items
+    : mode === 'other'
+      ? otherChannels[activeOtherChannel].items
+      : ecommercePlatforms[activePlatform].items
   const platformItems = subItems.filter(
     (item) => !item.permission || can(item.permission)
   )
@@ -396,7 +437,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <button
             onClick={() => setMode('main')}
             className={clsx(
-              'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 border-b-2',
+              'flex-1 min-w-0 flex flex-col items-center gap-1 py-2.5 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
               mode === 'main'
                 ? 'text-[#0070F2] border-[#0070F2] bg-white'
                 : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
@@ -408,7 +449,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <button
             onClick={() => setMode('ecommerce')}
             className={clsx(
-              'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 border-b-2',
+              'flex-1 min-w-0 flex flex-col items-center gap-1 py-2.5 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
               mode === 'ecommerce'
                 ? 'text-[#0070F2] border-[#0070F2] bg-white'
                 : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
@@ -420,7 +461,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <button
             onClick={() => setMode('mt')}
             className={clsx(
-              'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 border-b-2',
+              'flex-1 min-w-0 flex flex-col items-center gap-1 py-2.5 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
               mode === 'mt'
                 ? 'text-[#0070F2] border-[#0070F2] bg-white'
                 : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
@@ -428,6 +469,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           >
             <Warehouse className="w-4 h-4" />
             <span>MT</span>
+          </button>
+          <button
+            onClick={() => setMode('other')}
+            className={clsx(
+              'flex-1 min-w-0 flex flex-col items-center gap-1 py-2.5 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
+              mode === 'other'
+                ? 'text-[#0070F2] border-[#0070F2] bg-white'
+                : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
+            )}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Other</span>
           </button>
         </div>
       )}
@@ -470,6 +523,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             )}
           >
             <Warehouse className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setMode('other')}
+            title="Other"
+            className={clsx(
+              'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
+              mode === 'other'
+                ? 'text-[#0070F2] border-[#0070F2]'
+                : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
+            )}
+          >
+            <Layers className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -644,7 +709,55 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         )}
 
-        {/* ── Sub-items (E-Commerce / MT) ── */}
+        {/* ── Other mode ── */}
+        {mode === 'other' && (
+          <div>
+            {!collapsed && (
+              <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
+                Report Other
+              </p>
+            )}
+
+            {!collapsed ? (
+              <div className="grid grid-cols-2 gap-1 mb-3 mx-1">
+                {otherChannelKeys.map((channel) => (
+                  <button
+                    key={channel}
+                    onClick={() => setActiveOtherChannel(channel)}
+                    className={clsx(
+                      'py-2 px-1 text-xs font-semibold rounded border transition-colors duration-150 whitespace-nowrap',
+                      activeOtherChannel === channel
+                        ? 'bg-[#0070F2] text-white border-[#0070F2]'
+                        : 'bg-white text-[#6A6D70] border-[#E8E8E8] hover:bg-[#F5F5F5] hover:text-[#32363A]'
+                    )}
+                  >
+                    {otherChannels[channel].label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-0.5 mb-2">
+                {otherChannelKeys.map((channel) => (
+                  <button
+                    key={channel}
+                    onClick={() => setActiveOtherChannel(channel)}
+                    title={otherChannels[channel].label}
+                    className={clsx(
+                      'w-full flex justify-center py-2 text-[10px] font-bold rounded transition-colors duration-150 border-l-2',
+                      activeOtherChannel === channel
+                        ? 'bg-[#EBF5FE] text-[#0070F2] border-[#0070F2]'
+                        : 'text-[#6A6D70] border-transparent hover:bg-[#F5F5F5] hover:text-[#32363A]'
+                    )}
+                  >
+                    {otherChannels[channel].short}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Sub-items (E-Commerce / MT / Other) ── */}
         {mode !== 'main' && (
           <div>
             <div className="space-y-0.5">

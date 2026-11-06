@@ -113,6 +113,36 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // ISCODE replication (SO_Head / SH_Head / PI_Head / OO_Head / IO_Head)
+        'replication' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST_REPLICATION', '127.0.0.1'),
+            'port' => env('DB_PORT_REPLICATION', '5432'),
+            'database' => env('DB_DATABASE_REPLICATION', 'postgres'),
+            'username' => env('DB_USERNAME_REPLICATION', 'postgres'),
+            'password' => env('DB_PASSWORD_REPLICATION', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
+        // EDI (LINE bot data: line_users / line_groups / line_channels / line_messages / line_order_messages)
+        'edi' => [
+            'driver' => env('DB_CONNECTION_EDI', 'pgsql'),
+            'host' => env('DB_HOST_EDI', '127.0.0.1'),
+            'port' => env('DB_PORT_EDI', '5432'),
+            'database' => env('DB_DATABASE_EDI', 'edi_database'),
+            'username' => env('DB_USERNAME_EDI', 'postgres'),
+            'password' => env('DB_PASSWORD_EDI', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'n8n' => [
             'driver' => 'pgsql',
             'host' => env('DB_HOST_N8N', '127.0.0.1'),

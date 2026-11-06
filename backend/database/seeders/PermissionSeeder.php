@@ -81,6 +81,13 @@ class PermissionSeeder extends Seeder
             'dh-sales-report'       => ['view'],
             'hpmh-pas'            => ['view'],
             'hpmh-receipts'       => ['view'],
+
+            // === Other — ติดตามงาน PC (EDI / LINE / VRM) ===
+            'pc-line-orders'      => ['view'],
+            'pc-line-messages'    => ['view'],
+            'pc-line-settings'    => ['view'],   // ผู้ใช้ / กลุ่ม / LINE Channel
+            'pc-vrm-sales'        => ['view'],   // Pivot + Export
+            'pc-vrm-batches'      => ['view'],
         ];
 
         $labelMap = [

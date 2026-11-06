@@ -44,6 +44,10 @@ use App\Http\Controllers\Api\ShopeeWalletFileController;
 use App\Http\Controllers\Api\ShopeeWalletSyncLogController;
 use App\Http\Controllers\Api\ShopeeWalletTransactionController;
 use App\Http\Controllers\Api\SoHeadController;
+use App\Http\Controllers\Api\SoDocumentController;
+use App\Http\Controllers\Api\LineSoReplicationController;
+use App\Http\Controllers\Api\PcTrackingController;
+use App\Http\Controllers\Api\VrmController;
 use App\Http\Controllers\Api\SpecialPostalZoneController;
 use App\Http\Controllers\Api\ThailandPostAcceptanceController;
 use App\Http\Controllers\Api\ThaipostImportController;
@@ -175,6 +179,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // === ISCODE — SO Head ===
     Route::middleware('permission:iscode.view')->group(function () {
         Route::get('/iscode/so-head', [SoHeadController::class, 'index']);
+        Route::get('/iscode/so-documents', [SoDocumentController::class, 'index']);
     });
 
     // === ISCODE — Line SO Report ===
@@ -183,6 +188,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/iscode/line-so/summary', [LineSoController::class, 'summary']);
         Route::get('/iscode/line-so/export', [LineSoController::class, 'export']);
         Route::get('/iscode/line-so/field-sale-areas', [LineSoController::class, 'fieldSaleAreas']);
+
+        // Same report, ISCODE data from the replication database
+        Route::get('/iscode/line-so-replication', [LineSoReplicationController::class, 'index']);
+        Route::get('/iscode/line-so-replication/summary', [LineSoReplicationController::class, 'summary']);
+        Route::get('/iscode/line-so-replication/export', [LineSoReplicationController::class, 'export']);
+        Route::get('/iscode/line-so-replication/field-sale-areas', [LineSoReplicationController::class, 'fieldSaleAreas']);
     });
 
     // === Master Data — Special Postal Zones ===
@@ -457,6 +468,33 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/audit-logs', [DhController::class, 'auditLogs']);
         Route::get('/audit-log-topics', [DhController::class, 'auditLogTopics']);
         Route::get('/files/{id}/download', [DhController::class, 'downloadFile'])->whereNumber('id');
+    });
+
+    // === Other — ติดตามงาน PC (EDI / LINE) ===
+    // One permission per menu (same pattern as MT / E-Commerce)
+    Route::prefix('pc-tracking')->group(function () {
+        Route::middleware('permission:pc-line-orders.view')
+            ->get('/order-messages', [PcTrackingController::class, 'orderMessages']);
+        Route::middleware('permission:pc-line-messages.view')
+            ->get('/messages', [PcTrackingController::class, 'messages']);
+
+        Route::middleware('permission:pc-line-settings.view')->group(function () {
+            Route::get('/users', [PcTrackingController::class, 'users']);
+            Route::get('/groups', [PcTrackingController::class, 'groups']);
+            Route::get('/channels', [PcTrackingController::class, 'channels']);
+        });
+
+        // VRM (HomePro) sales — schema vrm in the EDI database
+        Route::middleware('permission:pc-vrm-sales.view')->group(function () {
+            Route::get('/vrm/options', [VrmController::class, 'options']);
+            Route::get('/vrm/pivot', [VrmController::class, 'pivot']);
+            Route::get('/vrm/export', [VrmController::class, 'export']);
+        });
+        Route::middleware('permission:pc-vrm-batches.view')->group(function () {
+            Route::get('/vrm/batches', [VrmController::class, 'batches']);
+            Route::get('/vrm/batches/{id}/download', [VrmController::class, 'downloadBatch'])->whereNumber('id');
+            Route::get('/vrm/batches/{id}/rows', [VrmController::class, 'batchRows'])->whereNumber('id');
+        });
     });
 
     // === User Preferences ===

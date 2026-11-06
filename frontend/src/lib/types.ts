@@ -269,6 +269,33 @@ export interface SoHead {
   ACCRemark: string | null
 }
 
+export interface SoDocument {
+  SODate: string | null
+  SONo: string | null
+  SOStatus: string | null
+  OODate: string | null
+  OONo: string | null
+  IODate: string | null
+  IONo: string | null
+  PIDate: string | null
+  PINo: string | null
+  PIStatus: string | null
+  SourceType: 'SO' | 'OO' | 'IO' | 'Other'
+  DINo: string | null
+  SINo: string | null
+  RefPONo: string | null
+  CustId: string | null
+  CustType: string | null
+  CustName: string | null
+  CountItem: number | null
+  SaleReptId: string | null
+  SaleReptName: string | null
+  CreateBy: string | null
+  CreateByName: string | null
+  SORemark: string | null
+  ACCRemark: string | null
+}
+
 export interface EmsRate {
   id: number
   weight: number
@@ -1780,4 +1807,125 @@ export interface DhSalesReportFile {
   total_qty: Num
   total_value: Num
   downloaded_at: string | null
+}
+
+// ── Other — ติดตามงาน PC (EDI / LINE) ──
+export interface LineOrderMessage {
+  id: number
+  message_id: string | null
+  group_id: string | null
+  group_name: string | null
+  user_id: string | null
+  display_name: string | null
+  order_date: string | null
+  order_date_iso: string | null
+  order_seq: number | null
+  branch_code: string | null
+  sku: string | null
+  quantity: string | number | null
+  amount: string | number | null
+  raw_text: string | null
+  parsed_at: string | null
+}
+
+export interface LineMessage {
+  id: number
+  message_id: string | null
+  group_id: string | null
+  group_name: string | null
+  user_id: string | null
+  display_name: string | null
+  message_type: string | null
+  message_text: string | null
+  sent_at: string | null
+  received_at: string | null
+}
+
+export interface LineUser {
+  id: number
+  user_id: string
+  display_name: string | null
+  picture_url: string | null
+  can_use_bot: boolean | null
+  last_synced_at: string | null
+}
+
+export interface LineGroup {
+  id: number
+  group_id: string
+  group_name: string | null
+  is_active: boolean | null
+  joined_at: string | null
+  last_message_at: string | null
+}
+
+export interface LineChannel {
+  id: number
+  channel_name: string | null
+  channel_id: string | null
+  created_at: string | null
+  updated_at: string | null
+  has_secret: boolean
+  has_access_token: boolean
+}
+
+// ── Other — ติดตามงาน PC — VRM (HomePro) ──
+export interface VrmBatch {
+  id: number
+  source: string | null
+  vendor_no: string | null
+  period_type: string | null
+  date_from: string | null
+  date_to: string | null
+  file_name: string | null
+  file_sha256: string | null
+  exported_at: string | null
+  row_count: number | null
+  live_rows: number
+  status: string | null
+  error_message: string | null
+  created_at: string | null
+  finished_at: string | null
+  s3_key: string | null
+  file_url: string | null
+}
+
+export interface VrmOptions {
+  sites: { site_no: string; site_name: string | null }[]
+  articles: { art_no: string; art_desc: string | null; vd_art_desc: string | null }[]
+  sale_types: { code: string; description: string | null }[]
+  latest_batch: Pick<VrmBatch, 'id' | 'date_from' | 'date_to' | 'exported_at' | 'row_count' | 'file_name'> | null
+}
+
+export interface VrmPivotSite {
+  site_no: string
+  site_name: string | null
+  qty: number
+  value: number
+  days: { period_date: string; qty: number | string; value: number | string }[]
+}
+
+export interface VrmPivotResponse {
+  date_from: string
+  date_to: string
+  sites: VrmPivotSite[]
+  total: { qty: number; value: number }
+}
+
+export interface VrmExportResponse {
+  date_from: string
+  date_to: string
+  raw_columns: string[]
+  raw: (string | number | null)[][]
+  line_orders: {
+    parsed_at: string | null
+    order_date_iso: string | null
+    branch_code: string | null
+    sku: string | null
+    quantity: number | string | null
+    amount: number | string | null
+    group_name: string | null
+    display_name: string | null
+    raw_text: string | null
+  }[]
 }
