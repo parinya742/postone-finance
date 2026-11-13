@@ -9,7 +9,7 @@ import {
   Tag, Activity, Package, FileArchive, FileText, Truck, GitMerge, Database, BarChart2, MapPin, PackageCheck, FileDown, Image,
   Store, Receipt, FileSpreadsheet, ShoppingCart, LayoutGrid, ShoppingBag, Wallet, FolderOpen, Cookie, Megaphone, Warehouse,
   BadgePercent, Banknote, BarChart3, Mail, Ticket, Newspaper, Undo2, Boxes,
-  History as HistoryIcon, Layers, MessageSquare, UsersRound, Radio, ClipboardList,
+  History as HistoryIcon, Layers, MessageSquare, MessageSquareWarning, UsersRound, Radio, ClipboardList,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useState, useEffect } from 'react'
@@ -22,11 +22,11 @@ interface SidebarProps {
 type SidebarMode = 'main' | 'ecommerce' | 'mt' | 'other'
 type EcommercePlatform = 'lazada' | 'tiktok' | 'shopee'
 type MtChannel = 'crc' | 'hp-mh' | 'hp-mh-rtv' | 'hp-mh-stock' | 'dh'
-type OtherChannel = 'pc-tracking'
+type OtherChannel = 'pc-tracking' | 'pc-shop-pk'
 
 const navGroups = [
   {
-    label: 'หลัก',
+    label: 'ไปรษณีย์',
     items: [
       { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, permission: null, exact: true },
     ],
@@ -283,6 +283,24 @@ const otherChannels: Record<OtherChannel, { label: string; short: string; items:
       { href: '/admin/other/pc-tracking/channels', label: 'LINE Channel', icon: Radio, permission: 'pc-line-settings.view', exact: false },
     ],
   },
+  // LINE bot "PC SHOP PK" — n8n_database schema pc_shop_pk
+  'pc-shop-pk': {
+    label: 'PC SHOP PK',
+    short: 'PK',
+    items: [
+      { sectionLabel: 'คำสั่งซื้อจาก LINE' },
+      { href: '/admin/other/pc-shop-pk/order-messages', label: 'รายการคำสั่งซื้อ', icon: ClipboardList, permission: 'pc-shop-pk-orders.view', exact: false },
+      { href: '/admin/other/pc-shop-pk/messages', label: 'ข้อความ LINE', icon: MessageSquare, permission: 'pc-shop-pk-messages.view', exact: false },
+      { sectionLabel: 'ตั้งค่าการจับข้อความ' },
+      { href: '/admin/other/pc-shop-pk/patterns', label: 'รูปแบบข้อความ', icon: Settings, permission: 'pc-shop-pk-patterns.view', exact: false },
+      { href: '/admin/other/pc-shop-pk/unmatched', label: 'ข้อความที่จับไม่ได้', icon: MessageSquareWarning, permission: 'pc-shop-pk-patterns.view', exact: false },
+      { sectionLabel: 'ข้อมูล LINE' },
+      { href: '/admin/other/pc-shop-pk/customers', label: 'ลูกค้า', icon: Store, permission: 'pc-shop-pk-customers.view', exact: false },
+      { href: '/admin/other/pc-shop-pk/users', label: 'ผู้ใช้ LINE', icon: Users, permission: 'pc-shop-pk-settings.view', exact: false },
+      { href: '/admin/other/pc-shop-pk/groups', label: 'กลุ่ม LINE', icon: UsersRound, permission: 'pc-shop-pk-settings.view', exact: false },
+      { href: '/admin/other/pc-shop-pk/channels', label: 'LINE Channel', icon: Radio, permission: 'pc-shop-pk-settings.view', exact: false },
+    ],
+  },
 }
 
 const otherChannelKeys = Object.keys(otherChannels) as OtherChannel[]
@@ -444,7 +462,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             )}
           >
             <LayoutGrid className="w-4 h-4" />
-            <span>หลัก</span>
+            <span>ไปรษณีย์</span>
           </button>
           <button
             onClick={() => setMode('ecommerce')}
@@ -490,7 +508,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="hidden lg:flex flex-col border-b border-[#D9D9D9] bg-white flex-shrink-0">
           <button
             onClick={() => setMode('main')}
-            title="หลัก"
+            title="ไปรษณีย์"
             className={clsx(
               'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
               mode === 'main'

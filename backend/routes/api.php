@@ -46,6 +46,7 @@ use App\Http\Controllers\Api\ShopeeWalletTransactionController;
 use App\Http\Controllers\Api\SoHeadController;
 use App\Http\Controllers\Api\SoDocumentController;
 use App\Http\Controllers\Api\LineSoReplicationController;
+use App\Http\Controllers\Api\PcShopPkController;
 use App\Http\Controllers\Api\PcTrackingController;
 use App\Http\Controllers\Api\VrmController;
 use App\Http\Controllers\Api\SpecialPostalZoneController;
@@ -494,6 +495,45 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/vrm/batches', [VrmController::class, 'batches']);
             Route::get('/vrm/batches/{id}/download', [VrmController::class, 'downloadBatch'])->whereNumber('id');
             Route::get('/vrm/batches/{id}/rows', [VrmController::class, 'batchRows'])->whereNumber('id');
+        });
+    });
+
+    // === Other — PC SHOP PK (LINE bot, n8n_database schema pc_shop_pk) ===
+    Route::prefix('pc-shop-pk')->group(function () {
+        Route::middleware('permission:pc-shop-pk-orders.view')
+            ->get('/order-messages', [PcShopPkController::class, 'orderMessages']);
+        Route::middleware('permission:pc-shop-pk-messages.view')
+            ->get('/messages', [PcShopPkController::class, 'messages']);
+        Route::middleware('permission:pc-shop-pk-orders.view,pc-shop-pk-messages.view')
+            ->get('/group-options', [PcShopPkController::class, 'groupOptions']);
+
+        Route::middleware('permission:pc-shop-pk-settings.view')->group(function () {
+            Route::get('/users', [PcShopPkController::class, 'users']);
+            Route::get('/groups', [PcShopPkController::class, 'groups']);
+            Route::get('/channels', [PcShopPkController::class, 'channels']);
+        });
+
+        // Customer master (pc_shop_pk.customers ↔ line_groups.group_id)
+        Route::middleware('permission:pc-shop-pk-customers.view')
+            ->get('/customers', [PcShopPkController::class, 'customers']);
+        Route::middleware('permission:pc-shop-pk-customers.edit')->group(function () {
+            Route::get('/customers/options', [PcShopPkController::class, 'customerOptions']);
+            Route::post('/customers', [PcShopPkController::class, 'storeCustomer']);
+            Route::put('/customers/{id}', [PcShopPkController::class, 'updateCustomer'])->whereNumber('id');
+            Route::delete('/customers/{id}', [PcShopPkController::class, 'destroyCustomer'])->whereNumber('id');
+        });
+
+        // Order-message patterns (parsing rules used by the n8n bot) + unmatched messages
+        Route::middleware('permission:pc-shop-pk-patterns.view')->group(function () {
+            Route::get('/patterns', [PcShopPkController::class, 'patterns']);
+            Route::post('/patterns/test', [PcShopPkController::class, 'testPattern']);
+            Route::get('/unmatched', [PcShopPkController::class, 'unmatched']);
+        });
+        Route::middleware('permission:pc-shop-pk-patterns.edit')->group(function () {
+            Route::post('/patterns', [PcShopPkController::class, 'storePattern']);
+            Route::put('/patterns/{id}', [PcShopPkController::class, 'updatePattern'])->whereNumber('id');
+            Route::delete('/patterns/{id}', [PcShopPkController::class, 'destroyPattern'])->whereNumber('id');
+            Route::post('/reparse', [PcShopPkController::class, 'reparse']);
         });
     });
 

@@ -247,6 +247,7 @@ export interface LineSoJoin {
   special_zone_rate: number | null
   account_type_name?: string | null
   Area?: string | null
+  Department?: string | null
   // Calculated EMS cost (non-null only when service_name contains EMS)
   ems_calculated_cost: number | null
   dl_calculated_cost: number | null
@@ -1839,6 +1840,111 @@ export interface LineMessage {
   message_text: string | null
   sent_at: string | null
   received_at: string | null
+}
+
+// ── Other → PC SHOP PK (n8n_database.pc_shop_pk) ──
+export type LineSourceType = 'group' | 'room' | 'user'
+
+export interface PcShopPkOrderMessage {
+  id: number
+  message_id: string
+  source_type: LineSourceType | null
+  group_id: string | null
+  group_name: string | null
+  user_id: string | null
+  display_name: string | null
+  order_date: string | null
+  order_seq: number
+  sku: string
+  quantity: string | number
+  price: string | number
+  line_total: string | number | null
+  branch_code: string | null
+  note: string | null
+  extra: string | Record<string, string> | null
+  pattern_id: number | null
+  pattern_name: string | null
+  raw_line: string | null
+  raw_text: string | null
+  parsed_at: string | null
+}
+
+export type PcShopPkPatternMode = 'template' | 'regex'
+
+export interface PcShopPkPattern {
+  id: number
+  name: string
+  mode: PcShopPkPatternMode
+  template: string | null
+  regex: string
+  fields: string[]
+  prefix: string | null
+  group_ids: string[]
+  defaults: { qty?: string; price?: string } | []
+  priority: number
+  is_active: boolean
+  note: string | null
+  created_by: string | null
+  updated_by: string | null
+  created_at: string | null
+  updated_at: string | null
+  order_count: number
+  last_matched_at: string | null
+}
+
+export interface PcShopPkParseRow {
+  line_no: number
+  order_seq: number | null
+  matched: boolean
+  looks_like_order: boolean
+  pattern_id: number | null
+  pattern_name: string | null
+  sku: string | null
+  quantity: string | null
+  price: string | null
+  branch_code: string | null
+  order_date: string | null
+  note: string | null
+  extra: Record<string, string> | null
+  raw_line: string
+}
+
+export interface PcShopPkUnmatchedMessage {
+  id: number
+  message_id: string
+  source_type: LineSourceType | null
+  group_id: string | null
+  group_name: string | null
+  user_id: string | null
+  display_name: string | null
+  message_text: string | null
+  sent_at: string | null
+  looks_like_order: boolean
+}
+
+export type PcShopPkCustomerStatus = 'active' | 'inactive' | 'suspended'
+
+export interface PcShopPkCustomer {
+  id: number
+  customer_code: string
+  customer_name: string
+  customer_status: PcShopPkCustomerStatus
+  customer_type: string | null
+  group_id: string | null
+  group_name: string | null
+  last_message_at: string | null
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PcShopPkCustomerOptions {
+  groups: { group_id: string; group_name: string | null; customer_id: number | null; customer_code: string | null }[]
+  types: string[]
+}
+
+export interface PcShopPkMessage extends LineMessage {
+  source_type: LineSourceType | null
 }
 
 export interface LineUser {

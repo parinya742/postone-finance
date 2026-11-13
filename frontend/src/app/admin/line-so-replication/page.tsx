@@ -271,6 +271,7 @@ function buildExcelRows(items: LineSoJoin[]) {
       'รหัสเซลล์': item.FieldSaleID ?? '', 'ชื่อเซลล์': item.FieldSaleName ?? '',
       'Doc Remark': item.DocRemark ?? '', 'Area': item.Area ?? '',
       'แผนกที่ส่ง': item.account_type_name ?? '',
+      'แผนก': item.Department ?? '',
       'ชื่อผู้รับ': item.customer_name ?? '', 'สินค้า': item.product_details ?? '',
       'น้ำหนัก (กก.)': excelKg,
       'ค่าขนส่ง': item.dl_calculated_cost ?? item.ems_calculated_cost ?? item.service_fee ?? '',

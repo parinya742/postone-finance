@@ -47,6 +47,8 @@ class LineSoReplicationController extends Controller
             COALESCE(so."SONo",         oo."OONo",         io."IONo")         AS sono,
             pi."PINo"                                                         AS pino,
             COALESCE(sh."DINo",         oo."DINo")                            AS dino,
+            sh."SINo"                                                         AS sino,
+            sh."SHNo"                                                         AS shno,
             COALESCE(so."RefPONo",      oo."OnlineDocNo",  io."RefPONo")      AS pono,
             COALESCE(so."CustId",       oo."CustId",       io."CustId")       AS custid,
             COALESCE(so."CustName",     oo."CustName",     io."CustName")     AS custname,
@@ -64,6 +66,77 @@ class LineSoReplicationController extends Controller
         LEFT JOIN "IO_Head" io ON pi."FromDocNo" = io."IONo"
         WHERE so."SONo" IS NOT NULL OR oo."OONo" IS NOT NULL OR io."IONo" IS NOT NULL
         SQL;
+
+    // First document number written in product_details, used when pi/fi are empty
+    // (e.g. "PIIO-261100519", "SI-261100292 สินค้า 6 รายการ", "SH-261055826 / Line").
+    // so_number is ignored here: it is sometimes derived wrongly from a PI ("PISO-261101337" → "SO-261101337").
+    // "PPIO-" is a common typo of "PIIO-". Outer group = whole match.
+    private const PDOC_SQL = <<<'SQL'
+        CASE WHEN ps.pi_number IS NULL AND ps.fi_number IS NULL
+             THEN regexp_replace(
+                    substring(upper(ps.product_details) from '\m((PISO|PIOO|PIIO|PPIO|DI|SI|SH|SO|OO|IO)-[0-9]+)'),
+                    '^PPIO-', 'PIIO-')
+        END
+        SQL;
+
+    // Effective PI / DI: the shipment's own column, else the PINo / DINo resolved from product_details (pd join)
+    private const EFF_PI = 'COALESCE(ps.pi_number, pd.pino)';
+    private const EFF_DI = 'COALESCE(ps.di_number, pd.dino)';
+
+    private static function effPi()
+    {
+        return DB::raw(self::EFF_PI);
+    }
+
+    private static function effDi()
+    {
+        return DB::raw(self::EFF_DI);
+    }
+
+    /**
+     * Resolve every document number found in product_details (rows with empty pi/fi/so/di)
+     * to [doc, pino, dino] via ISCODE. PI / DI numbers map to themselves even when not in ISCODE,
+     * so the "ไม่พบ PI No" filter still treats them as unmatched.
+     */
+    private function productDetailDocMap(): array
+    {
+        $docs = DB::connection('n8n')
+            ->table('postone_shipments as ps')
+            ->selectRaw('DISTINCT ' . self::PDOC_SQL . ' as doc')
+            ->whereNull('ps.pi_number')->whereNull('ps.fi_number')
+            ->whereNotNull('ps.product_details')
+            ->pluck('doc')
+            ->filter()
+            ->values();
+
+        $map = [];
+        $lookup = [];
+        foreach ($docs as $doc) {
+            if (str_starts_with($doc, 'PI')) {
+                $map[$doc] = [$doc, $doc, null];
+            } elseif (str_starts_with($doc, 'DI-')) {
+                $map[$doc] = [$doc, null, $doc];
+            } else {
+                $lookup[] = $doc; // SO / OO / IO / SI / SH
+            }
+        }
+
+        if ($lookup) {
+            $rows = $this->soHead()
+                ->where(fn ($q) => $q->whereIn('sono', $lookup)->orWhereIn('sino', $lookup)->orWhereIn('shno', $lookup))
+                ->get(['sono', 'sino', 'shno', 'pino', 'dino']);
+            foreach ($rows as $row) {
+                foreach ([$row->sono, $row->sino, $row->shno] as $doc) {
+                    if ($doc && in_array($doc, $lookup, true) && !isset($map[$doc])) {
+                        $map[$doc] = [$doc, $row->pino, $row->dino];
+                    }
+                }
+            }
+        }
+
+        return array_values($map);
+    }
+
     /**
      * ISCODE (replication) documents exposed with the same column names as dbctl.ct_so_head,
      * so every query below stays identical to LineSoController.
@@ -190,11 +263,17 @@ class LineSoReplicationController extends Controller
                 ->orWhere('sono', 'ilike', "%{$s}%")
                 ->orWhere('pono', 'ilike', "%{$s}%")
                 ->orWhere('dino', 'ilike', "%{$s}%")
+                ->orWhere('sino', 'ilike', "%{$s}%")
                 ->get(['pino', 'dino']);
 
             $matchedPiNos = $matchedData->pluck('pino')->filter()->unique();
             $matchedDiNos = $matchedData->pluck('dino')->filter()->unique();
         }
+
+        // Step 1b: document numbers in product_details → PINo / DINo (joined as "pd"; one dummy row keeps the join valid)
+        $pdRows = $this->productDetailDocMap() ?: [[null, null, null]];
+        $pdValues = implode(',', array_fill(0, count($pdRows), '(CAST(? AS text), CAST(? AS text), CAST(? AS text))'));
+        $pdBindings = array_merge(...$pdRows);
 
         // Step 2: Query from n8n (LINE + Postone + Special Zone rate)
         $query = DB::connection('n8n')
@@ -215,6 +294,8 @@ class LineSoReplicationController extends Controller
                 'ps.product_details',
                 'spz.rate as special_zone_rate',
                 'pat.name as account_type_name',
+                DB::raw(self::EFF_PI . ' as eff_pi'),
+                DB::raw(self::EFF_DI . ' as eff_di'),
                 DB::raw("
                     CASE WHEN thpa.service_name ILIKE '%EMS%' THEN (
                         SELECT CEIL(er.rate + COALESCE(
@@ -242,6 +323,8 @@ class LineSoReplicationController extends Controller
             ->leftJoin('special_postal_zones as spz', 'spz.office_name', '=', 'thpa.destination_name')
             ->leftJoin('postone_account_types as pat', 'pat.id', '=', 'ps.account_type_id')
             ->leftJoin('line_group_files as lgf', 'lgf.id', '=', 'thpa.parent_file_id')
+            ->leftJoin(DB::raw("(VALUES {$pdValues}) as pd(doc, pino, dino)"), 'pd.doc', '=', DB::raw('(' . self::PDOC_SQL . ')'))
+            ->addBinding($pdBindings, 'join')
             ->where(function ($q) {
                 $q->whereNull('thpa.parent_file_id')
                   ->orWhere('lgf.is_active', true);
@@ -252,14 +335,15 @@ class LineSoReplicationController extends Controller
             $query->where(function ($q) use ($s, $matchedPiNos, $matchedDiNos) {
                 $q->where('thpa.barcode', 'ilike', "%{$s}%")
                   ->orWhere('ps.so_number', 'ilike', "%{$s}%")
-                  ->orWhere('ps.di_number', 'ilike', "%{$s}%")
-                  ->orWhere('ps.fi_number', 'ilike', "%{$s}%");
+                  ->orWhere(self::effDi(), 'ilike', "%{$s}%")
+                  ->orWhere('ps.fi_number', 'ilike', "%{$s}%")
+                  ->orWhere('ps.product_details', 'ilike', "%{$s}%");
                 if ($matchedPiNos->isNotEmpty()) {
-                    $q->orWhereIn('ps.pi_number', $matchedPiNos)
+                    $q->orWhereIn(self::effPi(), $matchedPiNos)
                       ->orWhereIn('ps.fi_number', $matchedPiNos);
                 }
                 if ($matchedDiNos->isNotEmpty()) {
-                    $q->orWhereIn('ps.di_number', $matchedDiNos)
+                    $q->orWhereIn(self::effDi(), $matchedDiNos)
                       ->orWhereIn('ps.fi_number', $matchedDiNos);
                 }
             });
@@ -288,7 +372,7 @@ class LineSoReplicationController extends Controller
         if ($request->boolean('no_pi_number')) {
             // หา so_number, di_number ของ record ที่ไม่มี pi_number และ fi_number แล้วเช็คว่ามีใน ISCODE หรือเปล่า
             $noPiSoNos = $query->clone()
-                ->whereNull('ps.pi_number')
+                ->whereNull(self::effPi())
                 ->whereNull('ps.fi_number')
                 ->whereNotNull('ps.so_number')
                 ->pluck('ps.so_number')
@@ -298,10 +382,10 @@ class LineSoReplicationController extends Controller
                 ->all();
 
             $noPiDiNos = $query->clone()
-                ->whereNull('ps.pi_number')
+                ->whereNull(self::effPi())
                 ->whereNull('ps.fi_number')
-                ->whereNotNull('ps.di_number')
-                ->pluck('ps.di_number')
+                ->whereNotNull(self::effDi())
+                ->pluck('eff_di')
                 ->unique()
                 ->filter()
                 ->values()
@@ -326,7 +410,7 @@ class LineSoReplicationController extends Controller
             }
 
             // ไม่พบ = ไม่มี pi/fi number AND (so_number เป็น null หรือไม่ตรงกับ sono ใน ISCODE) AND (di_number เป็น null หรือไม่ตรงกับ dino ใน ISCODE)
-            $query->whereNull('ps.pi_number')
+            $query->whereNull(self::effPi())
                   ->whereNull('ps.fi_number');
             $query->where(function ($q) use ($soNosInIscode, $diNosInIscode) {
                 $q->where(function ($inner) use ($soNosInIscode) {
@@ -336,9 +420,9 @@ class LineSoReplicationController extends Controller
                     }
                 })
                 ->where(function ($inner) use ($diNosInIscode) {
-                    $inner->whereNull('ps.di_number');
+                    $inner->whereNull(self::effDi());
                     if (!empty($diNosInIscode)) {
-                        $inner->orWhereNotIn('ps.di_number', $diNosInIscode);
+                        $inner->orWhereNotIn(self::effDi(), $diNosInIscode);
                     }
                 });
             });
@@ -354,10 +438,10 @@ class LineSoReplicationController extends Controller
             // รวมเป็น query เดียว พร้อมตัด select เหลือแค่ 3 คอลัมน์ที่ใช้จริง และลบ orderBy ที่ไม่จำเป็นสำหรับการ pluck ทิ้ง
             $activeRows = $query->clone()
                 ->reorder()
-                ->select(['ps.pi_number', 'ps.fi_number', 'ps.di_number'])
+                ->select(['ps.fi_number', DB::raw(self::EFF_PI . ' as eff_pi'), DB::raw(self::EFF_DI . ' as eff_di')])
                 ->get();
 
-            $activePiNos = $activeRows->pluck('pi_number')
+            $activePiNos = $activeRows->pluck('eff_pi')
                 ->unique()
                 ->filter()
                 ->values()
@@ -371,7 +455,7 @@ class LineSoReplicationController extends Controller
 
             $mergedActivePiNos = array_unique(array_merge($activePiNos, $activeFiNos));
 
-            $activeDiNos = $activeRows->pluck('di_number')
+            $activeDiNos = $activeRows->pluck('eff_di')
                 ->unique()
                 ->filter()
                 ->values()
@@ -404,20 +488,20 @@ class LineSoReplicationController extends Controller
                 $query->where(function ($q) use ($existingIscodePiNos, $existingIscodeDiNos) {
                     $q->where(function ($subQ) use ($existingIscodePiNos) {
                         $subQ->where(function ($inner) {
-                            $inner->whereNull('ps.pi_number')
+                            $inner->whereNull(self::effPi())
                                   ->whereNull('ps.fi_number');
                         });
                         if (!empty($existingIscodePiNos)) {
                             $subQ->orWhere(function ($inner) use ($existingIscodePiNos) {
-                                $inner->whereNotIn('ps.pi_number', $existingIscodePiNos)
+                                $inner->whereNotIn(self::effPi(), $existingIscodePiNos)
                                       ->whereNotIn('ps.fi_number', $existingIscodePiNos);
                             });
                         }
                     })
                     ->where(function ($subQ) use ($existingIscodeDiNos) {
-                        $subQ->whereNull('ps.di_number');
+                        $subQ->whereNull(self::effDi());
                         if (!empty($existingIscodeDiNos)) {
-                            $subQ->orWhereNotIn('ps.di_number', $existingIscodeDiNos);
+                            $subQ->orWhereNotIn(self::effDi(), $existingIscodeDiNos);
                         }
                     });
                 });
@@ -448,15 +532,15 @@ class LineSoReplicationController extends Controller
         )) . '}';
 
         $query->where(function ($q) use ($like, $pinos, $dinos, $sonos, $toPgArray) {
-            $q->where('ps.pi_number', 'ilike', $like)
+            $q->where(self::effPi(), 'ilike', $like)
               ->orWhere('ps.fi_number', 'ilike', $like);
             if ($pinos) {
-                $q->orWhereRaw('ps.pi_number = ANY(?::text[])', [$toPgArray($pinos)])
+                $q->orWhereRaw(self::EFF_PI . ' = ANY(?::text[])', [$toPgArray($pinos)])
                   ->orWhereRaw('ps.fi_number = ANY(?::text[])', [$toPgArray($pinos)]);
             }
             if ($dinos) {
-                $q->orWhereRaw('ps.di_number = ANY(?::text[])', [$toPgArray($dinos)])
-                  ->orWhereRaw('ps.pi_number = ANY(?::text[])', [$toPgArray($dinos)])
+                $q->orWhereRaw(self::EFF_DI . ' = ANY(?::text[])', [$toPgArray($dinos)])
+                  ->orWhereRaw(self::EFF_PI . ' = ANY(?::text[])', [$toPgArray($dinos)])
                   ->orWhereRaw('ps.fi_number = ANY(?::text[])', [$toPgArray($dinos)]);
             }
             if ($sonos) {
@@ -598,39 +682,39 @@ class LineSoReplicationController extends Controller
 
         $query->where(function ($q) use ($filteredPiNos, $filteredDiNos, $existingIscodePiNos, $existingIscodeDiNos, $area, $isIscodeArea, $fieldSalePiNos, $fieldSaleDiNos) {
             if ($isIscodeArea) {
-                $q->whereIn('ps.pi_number', $filteredPiNos)
+                $q->whereIn(self::effPi(), $filteredPiNos)
                   ->orWhereIn('ps.fi_number', $filteredPiNos)
-                  ->orWhereIn('ps.di_number', $filteredDiNos);
+                  ->orWhereIn(self::effDi(), $filteredDiNos);
             } else {
                 // Arm 1: ไม่มีข้อมูล ISCODE → filter ด้วย account type
                 $q->where(function ($s) use ($area, $existingIscodePiNos, $existingIscodeDiNos) {
                     $s->where('pat.name', $area)
                         ->where(function ($sub) use ($existingIscodePiNos) {
                             $sub->where(function ($inner) {
-                                $inner->whereNull('ps.pi_number')
+                                $inner->whereNull(self::effPi())
                                       ->whereNull('ps.fi_number');
                             });
                             if (!empty($existingIscodePiNos)) {
                                 $sub->orWhere(function ($inner) use ($existingIscodePiNos) {
-                                    $inner->whereNotIn('ps.pi_number', $existingIscodePiNos)
+                                    $inner->whereNotIn(self::effPi(), $existingIscodePiNos)
                                           ->whereNotIn('ps.fi_number', $existingIscodePiNos);
                                 });
                             }
                         })
                         ->where(function ($sub) use ($existingIscodeDiNos) {
-                            $sub->whereNull('ps.di_number');
+                            $sub->whereNull(self::effDi());
                             if (!empty($existingIscodeDiNos)) {
-                                $sub->orWhereNotIn('ps.di_number', $existingIscodeDiNos);
+                                $sub->orWhereNotIn(self::effDi(), $existingIscodeDiNos);
                             }
                         });
                 });
                 // Arm 2: มีข้อมูล ISCODE แต่ไม่ตรง map → filter ด้วย fieldsalename (fallback area)
                 if (!empty($fieldSalePiNos)) {
-                    $q->orWhereIn('ps.pi_number', $fieldSalePiNos)
+                    $q->orWhereIn(self::effPi(), $fieldSalePiNos)
                       ->orWhereIn('ps.fi_number', $fieldSalePiNos);
                 }
                 if (!empty($fieldSaleDiNos)) {
-                    $q->orWhereIn('ps.di_number', $fieldSaleDiNos);
+                    $q->orWhereIn(self::effDi(), $fieldSaleDiNos);
                 }
             }
         });
@@ -692,8 +776,38 @@ class LineSoReplicationController extends Controller
                 ->keyBy('dino');
         }
 
+        // Step 3d: Fallback — document numbers written in product_details
+        // (e.g. "SI-261100292 สินค้า 6 รายการ", "PIIO-261100519") when pi/so/di columns are empty
+        $extractDocNos = function ($item): array {
+            preg_match_all('/\b(?:PI(?:SO|OO|IO)|PPIO|DI|SI|SH|SO|OO|IO)-\d+/i', $item->product_details ?? '', $m);
+            return array_values(array_unique(array_map(
+                fn ($n) => preg_replace('/^PPIO-/', 'PIIO-', strtoupper($n)), // PPIO- is a typo of PIIO-
+                $m[0]
+            )));
+        };
+        $docNos = collect($items)->flatMap($extractDocNos)->unique()->values()->all();
+
+        $soHeadByDocNo = collect();
+        if (!empty($docNos)) {
+            $found = $this->soHead()
+                ->select(array_merge($selectCols, ['sino', 'shno']))
+                ->where(fn ($q) => $q->whereIn('pino', $docNos)
+                    ->orWhereIn('dino', $docNos)
+                    ->orWhereIn('sino', $docNos)
+                    ->orWhereIn('sono', $docNos)
+                    ->orWhereIn('shno', $docNos))
+                ->get();
+            foreach (['pino', 'dino', 'sino', 'sono', 'shno'] as $col) {
+                foreach ($found as $row) {
+                    if ($row->$col && !$soHeadByDocNo->has($row->$col)) {
+                        $soHeadByDocNo->put($row->$col, $row);
+                    }
+                }
+            }
+        }
+
         // Step 4: Merge ISCODE data into each row
-        return collect($items)->map(function ($item) use ($soHeadByPino, $soHeadByDinoFromPi, $soHeadBySono, $soHeadByDino) {
+        $rows = collect($items)->map(function ($item) use ($soHeadByPino, $soHeadByDinoFromPi, $soHeadBySono, $soHeadByDino, $soHeadByDocNo, $extractDocNos) {
             // pi_number หรือ fi_number อาจเป็น comma-separated → ลอง match ทีละตัว
             $piList = collect(explode(',', $item->pi_number ?? ''))
                 ->concat(explode(',', $item->fi_number ?? ''))
@@ -703,7 +817,8 @@ class LineSoReplicationController extends Controller
             $so = $piList->map(fn($p) => $soHeadByPino->get($p))->filter()->first()
                ?? $piList->map(fn($p) => $soHeadByDinoFromPi->get($p))->filter()->first()
                ?? $soHeadBySono->get($item->so_number)
-               ?? $soHeadByDino->get($item->di_number);
+               ?? $soHeadByDino->get($item->di_number)
+               ?? collect($extractDocNos($item))->map(fn ($n) => $soHeadByDocNo->get($n))->filter()->first();
 
             $area = null;
             if (!$so) {
@@ -760,5 +875,23 @@ class LineSoReplicationController extends Controller
                 'Area'          => $area,
             ]);
         });
+
+        // Step 5: แผนก — default = แผนกที่ส่ง (account type); Area MT → Cust_Master.CustGroupId of CustId
+        $mtCustIds = $rows->where('Area', 'MT')->pluck('CustID')->filter()->unique()->values()->all();
+
+        $custGroupById = collect();
+        if (!empty($mtCustIds)) {
+            $custGroupById = DB::connection('replication')
+                ->table('Cust_Master')
+                ->whereIn('CustId', $mtCustIds)
+                ->pluck('CustGroupId', 'CustId');
+        }
+
+        return $rows->map(function ($row) use ($custGroupById) {
+            $row['Department'] = $row['Area'] === 'MT'
+                ? ($custGroupById->get($row['CustID']) ?? $row['account_type_name'] ?? null)
+                : ($row['account_type_name'] ?? null);
+            return $row;
+        })->values();
     }
 }

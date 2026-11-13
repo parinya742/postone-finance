@@ -88,6 +88,13 @@ class PermissionSeeder extends Seeder
             'pc-line-settings'    => ['view'],   // ผู้ใช้ / กลุ่ม / LINE Channel
             'pc-vrm-sales'        => ['view'],   // Pivot + Export
             'pc-vrm-batches'      => ['view'],
+
+            // === Other — PC SHOP PK (LINE bot, n8n_database.pc_shop_pk) ===
+            'pc-shop-pk-orders'   => ['view'],
+            'pc-shop-pk-messages' => ['view'],
+            'pc-shop-pk-settings' => ['view'],   // ผู้ใช้ / กลุ่ม / LINE Channel
+            'pc-shop-pk-customers' => ['view', 'edit'],   // มาสเตอร์ลูกค้า (ผูกกับกลุ่ม LINE)
+            'pc-shop-pk-patterns' => ['view', 'edit'],   // รูปแบบข้อความ + ข้อความที่จับไม่ได้ (edit = แก้รูปแบบ / ประมวลผลย้อนหลัง)
         ];
 
         $labelMap = [
