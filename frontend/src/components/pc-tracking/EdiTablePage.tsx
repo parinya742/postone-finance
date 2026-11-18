@@ -5,7 +5,9 @@ import { PaginatedResponse } from '@/lib/types'
 import { useAuth } from '@/context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { useState, ReactNode } from 'react'
-import { Search, Lock, Database } from 'lucide-react'
+import { Search, Lock, Database, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import MultiSelectFilter from './MultiSelectFilter'
 
 export type EdiColumn<T> = {
   label: string
@@ -13,10 +15,22 @@ export type EdiColumn<T> = {
   className?: string
 }
 
+export type EdiExportColumn<T> = {
+  label: string
+  value: (row: T) => string | number | null | undefined
+}
+
+export type EdiExportConfig<T> = {
+  filename: string               // file prefix, date is appended
+  sheetName: string
+  columns: EdiExportColumn<T>[]
+}
+
 export type EdiSelectFilter = {
   param: string
   placeholder: string
-  options: { value: string; label: string }[]
+  options: { value: string; label: string; disabled?: boolean }[]
+  multiple?: boolean             // checkbox dropdown; sent as param[]=a&param[]=b
 }
 
 type Props<T> = {
@@ -30,6 +44,7 @@ type Props<T> = {
   dateFilter?: string            // label shown next to the date range; omit to hide it
   selectFilters?: EdiSelectFilter[]
   perPage?: number
+  exportConfig?: EdiExportConfig<T>   // shows the "Export Excel" button when set
 }
 
 const inputCls =
@@ -65,21 +80,75 @@ export function BoolBadge({ value, yes = 'ใช่', no = 'ไม่ใช่' 
 
 export default function EdiTablePage<T>({
   permission, title, subtitle, endpoint, columns, searchPlaceholder, rowKey, dateFilter, selectFilters = [], perPage = 20,
+  exportConfig,
 }: Props<T>) {
   const { can } = useAuth()
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [selects, setSelects] = useState<Record<string, string>>({})
+  const [selects, setSelects] = useState<Record<string, string | string[]>>({})
   const [page, setPage] = useState(1)
+  const [exporting, setExporting] = useState(false)
 
-  const params = {
+  const filters = {
     search: search.trim() || undefined,
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
-    ...Object.fromEntries(Object.entries(selects).filter(([, v]) => v)),
-    page,
-    per_page: perPage,
+    ...Object.fromEntries(Object.entries(selects).filter(([, v]) => v.length > 0)),
+  }
+
+  const setSelect = (param: string, value: string | string[]) => {
+    setSelects((prev) => ({ ...prev, [param]: value }))
+    setPage(1)
+  }
+
+  const params = { ...filters, page, per_page: perPage }
+
+  async function handleExport() {
+    if (!exportConfig) return
+    setExporting(true)
+    try {
+      // Fetch every page with the current filters (server may cap per_page, so follow last_page).
+      const all: T[] = []
+      let p = 1
+      let last = 1
+      do {
+        const res = await api.get<PaginatedResponse<T>>(endpoint, {
+          params: { ...filters, page: p, per_page: 5000, export: 1 },
+        })
+        all.push(...(res.data?.data ?? []))
+        last = res.data?.last_page ?? 1
+        p++
+      } while (p <= last)
+
+      if (all.length === 0) {
+        alert('ไม่พบข้อมูลสำหรับส่งออก')
+        return
+      }
+
+      const rows = all.map((row) =>
+        Object.fromEntries(exportConfig.columns.map((c) => [c.label, c.value(row) ?? ''])),
+      )
+      const ws = XLSX.utils.json_to_sheet(rows, { header: exportConfig.columns.map((c) => c.label) })
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, exportConfig.sheetName.slice(0, 31))
+
+      const filename = `${exportConfig.filename}-${new Date().toISOString().slice(0, 10)}.xlsx`
+      XLSX.writeFile(wb, filename)
+
+      api.post('/audit-logs', {
+        action: 'export',
+        target_type: exportConfig.filename,
+        target_id: 0,
+        target_name: filename,
+        payload: { row_count: all.length, filters },
+      }).catch(() => {})
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert('เกิดข้อผิดพลาดในการส่งออก')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const { data, isLoading } = useQuery<PaginatedResponse<T>>({
@@ -126,17 +195,37 @@ export default function EdiTablePage<T>({
             <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1) }} className={inputCls} />
           </div>
         )}
-        {selectFilters.map((f) => (
-          <select
-            key={f.param}
-            value={selects[f.param] ?? ''}
-            onChange={(e) => { setSelects((prev) => ({ ...prev, [f.param]: e.target.value })); setPage(1) }}
-            className={inputCls}
+        {selectFilters.map((f) =>
+          f.multiple ? (
+            <MultiSelectFilter
+              key={f.param}
+              placeholder={f.placeholder}
+              options={f.options}
+              value={(selects[f.param] as string[] | undefined) ?? []}
+              onChange={(v) => setSelect(f.param, v)}
+            />
+          ) : (
+            <select
+              key={f.param}
+              value={(selects[f.param] as string | undefined) ?? ''}
+              onChange={(e) => setSelect(f.param, e.target.value)}
+              className={inputCls}
+            >
+              <option value="">{f.placeholder}</option>
+              {f.options.map((o) => <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>)}
+            </select>
+          ),
+        )}
+        {exportConfig && (
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="ml-auto flex items-center gap-2 px-4 py-2 bg-[#0070F2] hover:bg-[#0064D9] disabled:opacity-50 text-white text-sm font-medium rounded transition-colors shrink-0"
           >
-            <option value="">{f.placeholder}</option>
-            {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        ))}
+            <Download className="w-4 h-4" />
+            {exporting ? 'กำลัง Export...' : 'Export Excel'}
+          </button>
+        )}
       </div>
 
       <div className="bg-white border border-[#EBEBEB] rounded">

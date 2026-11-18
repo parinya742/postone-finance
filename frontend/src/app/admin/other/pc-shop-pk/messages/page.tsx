@@ -4,6 +4,7 @@ import EdiTablePage, { EdiColumn, formatDateTime } from '@/components/pc-trackin
 import { PcShopPkMessage } from '@/lib/types'
 import { SOURCE_TYPE_FILTER, sourceLabel } from '../source-type'
 import { useGroupFilter } from '../group-filter'
+import { useUserFilter } from '../user-filter'
 
 const COLUMNS: EdiColumn<PcShopPkMessage>[] = [
   { label: 'เวลาส่ง', render: (r) => formatDateTime(r.sent_at), className: 'text-xs text-[#0070F2] whitespace-nowrap' },
@@ -28,6 +29,7 @@ const COLUMNS: EdiColumn<PcShopPkMessage>[] = [
 
 export default function PcShopPkMessagesPage() {
   const groupFilter = useGroupFilter()
+  const userFilter = useUserFilter()
 
   return (
     <EdiTablePage<PcShopPkMessage>
@@ -43,6 +45,7 @@ export default function PcShopPkMessagesPage() {
         { param: 'message_type', placeholder: 'ทุกประเภท', options: [{ value: 'text', label: 'ข้อความ (text)' }, { value: 'image', label: 'รูปภาพ (image)' }, { value: 'sticker', label: 'สติกเกอร์ (sticker)' }] },
         SOURCE_TYPE_FILTER,
         groupFilter,
+        userFilter,
       ]}
     />
   )

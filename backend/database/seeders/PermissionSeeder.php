@@ -76,7 +76,8 @@ class PermissionSeeder extends Seeder
             'hpmh-audit-logs'     => ['view'],
 
             // === MT — HP-MH RTV / HP-MH Stock / DH ===
-            'hpmh-rtv-return-slips' => ['view'],
+            'hpmh-rtv-return-slips' => ['view', 'edit'],   // edit = ประมวลผล PDF ใบคืนสินค้าเข้า DB
+            'hpmh-rtv-return-items' => ['view'],           // รายการสินค้าที่คืน (อ่านจาก PDF)
             'hpmh-stock-inventory'  => ['view'],
             'dh-sales-report'       => ['view'],
             'hpmh-pas'            => ['view'],
@@ -90,6 +91,7 @@ class PermissionSeeder extends Seeder
             'pc-vrm-batches'      => ['view'],
 
             // === Other — PC SHOP PK (LINE bot, n8n_database.pc_shop_pk) ===
+            'pc-shop-pk-dashboard' => ['view'],   // Dashboard รายการคำสั่งซื้อ
             'pc-shop-pk-orders'   => ['view'],
             'pc-shop-pk-messages' => ['view'],
             'pc-shop-pk-settings' => ['view'],   // ผู้ใช้ / กลุ่ม / LINE Channel

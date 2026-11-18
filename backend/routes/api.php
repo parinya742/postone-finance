@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\CrcController;
 use App\Http\Controllers\Api\DhController;
 use App\Http\Controllers\Api\HpmhController;
 use App\Http\Controllers\Api\HpmhRtvController;
+use App\Http\Controllers\Api\HpmhRtvReturnItemController;
 use App\Http\Controllers\Api\HpmhStockController;
 use App\Http\Controllers\Api\ShopeeIncomeSyncLogController;
 use App\Http\Controllers\Api\ShopeeOrderFileController;
@@ -447,6 +448,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/audit-log-topics', [HpmhRtvController::class, 'auditLogTopics']);
         Route::get('/files/{id}/download', [HpmhRtvController::class, 'downloadFile'])->whereNumber('id');
         Route::get('/documents/{id}/download', [HpmhRtvController::class, 'downloadDocument'])->whereNumber('id');
+        Route::get('/documents/{id}/extract', [HpmhRtvController::class, 'documentExtract'])->whereNumber('id');
+        Route::get('/extract-status', [HpmhRtvController::class, 'extractStatus']);
+        // edit = read pending PDFs into hpmh_rtv.return_slip_extract (the page's "ประมวลผล" button)
+        Route::middleware('permission:hpmh-rtv-return-slips.edit')
+            ->post('/extract-pending', [HpmhRtvController::class, 'extractPending']);
+    });
+
+    // === MT — HP-MH RTV: product lines read out of the return slip PDFs ===
+    Route::middleware('permission:hpmh-rtv-return-items.view')->prefix('hpmh-rtv/return-items')->group(function () {
+        Route::get('/', [HpmhRtvReturnItemController::class, 'index']);
+        Route::get('/summary', [HpmhRtvReturnItemController::class, 'summary']);
+        Route::get('/options', [HpmhRtvReturnItemController::class, 'options']);
+        // processing coverage + the slip PDF, for users who have this page but not the return slip page
+        Route::get('/status', [HpmhRtvController::class, 'extractStatus']);
+        Route::get('/documents/{id}/download', [HpmhRtvController::class, 'downloadDocument'])->whereNumber('id');
     });
 
     // === MT — HP-MH Stock ===
@@ -502,10 +518,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('pc-shop-pk')->group(function () {
         Route::middleware('permission:pc-shop-pk-orders.view')
             ->get('/order-messages', [PcShopPkController::class, 'orderMessages']);
+        Route::middleware('permission:pc-shop-pk-dashboard.view')
+            ->get('/order-dashboard', [PcShopPkController::class, 'orderDashboard']);
         Route::middleware('permission:pc-shop-pk-messages.view')
             ->get('/messages', [PcShopPkController::class, 'messages']);
-        Route::middleware('permission:pc-shop-pk-orders.view,pc-shop-pk-messages.view')
+        Route::middleware('permission:pc-shop-pk-orders.view,pc-shop-pk-messages.view,pc-shop-pk-dashboard.view,pc-shop-pk-patterns.view')
             ->get('/group-options', [PcShopPkController::class, 'groupOptions']);
+        Route::middleware('permission:pc-shop-pk-orders.view,pc-shop-pk-messages.view,pc-shop-pk-patterns.view')
+            ->get('/user-options', [PcShopPkController::class, 'userOptions']);
 
         Route::middleware('permission:pc-shop-pk-settings.view')->group(function () {
             Route::get('/users', [PcShopPkController::class, 'users']);

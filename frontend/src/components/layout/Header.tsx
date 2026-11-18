@@ -17,6 +17,7 @@ const pageTitles: Record<string, string> = {
   '/admin/other/pc-tracking/vrm-batches': 'ติดตามงาน PC — ประวัติการนำเข้า VRM',
   '/admin/other/pc-tracking/groups': 'ติดตามงาน PC — กลุ่ม LINE',
   '/admin/other/pc-tracking/channels': 'ติดตามงาน PC — LINE Channel',
+  '/admin/other/pc-shop-pk/dashboard': 'PC SHOP PK — Dashboard คำสั่งซื้อ',
   '/admin/other/pc-shop-pk/order-messages': 'PC SHOP PK — รายการคำสั่งซื้อ',
   '/admin/other/pc-shop-pk/messages': 'PC SHOP PK — ข้อความ LINE',
   '/admin/other/pc-shop-pk/patterns': 'PC SHOP PK — รูปแบบข้อความ',

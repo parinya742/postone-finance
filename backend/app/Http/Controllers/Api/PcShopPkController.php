@@ -18,12 +18,48 @@ class PcShopPkController extends Controller
 {
     private const SCHEMA = 'pc_shop_pk';
 
+    /**
+     * Test shops — visible only to Super Admin / Admin (see applyTestGroupScope).
+     * Other users never see their rows and get the option disabled in the group filter.
+     */
+    private const TEST_GROUPS = [
+        'C66728efea1a7c482c67aad40c9bc9685', // ร้าน Test Key PC SHOP PK
+    ];
+
+    /** Roles allowed to see / pick the test shops. */
+    private const TEST_GROUP_ROLES = ['super_admin', 'admin'];
+
+    private function canSeeTestGroups(Request $request): bool
+    {
+        $user = $request->user();
+        return $user !== null && $user->roles()->whereIn('slug', self::TEST_GROUP_ROLES)->exists();
+    }
+
+    /**
+     * Hide test-shop rows.
+     * - Users without TEST_GROUP_ROLES: always hidden (even if they send the id).
+     * - Admins: shown, except when $hideByDefault (export / dashboard) and no test shop was picked in ?group_id.
+     */
+    private function applyTestGroupScope(Builder $query, Request $request, string $column, bool $hideByDefault = false): void
+    {
+        if ($this->canSeeTestGroups($request)) {
+            $picked = array_intersect((array) $request->input('group_id', []), self::TEST_GROUPS);
+            if (!$hideByDefault || $picked) {
+                return;
+            }
+        }
+        // IS DISTINCT FROM keeps 1:1 chat rows (group_id NULL)
+        foreach (self::TEST_GROUPS as $groupId) {
+            $query->whereRaw("{$column} IS DISTINCT FROM ?", [$groupId]);
+        }
+    }
+
     private function table(string $name): Builder
     {
         return DB::connection('n8n')->table(self::SCHEMA . '.' . $name);
     }
 
-    /** ILIKE search across $columns + pagination (per_page capped at 200). */
+    /** ILIKE search across $columns + pagination (per_page capped at 200, or 5000 when export=1). */
     private function respond(Builder $query, Request $request, array $columns): JsonResponse
     {
         if ($request->filled('search')) {
@@ -35,9 +71,22 @@ class PcShopPkController extends Controller
             });
         }
 
-        $perPage = max(1, min($request->integer('per_page', 20), 200));
+        $maxPerPage = $request->boolean('export') ? 5000 : 200;
+        $perPage = max(1, min($request->integer('per_page', 20), $maxPerPage));
 
         return response()->json($query->paginate($perPage));
+    }
+
+    /** Filter $column by ?param=a or ?param[]=a&param[]=b (multi-select); empty → no filter. */
+    private function applyIn(Builder $query, Request $request, string $param, string $column): void
+    {
+        $values = array_values(array_filter(
+            array_map('strval', (array) $request->input($param, [])),
+            fn ($v) => $v !== '',
+        ));
+        if ($values) {
+            $query->whereIn($column, $values);
+        }
     }
 
     private function applyDateRange(Builder $query, Request $request, string $column): void
@@ -76,12 +125,101 @@ class PcShopPkController extends Controller
         if ($request->filled('pattern_id')) {
             $query->where('o.pattern_id', $request->integer('pattern_id'));
         }
-        if ($request->filled('group_id')) {
-            $query->where('o.group_id', $request->group_id);
-        }
+        $this->applyIn($query, $request, 'group_id', 'o.group_id');
+        $this->applyIn($query, $request, 'user_id', 'o.user_id');
+        $this->applyTestGroupScope($query, $request, 'o.group_id', hideByDefault: $request->boolean('export'));
 
         return $this->respond($query, $request, [
             'o.sku', 'o.raw_line', 'o.branch_code', 'o.message_id', 'u.display_name', 'g.group_name',
+        ]);
+    }
+
+    /**
+     * Order dashboard — KPIs, daily trend, top shops, top SKUs.
+     * Same filters as the order list (date range on order_date, source_type, group_id); test shops excluded
+     * unless an admin picks one explicitly.
+     * "Orders" = distinct LINE messages; "lines" = parsed SKU rows.
+     */
+    public function orderDashboard(Request $request): JsonResponse
+    {
+        $s = self::SCHEMA;
+        $base = function () use ($request): Builder {
+            $q = $this->table('line_order_messages as o');
+            $this->applyDateRange($q, $request, 'o.order_date');
+            if ($request->filled('source_type')) {
+                $q->where('o.source_type', $request->source_type);
+            }
+            $this->applyIn($q, $request, 'group_id', 'o.group_id');
+            $this->applyTestGroupScope($q, $request, 'o.group_id', hideByDefault: true);
+            return $q;
+        };
+
+        $metrics = [
+            DB::raw('COUNT(DISTINCT o.message_id) AS orders'),
+            DB::raw('COALESCE(SUM(o.quantity), 0) AS quantity'),
+            DB::raw('COALESCE(SUM(o.quantity * o.price), 0) AS amount'),
+        ];
+
+        $summary = $base()->select([
+            ...$metrics,
+            DB::raw('COUNT(*) AS lines'),
+            DB::raw("COUNT(DISTINCT COALESCE(o.group_id, 'user:' || o.user_id)) AS shops"),
+            DB::raw('COUNT(DISTINCT o.sku) AS skus'),
+            DB::raw('MIN(o.order_date) AS first_date'),
+            DB::raw('MAX(o.order_date) AS last_date'),
+        ])->first();
+
+        $daily = $base()
+            ->select([DB::raw('o.order_date::date AS date'), ...$metrics])
+            ->groupBy(DB::raw('o.order_date::date'))
+            ->orderBy('date')
+            ->get();
+
+        // 1:1 chats have no group → one row per sender
+        $topShops = $base()
+            ->leftJoin("{$s}.line_groups as g", 'g.group_id', '=', 'o.group_id')
+            ->leftJoin("{$s}.customers as c", 'c.group_id', '=', 'o.group_id')
+            ->leftJoin("{$s}.line_users as u", 'u.user_id', '=', 'o.user_id')
+            ->select([
+                DB::raw("COALESCE(o.group_id, 'user:' || o.user_id) AS key"),
+                DB::raw("MAX(COALESCE(g.group_name, c.customer_name, CASE WHEN o.group_id IS NULL THEN 'แชทส่วนตัว · ' || COALESCE(u.display_name, o.user_id) END, o.group_id)) AS label"),
+                DB::raw('MAX(c.customer_code) AS customer_code'),
+                ...$metrics,
+            ])
+            ->groupBy(DB::raw("COALESCE(o.group_id, 'user:' || o.user_id)"))
+            ->orderByDesc('amount')
+            ->limit(10)
+            ->get();
+
+        $topSkus = $base()
+            ->select(['o.sku', ...$metrics])
+            ->groupBy('o.sku')
+            ->orderByDesc('amount')
+            ->orderByDesc('quantity')
+            ->limit(10)
+            ->get();
+
+        $num = fn ($rows) => $rows->map(function ($r) {
+            $r->orders = (int) $r->orders;
+            $r->quantity = (float) $r->quantity;
+            $r->amount = (float) $r->amount;
+            return $r;
+        });
+
+        return response()->json([
+            'summary' => [
+                'orders'     => (int) $summary->orders,
+                'lines'      => (int) $summary->lines,
+                'quantity'   => (float) $summary->quantity,
+                'amount'     => (float) $summary->amount,
+                'shops'      => (int) $summary->shops,
+                'skus'       => (int) $summary->skus,
+                'first_date' => $summary->first_date,
+                'last_date'  => $summary->last_date,
+            ],
+            'daily'     => $num($daily),
+            'top_shops' => $num($topShops),
+            'top_skus'  => $num($topSkus),
         ]);
     }
 
@@ -106,18 +244,34 @@ class PcShopPkController extends Controller
         if ($request->filled('source_type')) {
             $query->where('m.source_type', $request->source_type);
         }
-        if ($request->filled('group_id')) {
-            $query->where('m.group_id', $request->group_id);
-        }
+        $this->applyIn($query, $request, 'group_id', 'm.group_id');
+        $this->applyIn($query, $request, 'user_id', 'm.user_id');
+        $this->applyTestGroupScope($query, $request, 'm.group_id');
 
         return $this->respond($query, $request, [
             'm.message_text', 'm.message_id', 'm.message_type', 'u.display_name', 'g.group_name',
         ]);
     }
 
-    /** Group dropdown for the order / message filters (name falls back to the linked customer, then the raw id). */
-    public function groupOptions(): JsonResponse
+    /** Sender dropdown for the order / message filters. */
+    public function userOptions(): JsonResponse
     {
+        $rows = $this->table('line_users')
+            ->select(['user_id', DB::raw('COALESCE(display_name, user_id) AS label')])
+            ->orderByRaw('display_name NULLS LAST')
+            ->orderBy('user_id')
+            ->get();
+
+        return response()->json(['data' => $rows]);
+    }
+
+    /**
+     * Group dropdown for the order / message filters (name falls back to the linked customer, then the raw id).
+     * Test shops are flagged is_test and come back disabled for users who may not see them.
+     */
+    public function groupOptions(Request $request): JsonResponse
+    {
+        $canSeeTest = $this->canSeeTestGroups($request);
         $s = self::SCHEMA;
         $rows = $this->table('line_groups as g')
             ->leftJoin("{$s}.customers as c", 'c.group_id', '=', 'g.group_id')
@@ -128,7 +282,12 @@ class PcShopPkController extends Controller
             ])
             ->orderByRaw('COALESCE(g.group_name, c.customer_name) NULLS LAST')
             ->orderBy('g.group_id')
-            ->get();
+            ->get()
+            ->map(function ($r) use ($canSeeTest) {
+                $r->is_test = in_array($r->group_id, self::TEST_GROUPS, true);
+                $r->disabled = $r->is_test && !$canSeeTest;
+                return $r;
+            });
 
         return response()->json(['data' => $rows]);
     }
@@ -386,6 +545,9 @@ class PcShopPkController extends Controller
         if ($request->input('suspect') === '1') {
             $query->whereRaw("EXISTS (SELECT 1 FROM {$s}.parse_order_text(m.message_text, m.group_id) x WHERE x.looks_like_order)");
         }
+        $this->applyIn($query, $request, 'group_id', 'm.group_id');
+        $this->applyIn($query, $request, 'user_id', 'm.user_id');
+        $this->applyTestGroupScope($query, $request, 'm.group_id');
 
         return $this->respond($query, $request, ['m.message_text', 'u.display_name', 'g.group_name']);
     }

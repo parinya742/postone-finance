@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Services\PdfExtractor;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Shared helpers for read-only report controllers over n8n scraper schemas (CRC, HPMH, ...).
@@ -55,6 +55,7 @@ trait QueriesReportTables
         }
         $totalsQuery = clone $q;
         $totalsQuery->columns = null; // drop row columns so only the aggregates are selected
+        $totalsQuery->bindings['select'] = []; // ...and their bindings, or they shift into the WHERE placeholders
         $totals = $totalsQuery->selectRaw(implode(', ', $sums))->first();
 
         foreach ($order as $col => $dir) {
@@ -97,9 +98,13 @@ trait QueriesReportTables
     /** S3 disk for a scraper file row — rows may live in a bucket other than the default one. */
     protected function s3Disk(?string $bucket): Filesystem
     {
-        return $bucket && $bucket !== config('filesystems.disks.s3.bucket')
-            ? Storage::build(array_merge(config('filesystems.disks.s3'), ['bucket' => $bucket]))
-            : Storage::disk('s3');
+        return PdfExtractor::disk($bucket);
+    }
+
+    /** Run a pdfplumber extractor (backend/scripts/pdf/<script>) on a scraper PDF row — see App\Services\PdfExtractor. */
+    protected function runPdfExtractor(object $doc, string $script): array
+    {
+        return app(PdfExtractor::class)->run($doc, $script);
     }
 
     /**

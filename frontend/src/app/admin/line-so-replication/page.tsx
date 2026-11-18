@@ -266,6 +266,7 @@ function buildExcelRows(items: LineSoJoin[]) {
       'บริการ': item.service_name ?? '',
       'ค่าบริการ Before': item.service_fee ?? '',
       'PI No': item.PINo ? item.PINo : (item.account_type_name ? `ไม่พบ (${item.account_type_name})` : 'ไม่พบ'),
+      'แหล่งที่พบ': item.MatchSource ?? 'ไม่พบ',
       'DI No': item.DINo ?? '', 'PO No': item.PONo ?? '',
       'รหัสลูกค้า': item.CustID ?? '', 'ชื่อลูกค้า': item.CustName ?? '',
       'รหัสเซลล์': item.FieldSaleID ?? '', 'ชื่อเซลล์': item.FieldSaleName ?? '',
@@ -342,6 +343,19 @@ const COLUMNS: ColumnDef<LineSoJoin, any>[] = [
       const item = i.row.original
       if (item.PINo) return <CopyCell value={item.PINo} className="font-mono text-[#0070F2] text-xs" />
       return <span className="text-[#C44500] flex items-center gap-1 text-xs"><AlertTriangle className="w-3 h-3" /> ไม่พบ</span>
+    },
+  }),
+  ch.accessor('MatchSource', {
+    header: 'แหล่งที่พบ', size: 110,
+    cell: i => {
+      const v = i.getValue()
+      if (!v) return <span className="text-[#C0C1C2] text-xs">—</span>
+      return (
+        <span className={clsx('px-2 py-0.5 rounded text-xs whitespace-nowrap',
+          v === 'Replication' ? 'bg-[#EBF5FF] text-[#0070F2]' : 'bg-[#FFF4E5] text-[#C44500]')}>
+          {v}
+        </span>
+      )
     },
   }),
   ch.accessor('DINo', {
@@ -479,6 +493,7 @@ export default function LineSoReplicationPage() {
   const [serviceType, setServiceType] = useState('')
   const [piNo, setPiNo]           = useState('')
   const [piType, setPiType]       = useState('')
+  const [matchSource, setMatchSource] = useState('')
   const [page, setPage]           = useState(1)
   const [exporting, setExporting] = useState(false)
   const [sumCols, setSumCols]     = useState<Set<string>>(new Set())
@@ -495,7 +510,7 @@ export default function LineSoReplicationPage() {
     setExporting(true)
     try {
       const [resMain, resZones, resEms, resDl] = await Promise.all([
-        api.get('/iscode/line-so-replication/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined, pi_no: piNo.trim() || undefined, pi_type: piType || undefined } }),
+        api.get('/iscode/line-so-replication/export', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined, pi_no: piNo.trim() || undefined, pi_type: piType || undefined, match_source: matchSource || undefined } }),
         api.get('/special-postal-zones', { params: { per_page: 9999 } }),
         api.get('/ems-rates'),
         api.get('/domestic-letter-rates'),
@@ -539,9 +554,9 @@ export default function LineSoReplicationPage() {
   // ── Queries ──────────────────────────────────────────────────────────────
 
   const { data, isLoading } = useQuery<PaginatedResponse<LineSoJoin>>({
-    queryKey: ['line-so-replication', search, dateFrom, dateTo, noPiNumber, area, serviceType, piNo, piType, page],
+    queryKey: ['line-so-replication', search, dateFrom, dateTo, noPiNumber, area, serviceType, piNo, piType, matchSource, page],
     queryFn: () =>
-      api.get('/iscode/line-so-replication', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined, pi_no: piNo.trim() || undefined, pi_type: piType || undefined, page, per_page: 15 } }).then((r) => r.data),
+      api.get('/iscode/line-so-replication', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined, pi_no: piNo.trim() || undefined, pi_type: piType || undefined, match_source: matchSource || undefined, page, per_page: 15 } }).then((r) => r.data),
     enabled: can('line-so.view'),
   })
 
@@ -549,9 +564,9 @@ export default function LineSoReplicationPage() {
     weight_grams: number; service_fee: number; special_zone_rate: number
     transport: number; weight_kg: number; diff: number; total_count: number
   }>({
-    queryKey: ['line-so-replication-summary', search, dateFrom, dateTo, noPiNumber, area, serviceType, piNo, piType],
+    queryKey: ['line-so-replication-summary', search, dateFrom, dateTo, noPiNumber, area, serviceType, piNo, piType, matchSource],
     queryFn: () =>
-      api.get('/iscode/line-so-replication/summary', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined, pi_no: piNo.trim() || undefined, pi_type: piType || undefined } }).then((r) => r.data),
+      api.get('/iscode/line-so-replication/summary', { params: { search, date_from: dateFrom || undefined, date_to: dateTo || undefined, no_pi_number: noPiNumber ? 1 : undefined, area: area || undefined, service_type: serviceType || undefined, pi_no: piNo.trim() || undefined, pi_type: piType || undefined, match_source: matchSource || undefined } }).then((r) => r.data),
     enabled: can('line-so.view') && sumCols.size > 0 && sumScope === 'all',
   })
 
@@ -658,6 +673,16 @@ export default function LineSoReplicationPage() {
           <option value="PISO">PISO (SO)</option>
           <option value="PIOO">PIOO (OO)</option>
           <option value="PIIO">PIIO (IO)</option>
+        </select>
+        <select
+          value={matchSource}
+          onChange={(e) => { setMatchSource(e.target.value); resetPage() }}
+          className="border border-[#89919A] rounded px-3 py-2 text-sm text-[#32363A] focus:outline-none focus:border-[#0070F2] focus:ring-1 focus:ring-[#0070F2] bg-white"
+        >
+          <option value="">ทุกแหล่งที่พบ</option>
+          <option value="replication">พบใน Replication</option>
+          <option value="old">พบใน Base เก่า</option>
+          <option value="none">ไม่พบทั้งสองฐาน</option>
         </select>
         <div className="flex items-center gap-2">
           <label className="text-xs text-[#6A6D70] whitespace-nowrap">วันฝากส่ง</label>

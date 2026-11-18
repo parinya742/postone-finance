@@ -19,19 +19,28 @@ interface SidebarProps {
   onClose: () => void
 }
 
-type SidebarMode = 'main' | 'ecommerce' | 'mt' | 'other'
+type SidebarMode = 'home' | 'admin' | 'main' | 'ecommerce' | 'mt' | 'other'
+type NavGroupMode = 'home' | 'admin' | 'main'   // tabs rendered from navGroups
 type EcommercePlatform = 'lazada' | 'tiktok' | 'shopee'
 type MtChannel = 'crc' | 'hp-mh' | 'hp-mh-rtv' | 'hp-mh-stock' | 'dh'
 type OtherChannel = 'pc-tracking' | 'pc-shop-pk'
 
-const navGroups = [
+const navGroups: {
+  mode: NavGroupMode
+  label: string
+  items: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string | null; exact: boolean }[]
+}[] = [
+  // ── Tab: Dashboard - Welcome ──
   {
-    label: 'ไปรษณีย์',
+    mode: 'home',
+    label: 'Dashboard - Welcome',
     items: [
       { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, permission: null, exact: true },
     ],
   },
+  // ── Tab: สำหรับผู้ดูแล ──
   {
+    mode: 'admin',
     label: 'การจัดการ',
     items: [
       { href: '/admin/users', label: 'ผู้ใช้งาน', icon: Users, permission: 'users.view', exact: false },
@@ -40,12 +49,15 @@ const navGroups = [
     ],
   },
   {
+    mode: 'admin',
     label: 'ระบบ',
     items: [
       { href: '/admin/settings', label: 'ตั้งค่า', icon: Settings, permission: 'settings.view', exact: false },
     ],
   },
+  // ── Tab: ไปรษณีย์ ──
   {
+    mode: 'main',
     label: 'Postone Data',
     items: [
       { href: '/admin/account-types', label: 'จัดการแอคเคาท์ไปรษณีย์', icon: Tag, permission: 'account-types.view', exact: false },
@@ -60,6 +72,7 @@ const navGroups = [
     ],
   },
   {
+    mode: 'main',
     label: 'ISCODE',
     items: [
       { href: '/admin/so-head', label: 'ข้อมูล SO (Base เก่า)', icon: Database, permission: 'iscode.view', exact: false },
@@ -69,6 +82,7 @@ const navGroups = [
     ],
   },
   {
+    mode: 'main',
     label: 'Master Data',
     items: [
       { href: '/admin/special-postal-zones', label: 'จัดการไปรษณีย์พื้นที่พิเศษ', icon: MapPin, permission: 'special-zones.view', exact: false },
@@ -234,6 +248,7 @@ const mtChannels: Record<MtChannel, { label: string; short: string; items: Platf
         items: [
           { sectionLabel: 'คืนสินค้า' },
           { href: '/admin/mt/hp-mh-rtv/return-slips', label: 'ใบคืนสินค้า (Return Slip)', icon: Undo2, permission: 'hpmh-rtv-return-slips.view', exact: false },
+          { href: '/admin/mt/hp-mh-rtv/return-items', label: 'รายการสินค้าที่คืน (จาก PDF)', icon: Boxes, permission: 'hpmh-rtv-return-items.view', exact: false },
         ],
       },
     ],
@@ -289,6 +304,7 @@ const otherChannels: Record<OtherChannel, { label: string; short: string; items:
     short: 'PK',
     items: [
       { sectionLabel: 'คำสั่งซื้อจาก LINE' },
+      { href: '/admin/other/pc-shop-pk/dashboard', label: 'Dashboard คำสั่งซื้อ', icon: LayoutDashboard, permission: 'pc-shop-pk-dashboard.view', exact: false },
       { href: '/admin/other/pc-shop-pk/order-messages', label: 'รายการคำสั่งซื้อ', icon: ClipboardList, permission: 'pc-shop-pk-orders.view', exact: false },
       { href: '/admin/other/pc-shop-pk/messages', label: 'ข้อความ LINE', icon: MessageSquare, permission: 'pc-shop-pk-messages.view', exact: false },
       { sectionLabel: 'ตั้งค่าการจับข้อความ' },
@@ -329,6 +345,45 @@ const getMtSubTabFromPath = (channel: MtChannel, pathname: string): string | nul
 
 const isDemo = process.env.NEXT_PUBLIC_APP_ENV === 'demo'
 
+// `title` = full name shown on hover / in the collapsed sidebar
+const modeTabs: { key: SidebarMode; label: string; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: 'home', label: 'Dashboard', title: 'Dashboard - Welcome', icon: LayoutDashboard },
+  { key: 'admin', label: 'ผู้ดูแล', title: 'สำหรับผู้ดูแล', icon: ShieldCheck },
+  { key: 'main', label: 'ไปรษณีย์', title: 'ไปรษณีย์', icon: LayoutGrid },
+  { key: 'ecommerce', label: 'E-Commerce', title: 'E-Commerce', icon: ShoppingCart },
+  { key: 'mt', label: 'MT', title: 'MT', icon: Warehouse },
+  { key: 'other', label: 'PC', title: 'PC', icon: Layers },
+]
+
+const isNavGroupMode = (m: SidebarMode): m is NavGroupMode => m === 'home' || m === 'admin' || m === 'main'
+
+/** Which tab a path belongs to. */
+function getModeFromPath(pathname: string): SidebarMode {
+  if (['/admin/lazada', '/admin/tiktok', '/admin/shopee'].some((p) => pathname.startsWith(p))) return 'ecommerce'
+  if (pathname.startsWith('/admin/mt')) return 'mt'
+  if (pathname.startsWith('/admin/other')) return 'other'
+  const group = navGroups.find((g) =>
+    g.items.some((i) => (i.exact ? pathname === i.href : pathname === i.href || pathname.startsWith(i.href + '/'))),
+  )
+  return group?.mode ?? 'main'
+}
+
+/** Menu items the user may open, without section headings that end up empty. */
+function visibleItems(items: PlatformItem[], can: (p: string) => boolean): PlatformItem[] {
+  const allowed = items.filter((item) => item.sectionLabel || !item.permission || can(item.permission))
+  return allowed.filter((item, i) => {
+    if (!item.sectionLabel) return true
+    const next = allowed[i + 1]
+    return next !== undefined && !next.sectionLabel
+  })
+}
+
+const hasVisibleItem = (items: PlatformItem[], can: (p: string) => boolean) =>
+  items.some((item) => !item.sectionLabel && (!item.permission || can(item.permission)))
+
+/** Keep the current choice if it is still visible, else fall back to the first visible one. */
+const pick = <T,>(current: T, visible: T[]): T => (visible.includes(current) ? current : visible[0] ?? current)
+
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { can } = useAuth()
   const pathname = usePathname()
@@ -337,17 +392,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return localStorage.getItem('sidebar_collapsed') === 'true'
   })
 
-  const isEcommercePath =
-    pathname.startsWith('/admin/lazada') ||
-    pathname.startsWith('/admin/tiktok') ||
-    pathname.startsWith('/admin/shopee')
-
-  const isMtPath = pathname.startsWith('/admin/mt')
-  const isOtherPath = pathname.startsWith('/admin/other')
-
-  const [mode, setMode] = useState<SidebarMode>(
-    isEcommercePath ? 'ecommerce' : isMtPath ? 'mt' : isOtherPath ? 'other' : 'main'
-  )
+  const [mode, setMode] = useState<SidebarMode>(() => getModeFromPath(pathname))
   const [activeOtherChannel, setActiveOtherChannel] = useState<OtherChannel>(getOtherChannelFromPath(pathname) ?? 'pc-tracking')
   const [activePlatform, setActivePlatform] = useState<EcommercePlatform>(
     pathname.startsWith('/admin/tiktok') ? 'tiktok'
@@ -383,19 +428,41 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       setMode('other')
       const channel = getOtherChannelFromPath(pathname)
       if (channel) setActiveOtherChannel(channel)
+    } else {
+      setMode(getModeFromPath(pathname))   // Dashboard / ผู้ดูแล / ไปรษณีย์
     }
   }, [pathname])
 
-  const mtSubTabs = mtChannels[activeMtChannel].subTabs
-  const currentMtSubTab = mtSubTabs?.find(tab => tab.key === activeMtSubTab[activeMtChannel]) ?? mtSubTabs?.[0]
-  const subItems = mode === 'mt'
-    ? (currentMtSubTab?.items ?? mtChannels[activeMtChannel].items)
-    : mode === 'other'
-      ? otherChannels[activeOtherChannel].items
-      : ecommercePlatforms[activePlatform].items
-  const platformItems = subItems.filter(
-    (item) => !item.permission || can(item.permission)
-  )
+  // ── Permission-based visibility: hide tabs / channels / sub-tabs with no menu the user can open ──
+  const mtChannelItems = (ch: MtChannel) =>
+    [...mtChannels[ch].items, ...(mtChannels[ch].subTabs?.flatMap((t) => t.items) ?? [])]
+
+  const visiblePlatforms = (Object.keys(ecommercePlatforms) as EcommercePlatform[])
+    .filter((p) => hasVisibleItem(ecommercePlatforms[p].items, can))
+  const visibleMtChannels = mtChannelKeys.filter((ch) => hasVisibleItem(mtChannelItems(ch), can))
+  const visibleOtherChannels = otherChannelKeys.filter((ch) => hasVisibleItem(otherChannels[ch].items, can))
+  const visibleModes = modeTabs.filter((t) => {
+    if (isNavGroupMode(t.key)) {
+      return navGroups.some((g) => g.mode === t.key && g.items.some((i) => !i.permission || can(i.permission)))
+    }
+    if (t.key === 'ecommerce') return visiblePlatforms.length > 0
+    if (t.key === 'mt') return visibleMtChannels.length > 0
+    return visibleOtherChannels.length > 0
+  })
+
+  const currentMode = pick(mode, visibleModes.map((t) => t.key))
+  const currentPlatform = pick(activePlatform, visiblePlatforms)
+  const currentMtChannel = pick(activeMtChannel, visibleMtChannels)
+  const currentOtherChannel = pick(activeOtherChannel, visibleOtherChannels)
+
+  const mtSubTabs = mtChannels[currentMtChannel].subTabs?.filter((tab) => hasVisibleItem(tab.items, can))
+  const currentMtSubTab = mtSubTabs?.find(tab => tab.key === activeMtSubTab[currentMtChannel]) ?? mtSubTabs?.[0]
+  const subItems = currentMode === 'mt'
+    ? (currentMtSubTab?.items ?? mtChannels[currentMtChannel].items)
+    : currentMode === 'other'
+      ? otherChannels[currentOtherChannel].items
+      : ecommercePlatforms[currentPlatform].items
+  const platformItems = visibleItems(subItems, can)
 
   return (
     <aside
@@ -449,119 +516,59 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       )}
 
-      {/* Mode switcher */}
-      {!collapsed && (
-        <div className="flex border-b border-[#D9D9D9] bg-white flex-shrink-0">
-          <button
-            onClick={() => setMode('main')}
-            className={clsx(
-              'flex-1 min-w-0 flex flex-col items-center gap-1 py-2.5 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
-              mode === 'main'
-                ? 'text-[#0070F2] border-[#0070F2] bg-white'
-                : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
-            )}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            <span>ไปรษณีย์</span>
-          </button>
-          <button
-            onClick={() => setMode('ecommerce')}
-            className={clsx(
-              'flex-1 min-w-0 flex flex-col items-center gap-1 py-2.5 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
-              mode === 'ecommerce'
-                ? 'text-[#0070F2] border-[#0070F2] bg-white'
-                : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
-            )}
-          >
-            <ShoppingCart className="w-4 h-4" />
-            <span>E-Commerce</span>
-          </button>
-          <button
-            onClick={() => setMode('mt')}
-            className={clsx(
-              'flex-1 min-w-0 flex flex-col items-center gap-1 py-2.5 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
-              mode === 'mt'
-                ? 'text-[#0070F2] border-[#0070F2] bg-white'
-                : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
-            )}
-          >
-            <Warehouse className="w-4 h-4" />
-            <span>MT</span>
-          </button>
-          <button
-            onClick={() => setMode('other')}
-            className={clsx(
-              'flex-1 min-w-0 flex flex-col items-center gap-1 py-2.5 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
-              mode === 'other'
-                ? 'text-[#0070F2] border-[#0070F2] bg-white'
-                : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
-            )}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Other</span>
-          </button>
+      {/* Mode switcher — only tabs the user has at least one menu in */}
+      {!collapsed && visibleModes.length > 1 && (
+        <div
+          className={clsx(
+            'grid border-b border-[#D9D9D9] bg-white flex-shrink-0',
+            visibleModes.length > 4 ? 'grid-cols-3' : visibleModes.length === 4 ? 'grid-cols-4' : visibleModes.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
+          )}
+        >
+          {visibleModes.map(({ key, label, title, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setMode(key)}
+              title={title}
+              className={clsx(
+                'min-w-0 flex flex-col items-center gap-1 py-2 px-0.5 text-[10px] font-semibold uppercase tracking-normal whitespace-nowrap transition-colors duration-150 border-b-2',
+                currentMode === key
+                  ? 'text-[#0070F2] border-[#0070F2] bg-white'
+                  : 'text-[#6A6D70] border-transparent hover:text-[#32363A] hover:bg-[#EBEBEB]'
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="max-w-full truncate">{label}</span>
+            </button>
+          ))}
         </div>
       )}
 
       {/* Collapsed mode switcher — icon only */}
-      {collapsed && (
+      {collapsed && visibleModes.length > 1 && (
         <div className="hidden lg:flex flex-col border-b border-[#D9D9D9] bg-white flex-shrink-0">
-          <button
-            onClick={() => setMode('main')}
-            title="ไปรษณีย์"
-            className={clsx(
-              'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
-              mode === 'main'
-                ? 'text-[#0070F2] border-[#0070F2]'
-                : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
-            )}
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setMode('ecommerce')}
-            title="E-Commerce"
-            className={clsx(
-              'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
-              mode === 'ecommerce'
-                ? 'text-[#0070F2] border-[#0070F2]'
-                : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
-            )}
-          >
-            <ShoppingCart className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setMode('mt')}
-            title="MT"
-            className={clsx(
-              'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
-              mode === 'mt'
-                ? 'text-[#0070F2] border-[#0070F2]'
-                : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
-            )}
-          >
-            <Warehouse className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setMode('other')}
-            title="Other"
-            className={clsx(
-              'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
-              mode === 'other'
-                ? 'text-[#0070F2] border-[#0070F2]'
-                : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
-            )}
-          >
-            <Layers className="w-4 h-4" />
-          </button>
+          {visibleModes.map(({ key, title, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setMode(key)}
+              title={title}
+              className={clsx(
+                'flex justify-center py-2.5 transition-colors duration-150 border-l-2',
+                currentMode === key
+                  ? 'text-[#0070F2] border-[#0070F2]'
+                  : 'text-[#6A6D70] border-transparent hover:text-[#0070F2] hover:bg-[#F5F5F5]'
+              )}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
         </div>
       )}
 
       {/* Nav */}
       <nav className={clsx('flex-1 overflow-y-auto py-3', collapsed ? 'px-1' : 'px-2')}>
 
-        {/* ── Main mode ── */}
-        {mode === 'main' && navGroups.map((group) => {
+        {/* ── Dashboard / ผู้ดูแล / ไปรษณีย์ — groups of the current tab ── */}
+        {isNavGroupMode(currentMode) && navGroups.filter((g) => g.mode === currentMode).map((group) => {
           const visibleItems = group.items.filter(
             (item) => !item.permission || can(item.permission)
           )
@@ -610,7 +617,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         })}
 
         {/* ── Ecommerce mode ── */}
-        {mode === 'ecommerce' && (
+        {currentMode === 'ecommerce' && (
           <div>
             {!collapsed && (
               <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
@@ -621,13 +628,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             {/* Platform tabs */}
             {!collapsed ? (
               <div className="flex mb-3 rounded-lg overflow-hidden border border-[#E8E8E8] mx-1">
-                {(Object.keys(ecommercePlatforms) as EcommercePlatform[]).map((platform) => (
+                {visiblePlatforms.map((platform) => (
                   <button
                     key={platform}
                     onClick={() => setActivePlatform(platform)}
                     className={clsx(
                       'flex-1 py-2 text-xs font-semibold transition-colors duration-150',
-                      activePlatform === platform
+                      currentPlatform === platform
                         ? 'bg-[#0070F2] text-white'
                         : 'bg-white text-[#6A6D70] hover:bg-[#F5F5F5] hover:text-[#32363A]'
                     )}
@@ -638,14 +645,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             ) : (
               <div className="flex flex-col gap-0.5 mb-2">
-                {(Object.keys(ecommercePlatforms) as EcommercePlatform[]).map((platform) => (
+                {visiblePlatforms.map((platform) => (
                   <button
                     key={platform}
                     onClick={() => setActivePlatform(platform)}
                     title={ecommercePlatforms[platform].label}
                     className={clsx(
                       'w-full flex justify-center py-2 text-xs font-bold rounded transition-colors duration-150 border-l-2',
-                      activePlatform === platform
+                      currentPlatform === platform
                         ? 'bg-[#EBF5FE] text-[#0070F2] border-[#0070F2]'
                         : 'text-[#6A6D70] border-transparent hover:bg-[#F5F5F5] hover:text-[#32363A]'
                     )}
@@ -659,7 +666,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
 
         {/* ── MT mode ── */}
-        {mode === 'mt' && (
+        {currentMode === 'mt' && (
           <div>
             {!collapsed && (
               <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
@@ -670,13 +677,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             {/* Channel tabs */}
             {!collapsed ? (
               <div className="grid grid-cols-3 gap-1 mb-3 mx-1">
-                {mtChannelKeys.map((channel) => (
+                {visibleMtChannels.map((channel) => (
                   <button
                     key={channel}
                     onClick={() => setActiveMtChannel(channel)}
                     className={clsx(
                       'py-2 px-1 text-xs font-semibold rounded border transition-colors duration-150 whitespace-nowrap',
-                      activeMtChannel === channel
+                      currentMtChannel === channel
                         ? 'bg-[#0070F2] text-white border-[#0070F2]'
                         : 'bg-white text-[#6A6D70] border-[#E8E8E8] hover:bg-[#F5F5F5] hover:text-[#32363A]'
                     )}
@@ -687,14 +694,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             ) : (
               <div className="flex flex-col gap-0.5 mb-2">
-                {mtChannelKeys.map((channel) => (
+                {visibleMtChannels.map((channel) => (
                   <button
                     key={channel}
                     onClick={() => setActiveMtChannel(channel)}
                     title={mtChannels[channel].label}
                     className={clsx(
                       'w-full flex justify-center py-2 text-[10px] font-bold rounded transition-colors duration-150 border-l-2',
-                      activeMtChannel === channel
+                      currentMtChannel === channel
                         ? 'bg-[#EBF5FE] text-[#0070F2] border-[#0070F2]'
                         : 'text-[#6A6D70] border-transparent hover:bg-[#F5F5F5] hover:text-[#32363A]'
                     )}
@@ -706,12 +713,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             )}
 
             {/* Vendor sub-tabs (channels that define subTabs) */}
-            {mtSubTabs && !collapsed && (
+            {mtSubTabs && mtSubTabs.length > 1 && !collapsed && (
               <div className="flex gap-1 mb-3 mx-1 border-b border-[#E8E8E8]">
                 {mtSubTabs.map((tab) => (
                   <button
                     key={tab.key}
-                    onClick={() => setActiveMtSubTab(prev => ({ ...prev, [activeMtChannel]: tab.key }))}
+                    onClick={() => setActiveMtSubTab(prev => ({ ...prev, [currentMtChannel]: tab.key }))}
                     className={clsx(
                       'flex-1 py-1.5 px-1 text-[11px] font-semibold border-b-2 -mb-px transition-colors duration-150 whitespace-nowrap',
                       currentMtSubTab?.key === tab.key
@@ -728,23 +735,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
 
         {/* ── Other mode ── */}
-        {mode === 'other' && (
+        {currentMode === 'other' && (
           <div>
             {!collapsed && (
               <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#6A6D70]">
-                Report Other
+                Report PC
               </p>
             )}
 
             {!collapsed ? (
-              <div className="grid grid-cols-2 gap-1 mb-3 mx-1">
-                {otherChannelKeys.map((channel) => (
+              <div className={clsx('grid gap-1 mb-3 mx-1', visibleOtherChannels.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
+                {visibleOtherChannels.map((channel) => (
                   <button
                     key={channel}
                     onClick={() => setActiveOtherChannel(channel)}
                     className={clsx(
                       'py-2 px-1 text-xs font-semibold rounded border transition-colors duration-150 whitespace-nowrap',
-                      activeOtherChannel === channel
+                      currentOtherChannel === channel
                         ? 'bg-[#0070F2] text-white border-[#0070F2]'
                         : 'bg-white text-[#6A6D70] border-[#E8E8E8] hover:bg-[#F5F5F5] hover:text-[#32363A]'
                     )}
@@ -755,14 +762,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             ) : (
               <div className="flex flex-col gap-0.5 mb-2">
-                {otherChannelKeys.map((channel) => (
+                {visibleOtherChannels.map((channel) => (
                   <button
                     key={channel}
                     onClick={() => setActiveOtherChannel(channel)}
                     title={otherChannels[channel].label}
                     className={clsx(
                       'w-full flex justify-center py-2 text-[10px] font-bold rounded transition-colors duration-150 border-l-2',
-                      activeOtherChannel === channel
+                      currentOtherChannel === channel
                         ? 'bg-[#EBF5FE] text-[#0070F2] border-[#0070F2]'
                         : 'text-[#6A6D70] border-transparent hover:bg-[#F5F5F5] hover:text-[#32363A]'
                     )}
@@ -776,7 +783,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
 
         {/* ── Sub-items (E-Commerce / MT / Other) ── */}
-        {mode !== 'main' && (
+        {!isNavGroupMode(currentMode) && (
           <div>
             <div className="space-y-0.5">
               {platformItems.filter(item => !item.sectionLabel).length === 0 ? (

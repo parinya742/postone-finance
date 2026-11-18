@@ -9,7 +9,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Process;
 
 /**
  * MT — HP-MH (HomePro / MegaHome) correspondence data (connection "hpmh", schema hpmh),
@@ -290,7 +289,7 @@ class HpmhController extends Controller
 
         $result = Cache::get($cacheKey);
         if ($result === null) {
-            $result = $this->runReceiptExtractor($doc);
+            $result = $this->runPdfExtractor($doc, 'extract_hpmh_receipt.py');
             if (isset($result['error'])) {
                 return response()->json(['message' => 'อ่านข้อมูลจาก PDF ไม่สำเร็จ', 'error' => $result['error']], 422);
             }
@@ -299,33 +298,6 @@ class HpmhController extends Controller
         }
 
         return response()->json(['document_id' => $doc->id, 'file_name' => $doc->file_name] + $result);
-    }
-
-    private function runReceiptExtractor(object $doc): array
-    {
-        $tmp = tempnam(sys_get_temp_dir(), 'hpmh_receipt_') . '.pdf';
-        try {
-            file_put_contents($tmp, $this->s3Disk($doc->s3_bucket)->get($doc->s3_key));
-
-            $process = Process::timeout(config('services.pdf_extract.timeout'))
-                ->env(['PYTHONIOENCODING' => 'utf-8'])
-                ->run([
-                    config('services.pdf_extract.python'),
-                    base_path('scripts/pdf/extract_hpmh_receipt.py'),
-                    $tmp,
-                ]);
-
-            $json = json_decode($process->output(), true);
-            if (! is_array($json)) {
-                return ['error' => trim($process->errorOutput()) ?: 'ตัวอ่าน PDF ไม่ส่งผลลัพธ์กลับมา'];
-            }
-
-            return $json;
-        } catch (\Throwable $e) {
-            return ['error' => $e->getMessage()];
-        } finally {
-            @unlink($tmp);
-        }
     }
 
     public function receiptFiscalYears(Request $request): JsonResponse

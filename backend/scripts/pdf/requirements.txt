@@ -1,1 +1,7 @@
 pdfplumber
+# OpenThai 2.0 OCR Text (models/OpenThai2.0-OCR-Text) — Thai repair in extract_hpmh_return_slip.py.
+# Optional: without these the extractor keeps the PDF's own Thai text.
+openvino
+pyclipper
+numpy<2                              # tensorflow-intel 2.15 on the dev machine needs numpy 1.x
+opencv-python-headless==4.10.0.84    # last OpenCV that runs on numpy 1.x (5.x requires numpy>=2)

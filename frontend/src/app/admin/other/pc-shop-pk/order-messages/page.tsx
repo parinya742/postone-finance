@@ -1,12 +1,40 @@
 'use client'
 
-import EdiTablePage, { EdiColumn, formatDate, formatDateTime, formatNumber } from '@/components/pc-tracking/EdiTablePage'
+import EdiTablePage, { EdiColumn, EdiExportConfig, formatDate, formatDateTime, formatNumber } from '@/components/pc-tracking/EdiTablePage'
 import { PcShopPkOrderMessage } from '@/lib/types'
 import { SOURCE_TYPE_FILTER, sourceLabel } from '../source-type'
 import { useGroupFilter } from '../group-filter'
+import { useUserFilter } from '../user-filter'
 
 const mono = 'font-mono text-xs text-[#32363A] whitespace-nowrap'
 const num = 'text-xs text-right whitespace-nowrap'
+
+function extraText(r: PcShopPkOrderMessage): string | null {
+  const extra = typeof r.extra === 'string' ? (JSON.parse(r.extra) as Record<string, string>) : r.extra
+  return [r.note, extra ? Object.entries(extra).map(([k, v]) => `${k}: ${v}`).join(', ') : null].filter(Boolean).join(' · ') || null
+}
+
+const toNum = (v: string | number | null | undefined) => (v === null || v === undefined || v === '' ? null : Number(v))
+
+const EXPORT: EdiExportConfig<PcShopPkOrderMessage> = {
+  filename: 'pc-shop-pk-orders',
+  sheetName: 'Orders',
+  columns: [
+    { label: 'วันที่สั่ง', value: (r) => r.order_date?.slice(0, 10) },
+    { label: 'ลำดับ', value: (r) => r.order_seq },
+    { label: 'รหัสสินค้า', value: (r) => r.sku },
+    { label: 'จำนวน', value: (r) => toNum(r.quantity) },
+    { label: 'ราคาขาย', value: (r) => toNum(r.price) },
+    { label: 'รวม', value: (r) => toNum(r.line_total) },
+    { label: 'สาขา', value: (r) => r.branch_code },
+    { label: 'ผู้ส่ง', value: (r) => r.display_name ?? r.user_id },
+    { label: 'แชท', value: (r) => r.group_name ?? sourceLabel(r.source_type, r.group_id) },
+    { label: 'บรรทัดที่พิมพ์', value: (r) => r.raw_line },
+    { label: 'ข้อมูลเพิ่มเติม', value: extraText },
+    { label: 'รูปแบบ', value: (r) => r.pattern_name ?? (r.pattern_id ? `ลบแล้ว (#${r.pattern_id})` : null) },
+    { label: 'ประมวลผลเมื่อ', value: (r) => formatDateTime(r.parsed_at) },
+  ],
+}
 
 const COLUMNS: EdiColumn<PcShopPkOrderMessage>[] = [
   { label: 'วันที่สั่ง', render: (r) => formatDate(r.order_date), className: 'text-xs text-[#0070F2] whitespace-nowrap' },
@@ -21,10 +49,7 @@ const COLUMNS: EdiColumn<PcShopPkOrderMessage>[] = [
   { label: 'บรรทัดที่พิมพ์', render: (r) => r.raw_line, className: mono },
   {
     label: 'ข้อมูลเพิ่มเติม',
-    render: (r) => {
-      const extra = typeof r.extra === 'string' ? (JSON.parse(r.extra) as Record<string, string>) : r.extra
-      return [r.note, extra ? Object.entries(extra).map(([k, v]) => `${k}: ${v}`).join(', ') : null].filter(Boolean).join(' · ') || null
-    },
+    render: extraText,
     className: 'text-xs text-[#6A6D70] min-w-[120px]',
   },
   {
@@ -37,6 +62,7 @@ const COLUMNS: EdiColumn<PcShopPkOrderMessage>[] = [
 
 export default function PcShopPkOrderMessagesPage() {
   const groupFilter = useGroupFilter()
+  const userFilter = useUserFilter()
 
   return (
     <EdiTablePage<PcShopPkOrderMessage>
@@ -48,7 +74,8 @@ export default function PcShopPkOrderMessagesPage() {
       rowKey={(r) => r.id}
       searchPlaceholder="รหัสสินค้า, ชื่อผู้ส่ง, กลุ่ม..."
       dateFilter="วันที่สั่ง"
-      selectFilters={[SOURCE_TYPE_FILTER, groupFilter]}
+      selectFilters={[SOURCE_TYPE_FILTER, groupFilter, userFilter]}
+      exportConfig={EXPORT}
     />
   )
 }

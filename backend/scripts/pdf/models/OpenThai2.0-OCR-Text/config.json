@@ -1,0 +1,9 @@
+{
+ "rec": {
+  "drop_below": 0.8,
+  "junk_below": 0.9,
+  "junk_invalid": 0.05,
+  "min_chars": 2,
+  "color": "flatten"
+ }
+}

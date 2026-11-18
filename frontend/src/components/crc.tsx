@@ -131,7 +131,7 @@ type Paged<T> = {
 }
 
 export function CrcTable<T extends { id: number }>({
-  columns, data, isLoading, page, setPage, emptyText, emptyIcon, unit = 'รายการ',
+  columns, data, isLoading, page, setPage, emptyText, emptyIcon, unit = 'รายการ', renderExpanded,
 }: {
   columns: CrcColumn<T>[]
   data: Paged<T> | undefined
@@ -141,6 +141,8 @@ export function CrcTable<T extends { id: number }>({
   emptyText: string
   emptyIcon: React.ReactNode
   unit?: string
+  /** Content shown in a full-width row under a data row; return null to keep the row collapsed */
+  renderExpanded?: (row: T) => React.ReactNode
 }) {
   const rows = data?.data ?? []
   const minWidth = columns.reduce((sum, c) => sum + (parseInt(c.w ?? '100', 10) || 100), 0)
@@ -176,13 +178,23 @@ export function CrcTable<T extends { id: number }>({
               </td>
             </tr>
           ) : (
-            rows.map(row => (
-              <tr key={row.id} className="border-b border-[#EBEBEB] hover:bg-[#F9FAFB] transition-colors">
-                {columns.map(c => (
-                  <TD key={c.key} right={c.align === 'right'} center={c.align === 'center'}>{c.render(row)}</TD>
-                ))}
-              </tr>
-            ))
+            rows.map(row => {
+              const expanded = renderExpanded?.(row)
+              return (
+                <React.Fragment key={row.id}>
+                  <tr className={clsx('border-b border-[#EBEBEB] hover:bg-[#F9FAFB] transition-colors', expanded && 'bg-[#F5FAFF]')}>
+                    {columns.map(c => (
+                      <TD key={c.key} right={c.align === 'right'} center={c.align === 'center'}>{c.render(row)}</TD>
+                    ))}
+                  </tr>
+                  {expanded && (
+                    <tr className="border-b border-[#D9D9D9] bg-[#FAFBFC]">
+                      <td colSpan={columns.length} className="px-4 pb-3">{expanded}</td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              )
+            })
           )}
         </tbody>
         {showTotals && (

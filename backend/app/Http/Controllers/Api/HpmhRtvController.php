@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Concerns\QueriesReportTables;
 use App\Http\Controllers\Controller;
+use App\Services\HpmhRtv\ReturnSlipExtractService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +39,14 @@ class HpmhRtvController extends Controller
                   ->on('d.article_doc_no', '=', 's.article_doc_no')
                   ->whereRaw('d.fiscal_year = EXTRACT(YEAR FROM s.gr_date)');
             })
-            ->select('s.*', 'd.id as doc_id', 'd.pdf_file_name as doc_file_name', 'd.file_size as doc_file_size');
+            ->leftJoin('return_slip_extract as e', 'e.document_id', '=', 'd.id')
+            ->select('s.*', 'd.id as doc_id', 'd.pdf_file_name as doc_file_name', 'd.file_size as doc_file_size',
+                'e.status as extract_status', 'e.total as extract_total', 'e.total_qty as extract_total_qty')
+            // the stored extract no longer matches the PDF / extractor → it will be re-read
+            ->selectRaw('(e.id IS NOT NULL AND (e.source_s3_key IS DISTINCT FROM d.s3_key OR e.extractor_version <> ?)) as extract_stale', [ReturnSlipExtractService::VERSION])
+            // PDF totals vs the Excel row; 162 reversals may carry either sign, so compare magnitudes
+            ->selectRaw("(e.status <> 'error' AND (ABS(ABS(COALESCE(e.total, 0)) - ABS(COALESCE(s.amount, 0))) > 0.01
+                OR ABS(ABS(COALESCE(e.total_qty, 0)) - ABS(COALESCE(s.quantity, 0))) > 0.001)) as extract_mismatch");
 
         $this->applyVendor($q, $request, 's.vendor_no');
         foreach (['site_code', 'movement_type'] as $col) {
@@ -49,6 +57,18 @@ class HpmhRtvController extends Controller
         if ($request->filled('has_pdf')) {
             $request->boolean('has_pdf') ? $q->whereNotNull('d.id') : $q->whereNull('d.id');
         }
+        // PDF data: ok = read, balanced, matches Excel · issue = warnings or Excel mismatch · error · pending (not read yet)
+        match ($request->input('extract')) {
+            'ok' => $q->where('e.status', 'ok')
+                ->whereRaw('ABS(ABS(COALESCE(e.total, 0)) - ABS(COALESCE(s.amount, 0))) <= 0.01')
+                ->whereRaw('ABS(ABS(COALESCE(e.total_qty, 0)) - ABS(COALESCE(s.quantity, 0))) <= 0.001'),
+            'issue' => $q->where(fn ($w) => $w->where('e.status', 'warning')->orWhere(fn ($m) => $m->where('e.status', 'ok')
+                ->whereRaw('(ABS(ABS(COALESCE(e.total, 0)) - ABS(COALESCE(s.amount, 0))) > 0.01
+                    OR ABS(ABS(COALESCE(e.total_qty, 0)) - ABS(COALESCE(s.quantity, 0))) > 0.001)'))),
+            'error' => $q->where('e.status', 'error'),
+            'pending' => $q->whereNotNull('d.id')->whereNull('e.id'),
+            default => null,
+        };
         $this->applyDateRange($q, $request, 's.gr_date');
         $this->applySearch($q, $request, ['s.article_doc_no', 's.site', 's.created_by']);
 
@@ -112,5 +132,45 @@ class HpmhRtvController extends Controller
             ->find($id);
 
         return $this->s3DownloadResponse($doc, $request->boolean('inline'));
+    }
+
+    /**
+     * Header + line items read out of a return slip PDF, from hpmh_rtv.return_slip_extract. Extracted on the spot
+     * when the document has not been processed yet (or its PDF/extractor changed); ?refresh=1 re-reads the PDF.
+     */
+    public function documentExtract(Request $request, int $id, ReturnSlipExtractService $service): JsonResponse
+    {
+        $result = $service->forDocument($id, $request->boolean('refresh'));
+        if (! $result) {
+            return response()->json(['message' => 'ไม่พบไฟล์ใบคืนสินค้า'], 404);
+        }
+        if ($result['status'] === 'error') {
+            return response()->json(['message' => 'อ่านข้อมูลจาก PDF ไม่สำเร็จ', 'error' => $result['error']], 422);
+        }
+
+        return response()->json($result);
+    }
+
+    /** How many PDFs have been read into the database, and how many are waiting. */
+    public function extractStatus(Request $request, ReturnSlipExtractService $service): JsonResponse
+    {
+        return response()->json($service->status($request->input('vendor_no')));
+    }
+
+    /**
+     * Read a small batch of pending PDFs into the database. The page calls this repeatedly (with a progress bar)
+     * until `remaining` is 0 — batches stay short because `php artisan serve` handles one request at a time.
+     */
+    public function extractPending(Request $request, ReturnSlipExtractService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:20',
+            'vendor_no' => 'nullable|string',
+            'retry_errors' => 'nullable|boolean',
+        ]);
+
+        return response()->json($service->processPending(
+            $data['limit'] ?? 5, $data['vendor_no'] ?? null, (bool) ($data['retry_errors'] ?? false)
+        ));
     }
 }

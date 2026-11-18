@@ -8,6 +8,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { sourceLabel } from '../source-type'
+import { useGroupFilter } from '../group-filter'
+import { useUserFilter } from '../user-filter'
 import { apiErrorMessage } from '../parse-result'
 
 const COLUMNS: EdiColumn<PcShopPkUnmatchedMessage>[] = [
@@ -80,6 +82,8 @@ function ReparsePanel() {
 
 export default function PcShopPkUnmatchedPage() {
   const { can } = useAuth()
+  const groupFilter = useGroupFilter()
+  const userFilter = useUserFilter()
 
   return (
     <div className="space-y-4">
@@ -95,6 +99,8 @@ export default function PcShopPkUnmatchedPage() {
         dateFilter="วันที่ส่ง"
         selectFilters={[
           { param: 'suspect', placeholder: 'ทุกข้อความ', options: [{ value: '1', label: 'เฉพาะที่น่าจะเป็นออเดอร์' }] },
+          groupFilter,
+          userFilter,
         ]}
       />
     </div>

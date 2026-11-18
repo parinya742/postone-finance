@@ -137,6 +137,181 @@ class LineSoReplicationController extends Controller
         return array_values($map);
     }
 
+    // Every document number a shipment row carries, as text[] — same set as rowKeys():
+    // pi / fi / so / di (pi, fi may be comma-separated) + every doc number in product_details (PPIO- → PIIO-)
+    private const ROW_KEYS_SQL = <<<'SQL'
+        (string_to_array(regexp_replace(concat_ws(',', ps.pi_number, ps.fi_number, ps.so_number, ps.di_number), '\s+', '', 'g'), ',')
+         || ARRAY(SELECT regexp_replace(upper(x[1]), '^PPIO-', 'PIIO-')
+                  FROM regexp_matches(COALESCE(ps.product_details, ''), '\m((PISO|PIOO|PIIO|PPIO|PI|FI|DI|SI|SH|SO|OO|IO)-[0-9]+)', 'gi') AS x))
+        SQL;
+
+    private const DOC_NO_REGEX = '/\b(?:PI(?:SO|OO|IO)?|PPIO|FI|DI|SI|SH|SO|OO|IO)-\d+/i';
+
+    /** All document numbers of one shipment row (same set as KEYS_SQL, plus every doc in product_details). */
+    private function rowKeys($item): array
+    {
+        $keys = [];
+        foreach (['pi_number', 'fi_number', 'so_number', 'di_number'] as $col) {
+            foreach (explode(',', $item->$col ?? '') as $v) {
+                $keys[] = trim($v);
+            }
+        }
+        preg_match_all(self::DOC_NO_REGEX, $item->product_details ?? '', $m);
+        foreach ($m[0] as $n) {
+            $keys[] = preg_replace('/^PPIO-/', 'PIIO-', strtoupper($n));
+        }
+        return array_values(array_unique(array_filter($keys)));
+    }
+
+    private static function pgArray(array $values): string
+    {
+        return '{' . implode(',', array_map(
+            fn ($s) => '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $s) . '"', $values
+        )) . '}';
+    }
+
+    /** Old base (dbctl.ct_so_head) rows whose pino / dino / sono is one of $keys, keyed by that number. */
+    private function oldBaseByKey(array $keys, array $selectCols)
+    {
+        $map = collect();
+        if (!$keys) {
+            return $map;
+        }
+        $rows = $this->oldBaseRows($keys, $selectCols);
+        foreach (['pino', 'dino', 'sono'] as $col) {
+            foreach ($rows as $row) {
+                if ($row->$col && !$map->has($row->$col)) {
+                    $map->put($row->$col, $row);
+                }
+            }
+        }
+        $missing = array_values(array_filter($keys, fn ($k) => !$map->has($k)));
+        foreach ($this->oldBaseTruncatedMatches($missing, $selectCols) as $key => $row) {
+            $map->put($key, $row);
+        }
+        return $map;
+    }
+
+    // Number keyed in one digit short (8 digits instead of 9), e.g. "PI-26091719" for PI-260917194
+    private const TRUNCATED_KEY_REGEX = '/^(PI|SO|DI|FI)-\d{8}$/';
+    // ct_so_head.tranid of "ไปรษณีย์ไทย (EMS)" — narrows a truncated number to the postal shipment
+    private const POSTAL_TRAN_ID = 'T2602001';
+
+    /**
+     * Truncated keys → the single old-base postal document whose number starts with that key.
+     * Keys with 0 or several candidates are left unmatched (a guess would be worse than "ไม่พบ").
+     */
+    private function oldBaseTruncatedMatches(array $keys, array $selectCols): array
+    {
+        $byCol = [];
+        foreach ($keys as $k) {
+            if (preg_match(self::TRUNCATED_KEY_REGEX, $k, $m)) {
+                $col = match ($m[1]) { 'PI' => 'pino', 'SO' => 'sono', default => 'dino' };
+                $byCol[$col][] = $k;
+            }
+        }
+
+        $result = [];
+        foreach ($byCol as $col => $colKeys) {
+            $rows = DB::connection('dbctl')->table('ct_so_head')
+                ->select(array_unique(array_merge($selectCols, [$col])))
+                ->where('tranid', self::POSTAL_TRAN_ID)
+                ->whereRaw("{$col} LIKE ANY(?::text[])", [self::pgArray(array_map(fn ($k) => $k . '_', $colKeys))])
+                ->get();
+            foreach ($colKeys as $k) {
+                $candidates = $rows->filter(fn ($r) => str_starts_with((string) $r->$col, $k));
+                if ($candidates->count() === 1) {
+                    $result[$k] = $candidates->first();
+                }
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * ct_so_head (936k rows, only sono indexed) rows whose pino / dino / sono is in $keys.
+     * One query per column with IN (SELECT unnest(...)) → hash semi-join; an OR of = ANY(big array) was ~30s.
+     */
+    private function oldBaseRows(array $keys, array $selectCols)
+    {
+        $arr = self::pgArray($keys);
+        $rows = collect();
+        foreach (['sono', 'pino', 'dino'] as $col) {
+            $rows = $rows->concat(
+                DB::connection('dbctl')->table('ct_so_head')
+                    ->select($selectCols)
+                    ->whereRaw("{$col} IN (SELECT unnest(?::text[]))", [$arr])
+                    ->get()
+            );
+        }
+        return $rows->unique('sono')->values();
+    }
+
+    /** Subset of $keys that exist in the given base, checking the given columns. */
+    private function existingKeys($baseQuery, array $keys, array $cols): array
+    {
+        if (!$keys) {
+            return [];
+        }
+        $arr = self::pgArray($keys);
+        $where = implode(' OR ', array_map(fn ($c) => "{$c} = ANY(?::text[])", $cols));
+        $rows = $baseQuery->whereRaw("({$where})", array_fill(0, count($cols), $arr))->get($cols);
+        $keySet = array_flip($keys);
+        $found = [];
+        foreach ($rows as $row) {
+            foreach ($cols as $c) {
+                if ($row->$c !== null && isset($keySet[$row->$c])) {
+                    $found[$row->$c] = true;
+                }
+            }
+        }
+        return array_keys($found);
+    }
+
+    /**
+     * Filter by where the row's documents are found: replication | old | none.
+     * Uses the same document numbers as rowKeys() so the filter agrees with the "แหล่งที่พบ" column.
+     */
+    private function applyMatchSourceFilter($query, string $source): void
+    {
+        $keys = $query->clone()->reorder()
+            ->select(['ps.pi_number', 'ps.fi_number', 'ps.so_number', 'ps.di_number', 'ps.product_details'])
+            ->get()
+            ->flatMap(fn ($r) => $this->rowKeys($r))
+            ->unique()->values()->all();
+
+        $repKeys = $this->existingKeys($this->soHead(), $keys, ['pino', 'dino', 'sono', 'sino', 'shno']);
+        $oldKeys = [];
+        if ($source !== 'replication') {
+            $rest = array_flip(array_diff($keys, $repKeys));
+            foreach ($this->oldBaseRows(array_keys($rest), ['sono', 'pino', 'dino']) as $row) {
+                foreach (['sono', 'pino', 'dino'] as $c) {
+                    if ($row->$c !== null && isset($rest[$row->$c])) {
+                        $oldKeys[$row->$c] = true;
+                    }
+                }
+            }
+            $notFound = array_keys(array_diff_key($rest, $oldKeys));
+            foreach (array_keys($this->oldBaseTruncatedMatches($notFound, ['sono', 'pino', 'dino'])) as $k) {
+                $oldKeys[$k] = true;
+            }
+            $oldKeys = array_keys($oldKeys);
+        }
+
+        $rowKeys = self::ROW_KEYS_SQL;
+        $inRep = "{$rowKeys} && ?::text[]";
+
+        if ($source === 'replication') {
+            $query->whereRaw($inRep, [self::pgArray($repKeys)]);
+        } elseif ($source === 'old') {
+            $query->whereRaw("NOT ({$inRep})", [self::pgArray($repKeys)])
+                  ->whereRaw("{$rowKeys} && ?::text[]", [self::pgArray($oldKeys)]);
+        } elseif ($source === 'none') {
+            $query->whereRaw("NOT ({$inRep})", [self::pgArray($repKeys)])
+                  ->whereRaw("NOT ({$rowKeys} && ?::text[])", [self::pgArray($oldKeys)]);
+        }
+    }
+
     /**
      * ISCODE (replication) documents exposed with the same column names as dbctl.ct_so_head,
      * so every query below stays identical to LineSoController.
@@ -242,6 +417,7 @@ class LineSoReplicationController extends Controller
                 'no_pi_number' => $request->boolean('no_pi_number'),
                 'area' => $request->query('area'),
                 'service_type' => $request->query('service_type'),
+                'match_source' => $request->query('match_source'),
                 'record_count' => count($merged),
             ]
         );
@@ -510,6 +686,12 @@ class LineSoReplicationController extends Controller
             if ($request->filled('area')) {
                 $this->applyAreaFilterOptimized($query, trim($request->area), $mergedActivePiNos, $existingIscodePiNos, $activeDiNos, $existingIscodeDiNos);
             }
+        }
+
+        // แหล่งที่พบ: replication | old (Base เก่า) | none
+        $matchSource = (string) $request->query('match_source', '');
+        if (in_array($matchSource, ['replication', 'old', 'none'], true)) {
+            $this->applyMatchSourceFilter($query, $matchSource);
         }
 
         return $query;
@@ -806,19 +988,36 @@ class LineSoReplicationController extends Controller
             }
         }
 
-        // Step 4: Merge ISCODE data into each row
-        $rows = collect($items)->map(function ($item) use ($soHeadByPino, $soHeadByDinoFromPi, $soHeadBySono, $soHeadByDino, $soHeadByDocNo, $extractDocNos) {
+        $findReplication = function ($item) use ($soHeadByPino, $soHeadByDinoFromPi, $soHeadBySono, $soHeadByDino, $soHeadByDocNo, $extractDocNos) {
             // pi_number หรือ fi_number อาจเป็น comma-separated → ลอง match ทีละตัว
             $piList = collect(explode(',', $item->pi_number ?? ''))
                 ->concat(explode(',', $item->fi_number ?? ''))
                 ->map(fn($p) => trim($p))
                 ->filter();
 
-            $so = $piList->map(fn($p) => $soHeadByPino->get($p))->filter()->first()
+            return $piList->map(fn($p) => $soHeadByPino->get($p))->filter()->first()
                ?? $piList->map(fn($p) => $soHeadByDinoFromPi->get($p))->filter()->first()
                ?? $soHeadBySono->get($item->so_number)
                ?? $soHeadByDino->get($item->di_number)
                ?? collect($extractDocNos($item))->map(fn ($n) => $soHeadByDocNo->get($n))->filter()->first();
+        };
+
+        // Step 3e: rows not found in Replication → look up the old base (dbctl.ct_so_head, data up to 2026-10-02)
+        $repMatch = collect($items)->map($findReplication);
+        $oldKeys = collect($items)
+            ->filter(fn ($item, $i) => !$repMatch[$i])
+            ->flatMap(fn ($item) => $this->rowKeys($item))
+            ->unique()->values()->all();
+        $oldByKey = $this->oldBaseByKey($oldKeys, $selectCols);
+
+        // Step 4: Merge ISCODE data into each row
+        $rows = collect($items)->values()->map(function ($item, $i) use ($repMatch, $oldByKey) {
+            $so = $repMatch[$i];
+            $source = $so ? 'Replication' : null;
+            if (!$so) {
+                $so = collect($this->rowKeys($item))->map(fn ($k) => $oldByKey->get($k))->filter()->first();
+                $source = $so ? 'Base เก่า' : null;
+            }
 
             $area = null;
             if (!$so) {
@@ -873,6 +1072,7 @@ class LineSoReplicationController extends Controller
                 'DocRemark'     => $so?->docremark,
                 'ACCRemark'     => $so?->accremark,
                 'Area'          => $area,
+                'MatchSource'   => $source,
             ]);
         });
 

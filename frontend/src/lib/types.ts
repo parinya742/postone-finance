@@ -248,6 +248,7 @@ export interface LineSoJoin {
   account_type_name?: string | null
   Area?: string | null
   Department?: string | null
+  MatchSource?: 'Replication' | 'Base เก่า' | null
   // Calculated EMS cost (non-null only when service_name contains EMS)
   ems_calculated_cost: number | null
   dl_calculated_cost: number | null
@@ -1683,6 +1684,166 @@ export interface HpmhRtvReturnSlip {
   doc_id: number | null
   doc_file_name: string | null
   doc_file_size: number | null
+  /** return_slip_extract (PDF data in the DB); null = not processed yet */
+  extract_status: HpmhRtvExtractStatus | null
+  extract_total: Num
+  extract_total_qty: Num
+  /** PDF replaced / extractor updated since — will be re-read */
+  extract_stale: boolean | null
+  /** PDF totals differ from this Excel row */
+  extract_mismatch: boolean | null
+}
+
+export type HpmhRtvExtractStatus = 'ok' | 'warning' | 'error'
+
+/** GET /hpmh-rtv/extract-status */
+export interface HpmhRtvExtractProgress {
+  documents: number
+  extracted: number
+  pending: number
+  ok: number
+  warning: number
+  error: number
+  version: string
+}
+
+/** POST /hpmh-rtv/extract-pending */
+export interface HpmhRtvExtractBatch {
+  processed: number
+  ok: number
+  warning: number
+  error: number
+  remaining: number
+}
+
+export interface HpmhRtvReturnSlipExtractItem {
+  item: number
+  vd_part: string | null
+  article: string
+  batch: string | null
+  /** AC/CO/PO, e.g. "4311924202/10" */
+  po: string
+  mvt: string
+  s: string | null
+  reference: string | null
+  unit: string
+  qty: number
+  /** quantity in the base unit, printed under the qty ("12EA" for 1 BOX) */
+  base_qty?: number | null
+  base_unit?: string | null
+  price: number
+  amount: number
+  /** Thai repaired with OCR */
+  description: string | null
+  /** as printed in the PDF text layer (before the OCR repair) */
+  description_pdf?: string | null
+  /** 1st "***" line — the reason for the return */
+  return_reason?: string | null
+  /** slip this line reverses ("REV5029746978" in a remark) */
+  reversed_doc_no?: string | null
+  /** all "***" lines (1st = reason); national ID numbers masked */
+  remarks: string[]
+  page: number
+}
+
+/** Read out of the return slip PDF (scripts/pdf/extract_hpmh_return_slip.py), stored in hpmh_rtv.return_slip_extract */
+export interface HpmhRtvReturnSlipExtract {
+  document_id: number
+  file_name: string | null
+  status: HpmhRtvExtractStatus
+  error: string | null
+  article_doc_no: string | null
+  fiscal_year: number | null
+  site_code: string | null
+  site: string | null
+  storage_location: string | null
+  vendor_no: string | null
+  /** yyyy-mm-dd */
+  doc_date: string | null
+  doc_time: string | null
+  delivery_note: string | null
+  buyer: string | null
+  buyer_code?: string | null
+  buyer_name?: string | null
+  created_by: string | null
+  site_tel?: string | null
+  site_tel2?: string | null
+  vendor_name?: string | null
+  vendor_address?: string | null
+  vendor_contact?: string | null
+  vendor_tel?: string | null
+  po_text: string | null
+  gr_text: string | null
+  pages: number
+  extractor_version?: string
+  items: HpmhRtvReturnSlipExtractItem[]
+  items_count: number
+  qty_sum: number
+  items_sum: number
+  total_qty: number | null
+  total_bu: number | null
+  total: number | null
+  warnings: string[]
+  /** Thai description/remark repair with OpenThai OCR; error = why it was skipped (PDF text kept) */
+  ocr?: { used: boolean; lines: number; ms: number; error: string | null }
+  extracted_at: string
+}
+
+/** GET /hpmh-rtv/return-items — one product line read out of a return slip PDF */
+export interface HpmhRtvReturnItem {
+  id: number
+  item_no: number
+  vd_part: string | null
+  article: string | null
+  batch: string | null
+  po_no: string | null
+  po_item: string | null
+  mvt: string | null
+  unit: string | null
+  qty: Num
+  base_qty: Num
+  base_unit: string | null
+  price: Num
+  amount: Num
+  description: string | null
+  description_pdf: string | null
+  return_reason: string | null
+  reversed_doc_no: string | null
+  /** JSON array (jsonb as text) of the "***" lines; national IDs masked */
+  remarks: string | null
+  page: number | null
+  document_id: number
+  article_doc_no: string | null
+  fiscal_year: number | null
+  doc_date: string | null
+  site_code: string | null
+  site: string | null
+  buyer_code: string | null
+  buyer_name: string | null
+  gr_text: string | null
+  extract_status: HpmhRtvExtractStatus
+}
+
+export type HpmhRtvReturnItemGroup = 'article' | 'reason' | 'site' | 'buyer' | 'month'
+
+export interface HpmhRtvReturnItemSummaryRow {
+  key: string | null
+  label: string | null
+  /** VD Part# when grouped by article */
+  extra: string | null
+  docs: number
+  lines: number
+  /** net: reversals (MVT 162/123) count negative */
+  qty: Num
+  amount: Num
+  /** amount on reversal lines (MVT 162/123) */
+  cancelled_amount: Num
+}
+
+export interface HpmhRtvReturnItemSummary {
+  group: HpmhRtvReturnItemGroup
+  rows: HpmhRtvReturnItemSummaryRow[]
+  totals: { docs: number; lines: number; qty: number; amount: number }
 }
 
 export interface HpmhRtvFile {
@@ -1867,6 +2028,25 @@ export interface PcShopPkOrderMessage {
   raw_line: string | null
   raw_text: string | null
   parsed_at: string | null
+}
+
+export interface PcShopPkDashboardMetrics {
+  orders: number
+  quantity: number
+  amount: number
+}
+
+export interface PcShopPkDashboard {
+  summary: PcShopPkDashboardMetrics & {
+    lines: number
+    shops: number
+    skus: number
+    first_date: string | null
+    last_date: string | null
+  }
+  daily: (PcShopPkDashboardMetrics & { date: string })[]
+  top_shops: (PcShopPkDashboardMetrics & { key: string; label: string; customer_code: string | null })[]
+  top_skus: (PcShopPkDashboardMetrics & { sku: string })[]
 }
 
 export type PcShopPkPatternMode = 'template' | 'regex'

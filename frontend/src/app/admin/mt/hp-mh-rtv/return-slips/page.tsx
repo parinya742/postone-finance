@@ -1,16 +1,22 @@
 'use client'
 
 import api from '@/lib/api'
-import { CrcPaginatedResponse, HpmhRtvFile, HpmhRtvReturnSlip, PaginatedResponse } from '@/lib/types'
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Search, Undo2, FileArchive, Eye } from 'lucide-react'
+import {
+  CrcPaginatedResponse, HpmhRtvExtractBatch, HpmhRtvExtractProgress, HpmhRtvFile, HpmhRtvReturnSlip,
+  HpmhRtvReturnSlipExtract, PaginatedResponse,
+} from '@/lib/types'
+import { useQuery, useQueryClient, keepPreviousData, type QueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
+import { useRef, useState } from 'react'
+import clsx from 'clsx'
+import { Search, Undo2, FileArchive, Eye, TableProperties, Loader2, AlertTriangle, CheckCircle2, Database, Play, RotateCw } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { fmtDate, StatusBadge, SapInput, inputCls, ErpNoAccess } from '@/components/erp'
 import PdfViewer from '@/components/ui/PdfViewer'
+import { MOVEMENT_COLORS, MOVEMENT_LABELS } from '../movement'
 import {
   CrcHeader, CrcViewTabs, CrcFilterBar, CrcTable, CrcDownloadButton, MtAuditLogTable,
-  NumCell, TextCell, dash, fmtNum, fmtBytes, fmtDateTime, useDebounced, type CrcColumn,
+  NumCell, TextCell, dash, fmtNum, fmtBytes, fmtDateTime, toNum, useDebounced, type CrcColumn,
 } from '@/components/crc'
 
 type View = 'data' | 'files' | 'logs'
@@ -23,22 +29,329 @@ type Options = {
   movement_types: string[]
 }
 
-const MOVEMENT_LABELS: Record<string, string> = {
-  '161': '161 · คืนสินค้า',
-  '162': '162 · ยกเลิกการคืน',
-}
-const MOVEMENT_COLORS: Record<string, string> = {
-  '161': 'bg-[#EBF5FE] text-[#0070F2] border-[#0070F2]/40',
-  '162': 'bg-[#FEF7F1] text-[#E9730C] border-[#E9730C]/40',
-}
 const KIND_COLORS: Record<string, string> = {
   EXCEL: 'bg-[#F1FAF4] text-[#107E3E] border-[#107E3E]/40',
   ZIP:   'bg-[#F5F5F5] text-[#6A6D70] border-[#D9D9D9]',
 }
 
+const thCls = 'px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#6A6D70] whitespace-nowrap border-r border-[#E5E5E5] last:border-r-0'
+const tdCls = 'px-2.5 py-1.5 border-r border-[#EBEBEB] last:border-r-0 align-top'
+
+/** The slip list and the processing counters both change whenever a PDF is (re)read into the DB */
+function invalidateExtractViews(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: ['hpmh-rtv-return-slips'] })
+  queryClient.invalidateQueries({ queryKey: ['hpmh-rtv-extract-status'] })
+}
+
+// ── PDF → database processing: counters + "ประมวลผล" button ──────────────────
+
+const BATCH_SIZE = 5   // PDFs per request — `php artisan serve` handles one request at a time, so keep each short
+
+function ExtractProcessBar({ canProcess }: { canProcess: boolean }) {
+  const queryClient = useQueryClient()
+  const [run, setRun] = useState<{ total: number; done: number; error: number } | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const cancelled = useRef(false)
+
+  const { data: st } = useQuery<HpmhRtvExtractProgress>({
+    queryKey: ['hpmh-rtv-extract-status', VENDOR_NO],
+    queryFn: () => api.get(`${API}/extract-status`, { params: { vendor_no: VENDOR_NO } }).then(r => r.data),
+    refetchInterval: run ? false : 60_000,   // new slips are processed on the server every 5 minutes
+  })
+
+  const start = async (retryErrors: boolean) => {
+    if (!st) return
+    // Bounded by what is waiting now, so documents that keep failing (retry mode) can't loop forever
+    const total = retryErrors ? st.pending + st.error : st.pending
+    let done = 0, failed = 0
+    cancelled.current = false
+    setMessage(null)
+    setRun({ total, done, error: failed })
+    try {
+      while (!cancelled.current && done < total) {
+        const { data: b } = await api.post<HpmhRtvExtractBatch>(`${API}/extract-pending`, {
+          limit: Math.min(BATCH_SIZE, total - done), vendor_no: VENDOR_NO, retry_errors: retryErrors,
+        })
+        done += b.processed
+        failed += b.error
+        setRun({ total, done, error: failed })
+        if (b.processed === 0 || b.remaining === 0) break
+      }
+      setMessage(`${cancelled.current ? 'หยุดแล้ว — ' : ''}ประมวลผล ${fmtNum(done)} ใบ${failed ? ` (อ่านไม่ได้ ${fmtNum(failed)} ใบ)` : ''}`)
+    } catch (e) {
+      const msg = isAxiosError(e) ? (e.response?.data?.message ?? e.message) : String(e)
+      setMessage(`ประมวลผลไม่สำเร็จ: ${msg} (ทำไปแล้ว ${fmtNum(done)} ใบ)`)
+    } finally {
+      setRun(null)
+      invalidateExtractViews(queryClient)
+    }
+  }
+
+  if (!st) return null
+  const pct = run && run.total > 0 ? Math.round((run.done / run.total) * 100) : 0
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 bg-white border border-[#D9D9D9] border-t-0 text-[11px]">
+      <span className="inline-flex items-center gap-1.5 font-semibold text-[#32363A]">
+        <Database className="w-3.5 h-3.5 text-[#0070F2]" /> ข้อมูลจาก PDF ในฐานข้อมูล
+      </span>
+      {run ? (
+        <div className="flex items-center gap-2 min-w-[260px] flex-1">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0070F2]" />
+          <div className="flex-1 max-w-[320px] h-1.5 bg-[#EBEBEB] rounded-full overflow-hidden">
+            <div className="h-full bg-[#0070F2] transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="tabular-nums text-[#32363A]">
+            {fmtNum(run.done)} / {fmtNum(run.total)} ใบ{run.error > 0 && <span className="text-[#BB0000]"> · อ่านไม่ได้ {fmtNum(run.error)}</span>}
+          </span>
+          <button onClick={() => { cancelled.current = true }} className="text-[10px] text-[#BB0000] hover:underline">หยุด</button>
+        </div>
+      ) : (
+        <>
+          <span className="text-[#6A6D70] tabular-nums">
+            อ่านแล้ว <b className="text-[#32363A]">{fmtNum(st.extracted)}</b> / {fmtNum(st.documents)} ใบ
+            {' · '}<span className="text-[#107E3E]">ปกติ {fmtNum(st.ok)}</span>
+            {st.warning > 0 && <> · <span className="text-[#E9730C]">มีคำเตือน {fmtNum(st.warning)}</span></>}
+            {st.error > 0 && <> · <span className="text-[#BB0000]">อ่านไม่ได้ {fmtNum(st.error)}</span></>}
+            {st.pending > 0 && <> · <span className="font-semibold text-[#32363A]">รอประมวลผล {fmtNum(st.pending)}</span></>}
+          </span>
+          {canProcess && st.pending > 0 && (
+            <button
+              onClick={() => start(false)}
+              className="inline-flex items-center gap-1 h-6 px-2.5 text-[10px] font-semibold text-white bg-[#0070F2] rounded hover:bg-[#0064D9] transition-colors"
+            >
+              <Play className="w-3 h-3" /> ประมวลผล {fmtNum(st.pending)} ใบ
+            </button>
+          )}
+          {canProcess && st.error > 0 && (
+            <button
+              onClick={() => start(true)}
+              className="inline-flex items-center gap-1 h-6 px-2.5 text-[10px] font-semibold text-[#BB0000] border border-[#BB0000]/40 rounded hover:bg-[#FFEBEB] transition-colors"
+            >
+              <RotateCw className="w-3 h-3" /> ลองอ่านใหม่ {fmtNum(st.error)} ใบ
+            </button>
+          )}
+          {st.pending === 0 && st.error === 0 && <span className="text-[10px] text-[#6A6D70]">ใบใหม่จะถูกประมวลผลอัตโนมัติทุก 5 นาที</span>}
+          {message && <span className="text-[10px] text-[#6A6D70]">{message}</span>}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Status of one slip's PDF data (list column) ──────────────────────────────
+
+function ExtractBadge({ slip }: { slip: HpmhRtvReturnSlip }) {
+  const base = 'inline-flex items-center gap-1 px-1.5 py-px text-[10px] rounded-sm border whitespace-nowrap'
+  if (!slip.doc_id) return dash
+  if (!slip.extract_status) return <span className={clsx(base, 'text-[#6A6D70] border-[#D9D9D9] bg-[#F5F5F5]')}>รอประมวลผล</span>
+  if (slip.extract_stale) return <span className={clsx(base, 'text-[#6A6D70] border-[#D9D9D9] bg-[#F5F5F5]')} title="PDF หรือตัวอ่านเปลี่ยน — จะอ่านใหม่">รออ่านใหม่</span>
+  if (slip.extract_status === 'error') return <span className={clsx(base, 'text-[#BB0000] border-[#BB0000]/40 bg-[#FFEBEB]')}>อ่านไม่ได้</span>
+  const pdf = `ใน PDF: ${fmtNum(slip.extract_total_qty)} ชิ้น · ${fmtNum(slip.extract_total, 2)} บาท`
+  if (slip.extract_mismatch) {
+    return <span className={clsx(base, 'text-[#E9730C] border-[#E9730C]/40 bg-[#FEF7F1]')} title={pdf}><AlertTriangle className="w-3 h-3" /> ไม่ตรง Excel</span>
+  }
+  if (slip.extract_status === 'warning') {
+    return <span className={clsx(base, 'text-[#E9730C] border-[#E9730C]/40 bg-[#FEF7F1]')} title={pdf}><AlertTriangle className="w-3 h-3" /> มีคำเตือน</span>
+  }
+  return <span className={clsx(base, 'text-[#107E3E] border-[#107E3E]/40 bg-[#F1FAF4]')} title={pdf}><CheckCircle2 className="w-3 h-3" /> ตรงกัน</span>
+}
+
+// ── Table read out of the return slip PDF (stored in hpmh_rtv.return_slip_extract) ──
+
+function ReturnSlipExtractTable({ slip }: { slip: HpmhRtvReturnSlip }) {
+  const queryClient = useQueryClient()
+  const [refreshing, setRefreshing] = useState(false)
+  const docId = slip.doc_id!
+  const queryKey = ['hpmh-rtv-return-slip-extract', docId]
+
+  const { data, isLoading, error } = useQuery<HpmhRtvReturnSlipExtract>({
+    queryKey,
+    queryFn: () => api.get(`${API}/documents/${docId}/extract`).then(r => {
+      // Opening an unprocessed slip reads it into the DB on the spot — refresh the list badge and counters
+      if (!slip.extract_status || slip.extract_stale) invalidateExtractViews(queryClient)
+      return r.data
+    }),
+    staleTime: Infinity,
+    retry: false,
+  })
+
+  const reExtract = async () => {
+    setRefreshing(true)
+    try {
+      const { data: fresh } = await api.get(`${API}/documents/${docId}/extract`, { params: { refresh: 1 } })
+      queryClient.setQueryData(queryKey, fresh)
+    } catch {
+      alert('อ่านข้อมูลจาก PDF ใหม่ไม่สำเร็จ')
+    } finally {
+      setRefreshing(false)
+      invalidateExtractViews(queryClient)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 px-1 py-3 text-xs text-[#6A6D70]">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" /> กำลังอ่านข้อมูลจาก PDF...
+      </div>
+    )
+  }
+  if (error || !data) {
+    const msg = isAxiosError(error) ? (error.response?.data?.error ?? error.response?.data?.message) : null
+    return <p className="px-1 py-3 text-xs text-[#BB0000]">อ่านข้อมูลจาก PDF ไม่สำเร็จ{msg ? `: ${msg}` : ''}</p>
+  }
+
+  // PDF totals vs the Excel listing row (one row per slip); 162 reversals may carry either sign, so compare magnitudes
+  const excelQty = toNum(slip.quantity)
+  const excelAmount = toNum(slip.amount)
+  const excelMismatch: string[] = []
+  if (data.total != null && excelAmount != null && Math.abs(Math.abs(data.total) - Math.abs(excelAmount)) > 0.01) {
+    excelMismatch.push(`ยอดเงินใน PDF (${fmtNum(data.total, 2)}) ไม่ตรงกับ Excel (${fmtNum(excelAmount, 2)})`)
+  }
+  if (data.total_qty != null && excelQty != null && Math.abs(Math.abs(data.total_qty) - Math.abs(excelQty)) > 0.001) {
+    excelMismatch.push(`จำนวนใน PDF (${fmtNum(data.total_qty)}) ไม่ตรงกับ Excel (${fmtNum(excelQty)})`)
+  }
+  const problems = [...data.warnings, ...excelMismatch]
+
+  const join = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ') || null
+  const info: [string, string | null][] = [
+    ['วันที่/เวลา', [data.doc_date && fmtDate(data.doc_date), data.doc_time].filter(Boolean).join(' ') || null],
+    ['สาขา', [data.site_code, data.site].filter(Boolean).join(' ') || null],
+    ['Tel/Ext สาขา', join(data.site_tel, data.site_tel2)],
+    ['คลัง', data.storage_location],
+    ['Buyer', data.buyer_code ? `${data.buyer_code} · ${data.buyer_name ?? ''}` : data.buyer],
+    ['Delivery notes', data.delivery_note],
+    ['Created By', data.created_by],
+    ['GR Text', data.gr_text],
+    ['PO Text', data.po_text],
+    ['ผู้ขาย', data.vendor_name ? `${data.vendor_name}${data.vendor_no ? ` (${data.vendor_no})` : ''}` : data.vendor_no],
+    ['ที่อยู่ผู้ขาย', data.vendor_address ?? null],
+    ['ผู้ติดต่อ', join(data.vendor_contact, data.vendor_tel && `Tel ${data.vendor_tel}`)],
+  ]
+
+  return (
+    <div className="mt-2 border border-[#E5E5E5] rounded-sm bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E5E5]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+          <span className="font-semibold text-[#32363A]">ข้อมูลในเอกสาร</span>
+          <span className="text-[#6A6D70]">{fmtNum(data.items_count)} รายการ · {data.pages} หน้า</span>
+          {data.ocr?.used ? (
+            <span
+              className="px-1.5 py-px text-[10px] text-[#0070F2] border border-[#0070F2]/40 rounded-sm bg-[#EBF5FE]"
+              title={`ข้อความภาษาไทย (ชื่อสินค้า/หมายเหตุ) ปรับด้วย OpenThai OCR ${fmtNum(data.ocr.lines)} บรรทัด · ${fmtNum(data.ocr.ms)} ms — ตัวเลขและภาษาอังกฤษยังมาจาก PDF โดยตรง`}
+            >
+              OCR ภาษาไทย
+            </span>
+          ) : data.ocr?.error ? (
+            <span className="text-[10px] text-[#6A6D70]" title={data.ocr.error}>ไม่ได้ใช้ OCR (ข้อความไทยจาก PDF)</span>
+          ) : null}
+          {problems.length === 0 ? (
+            <span className="inline-flex items-center gap-1 text-[#107E3E]">
+              <CheckCircle2 className="w-3 h-3" /> ผลรวมตรงกับยอดในเอกสารและ Excel
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[#E9730C]" title={problems.join('\n')}>
+              <AlertTriangle className="w-3 h-3" /> {problems[0]}{problems.length > 1 && ` (+${problems.length - 1})`}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={reExtract}
+          disabled={refreshing}
+          title={`อ่านล่าสุดเมื่อ ${fmtDateTime(data.extracted_at)}`}
+          className="text-[10px] text-[#0070F2] hover:underline disabled:opacity-50"
+        >
+          {refreshing ? 'กำลังอ่านใหม่...' : 'อ่าน PDF ใหม่'}
+        </button>
+      </div>
+
+      <dl className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-1 px-3 py-2 text-[11px] border-b border-[#E5E5E5]">
+        {info.map(([label, value]) => (
+          <div key={label} className="min-w-0">
+            <dt className="text-[10px] text-[#6A6D70]">{label}</dt>
+            <dd className="text-[#32363A] truncate" title={value ?? undefined}>{value || '—'}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="max-h-[420px] overflow-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-[#F2F4F7] border-b border-[#D9D9D9]">
+              <th className={clsx(thCls, 'w-12 text-center')}>Item</th>
+              <th className={thCls}>VD Part#</th>
+              <th className={thCls}>Article</th>
+              <th className={thCls}>รายการสินค้า</th>
+              <th className={thCls}>AC/CO/PO</th>
+              <th className={clsx(thCls, 'text-center')}>MVT</th>
+              <th className={clsx(thCls, 'text-center')}>หน่วย</th>
+              <th className={clsx(thCls, 'text-right')}>จำนวน</th>
+              <th className={clsx(thCls, 'text-right')}>@</th>
+              <th className={clsx(thCls, 'text-right')}>จำนวนเงิน</th>
+              <th className={clsx(thCls, 'w-12 text-center')}>หน้า</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.items.length === 0 ? (
+              <tr><td colSpan={11} className="px-4 py-6 text-center text-[#6A6D70]">ไม่พบรายการในเอกสาร</td></tr>
+            ) : data.items.map(i => (
+              <tr key={i.item} className="border-b border-[#EBEBEB] hover:bg-[#F9FAFB]">
+                <td className={clsx(tdCls, 'text-center text-[#6A6D70] tabular-nums')}>{i.item}</td>
+                <td className={tdCls}><span className="font-mono text-[10px]">{i.vd_part ?? '—'}</span></td>
+                <td className={tdCls}><span className="font-mono text-[10px] text-[#0064D9]">{i.article}</span></td>
+                <td className={tdCls}>
+                  <div
+                    className="text-[#32363A]"
+                    title={i.description_pdf && i.description_pdf !== i.description ? `ข้อความเดิมใน PDF: ${i.description_pdf}` : undefined}
+                  >
+                    {i.description ?? '—'}
+                  </div>
+                  {i.return_reason && (
+                    <span className="inline-block mt-0.5 px-1.5 py-px text-[10px] text-[#32363A] bg-[#F2F4F7] border border-[#D9D9D9] rounded-sm" title="เหตุผลการคืน">
+                      {i.return_reason}
+                    </span>
+                  )}
+                  {i.reversed_doc_no && (
+                    <span className="inline-block mt-0.5 ml-1 px-1.5 py-px text-[10px] text-[#E9730C] bg-[#FEF7F1] border border-[#E9730C]/40 rounded-sm">
+                      ยกเลิกใบ {i.reversed_doc_no}
+                    </span>
+                  )}
+                  {(i.return_reason ? i.remarks.slice(1) : i.remarks).map((r, n) => <div key={n} className="text-[10px] text-[#6A6D70]">*** {r}</div>)}
+                </td>
+                <td className={tdCls}><span className="font-mono text-[10px]">{i.po}</span></td>
+                <td className={clsx(tdCls, 'text-center font-mono text-[10px]')}>{i.mvt}</td>
+                <td className={clsx(tdCls, 'text-center text-[10px]')}>{i.unit}</td>
+                <td className={clsx(tdCls, 'text-right font-mono tabular-nums')}>
+                  {fmtNum(i.qty)}
+                  {i.base_qty != null && (i.base_qty !== i.qty || i.base_unit !== i.unit) && (
+                    <div className="text-[10px] text-[#6A6D70]" title="จำนวนในหน่วยฐาน">= {fmtNum(i.base_qty)} {i.base_unit}</div>
+                  )}
+                </td>
+                <td className={clsx(tdCls, 'text-right font-mono tabular-nums')}>{fmtNum(i.price, 2)}</td>
+                <td className={clsx(tdCls, 'text-right font-mono tabular-nums')}>{fmtNum(i.amount, 2)}</td>
+                <td className={clsx(tdCls, 'text-center text-[#6A6D70] tabular-nums')}>{i.page}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="sticky bottom-0">
+            <tr className="bg-[#F2F4F7] border-t-2 border-[#D9D9D9] font-semibold">
+              <td className={tdCls} colSpan={7}><span className="text-[10px] uppercase text-[#6A6D70]">รวม (ในเอกสาร)</span></td>
+              <td className={clsx(tdCls, 'text-right font-mono tabular-nums')}>{data.total_qty != null ? fmtNum(data.total_qty) : dash}</td>
+              <td className={tdCls} />
+              <td className={clsx(tdCls, 'text-right font-mono tabular-nums')}>{data.total != null ? fmtNum(data.total, 2) : dash}</td>
+              <td className={tdCls} />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 export default function HpmhRtvReturnSlipsPage() {
   const { can } = useAuth()
   const allowed = can('hpmh-rtv-return-slips.view')
+  const canProcess = can('hpmh-rtv-return-slips.edit')
   const [view, setView] = useState<View>('data')
 
   // ── Data filters ──
@@ -46,6 +359,7 @@ export default function HpmhRtvReturnSlipsPage() {
   const [siteCode, setSiteCode] = useState('')
   const [movementType, setMovementType] = useState('')
   const [hasPdf, setHasPdf] = useState('')
+  const [extract, setExtract] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [page, setPage] = useState(1)
@@ -57,6 +371,8 @@ export default function HpmhRtvReturnSlipsPage() {
 
   // ── PDF viewer (navigates within the current page of slips that have a PDF) ──
   const [viewIndex, setViewIndex] = useState<number | null>(null)
+  // ── Slip whose PDF data is expanded under its row ──
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   const { data: options } = useQuery<Options>({
     queryKey: ['hpmh-rtv-options', VENDOR_NO],
@@ -65,7 +381,7 @@ export default function HpmhRtvReturnSlipsPage() {
   })
 
   const { data, isLoading } = useQuery<CrcPaginatedResponse<HpmhRtvReturnSlip, 'quantity' | 'amount'>>({
-    queryKey: ['hpmh-rtv-return-slips', VENDOR_NO, debouncedSearch, siteCode, movementType, hasPdf, startDate, endDate, page],
+    queryKey: ['hpmh-rtv-return-slips', VENDOR_NO, debouncedSearch, siteCode, movementType, hasPdf, extract, startDate, endDate, page],
     queryFn: () => api.get(`${API}/return-slips`, {
       params: {
         vendor_no: VENDOR_NO,
@@ -73,6 +389,7 @@ export default function HpmhRtvReturnSlipsPage() {
         site_code: siteCode || undefined,
         movement_type: movementType || undefined,
         has_pdf: hasPdf || undefined,
+        extract: extract || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
         page,
@@ -104,9 +421,9 @@ export default function HpmhRtvReturnSlipsPage() {
 
   if (!allowed) return <ErpNoAccess />
 
-  const hasFilter = !!(search || siteCode || movementType || hasPdf || startDate || endDate)
+  const hasFilter = !!(search || siteCode || movementType || hasPdf || extract || startDate || endDate)
   const resetFilters = () => {
-    setSearch(''); setSiteCode(''); setMovementType(''); setHasPdf(''); setStartDate(''); setEndDate(''); setPage(1)
+    setSearch(''); setSiteCode(''); setMovementType(''); setHasPdf(''); setExtract(''); setStartDate(''); setEndDate(''); setPage(1)
   }
 
   const downloadPdf = async (docId: number) => {
@@ -132,11 +449,24 @@ export default function HpmhRtvReturnSlipsPage() {
     ) },
     { key: 'quantity', header: 'จำนวน', w: '80px', align: 'right', render: r => <NumCell value={r.quantity} />, total: { key: 'quantity' } },
     { key: 'amount', header: 'มูลค่า', w: '120px', align: 'right', render: r => <NumCell value={r.amount} decimals={2} />, total: { key: 'amount', decimals: 2 } },
+    { key: 'extract', header: 'ข้อมูล PDF', w: '110px', align: 'center', render: r => <ExtractBadge slip={r} /> },
     { key: 'created_by', header: 'สร้างโดย', w: '120px', render: r => <TextCell value={r.created_by} max={120} muted /> },
     { key: 'read_time', header: 'อ่านข้อมูลเมื่อ', w: '130px', render: r => <span className="text-[#6A6D70] whitespace-nowrap">{fmtDateTime(r.read_time)}</span> },
-    { key: 'pdf', header: 'ใบคืนสินค้า (PDF)', w: '110px', align: 'center', render: r => (
+    { key: 'pdf', header: 'ใบคืนสินค้า (PDF)', w: '130px', align: 'center', render: r => (
       r.doc_id ? (
         <div className="flex items-center justify-center gap-0.5">
+          <button
+            onClick={() => setExpandedId(id => (id === r.id ? null : r.id))}
+            title={expandedId === r.id ? 'ซ่อนข้อมูลในเอกสาร' : 'ดูข้อมูลในเอกสาร'}
+            className={clsx(
+              'inline-flex items-center justify-center w-6 h-6 rounded transition-colors',
+              expandedId === r.id
+                ? 'text-white bg-[#0070F2] hover:bg-[#0064D9]'
+                : 'text-[#6A6D70] hover:text-[#0070F2] hover:bg-[#EBF5FB]',
+            )}
+          >
+            <TableProperties className="w-3.5 h-3.5" />
+          </button>
           <button
             onClick={() => setViewIndex(pdfRows.findIndex(p => p.id === r.id))}
             title="ดูใบคืนสินค้า (PDF)"
@@ -198,6 +528,7 @@ export default function HpmhRtvReturnSlipsPage() {
 
       {view === 'data' && (
         <>
+          <ExtractProcessBar canProcess={canProcess} />
           <CrcFilterBar hasFilter={hasFilter} onReset={resetFilters}>
             <SapInput label="ค้นหา">
               <div className="relative">
@@ -229,6 +560,15 @@ export default function HpmhRtvReturnSlipsPage() {
                 <option value="0">ยังไม่ดึง</option>
               </select>
             </SapInput>
+            <SapInput label="ข้อมูล PDF">
+              <select value={extract} onChange={e => { setExtract(e.target.value); setPage(1) }} className={`${inputCls} pr-7 min-w-[150px]`}>
+                <option value="">ทั้งหมด</option>
+                <option value="ok">ตรงกัน</option>
+                <option value="issue">ไม่ตรง Excel / มีคำเตือน</option>
+                <option value="error">อ่านไม่ได้</option>
+                <option value="pending">รอประมวลผล</option>
+              </select>
+            </SapInput>
             <SapInput label="GR Date ตั้งแต่">
               <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1) }} className={inputCls} />
             </SapInput>
@@ -245,6 +585,7 @@ export default function HpmhRtvReturnSlipsPage() {
             emptyText="ไม่พบใบคืนสินค้า"
             emptyIcon={<Undo2 className="w-8 h-8" />}
             unit="ใบ"
+            renderExpanded={r => (r.id === expandedId && r.doc_id ? <ReturnSlipExtractTable slip={r} /> : null)}
           />
         </>
       )}
